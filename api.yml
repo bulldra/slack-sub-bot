@@ -1,8 +1,8 @@
 swagger: '2.0'
 info:
-    title: sample-api
-    description: Sample API on API Gateway with a Google Cloud Functions backend
-    version: 1.0.0
+    title: chat-ai
+    description: chat-ai API Gateway with a Google Cloud Functions backend
+    version: 0.0.1
 schemes:
     - https
 produces:
@@ -13,18 +13,18 @@ securityDefinitions:
         name: x-api-key
         in: header
 paths:
-    /hello:
+    /planning:
         post:
-            summary: Greet a user
-            operationId: hello
+            summary: planning API
+            operationId: planning
             security:
                 - api_key_header: []
             x-google-backend:
                 address: https://asia-northeast1-radiant-voyage-325608.cloudfunctions.net/chatai
             parameters:
-                - in: 'header'
-                  name: 'name'
-                  description: Your name
+                - in: header
+                  name: puroduct
+                  description: target product
                   required: true
                   type: string
             responses:
