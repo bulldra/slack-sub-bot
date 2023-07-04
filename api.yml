@@ -1,0 +1,34 @@
+swagger: '2.0'
+info:
+    title: sample-api
+    description: Sample API on API Gateway with a Google Cloud Functions backend
+    version: 1.0.0
+schemes:
+    - https
+produces:
+    - application/json
+securityDefinitions:
+    api_key_header:
+        type: apiKey
+        name: x-api-key
+        in: header
+paths:
+    /hello:
+        post:
+            summary: Greet a user
+            operationId: hello
+            security:
+                - api_key_header: []
+            x-google-backend:
+                address: https://asia-northeast1-radiant-voyage-325608.cloudfunctions.net/chatai
+            parameters:
+                - in: 'header'
+                  name: 'name'
+                  description: Your name
+                  required: true
+                  type: string
+            responses:
+                '200':
+                    description: A successful response
+                    schema:
+                        type: string
