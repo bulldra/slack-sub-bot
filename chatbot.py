@@ -1,11 +1,12 @@
-import json
+import os
 
 import openai
 
 
 class ChatBot:
     def __init__(self, system: str = "Chatbot", temperature: float = 0.0) -> None:
-        self.model: str = "gpt-3.5-turbo-16k-0613"
+        openai.api_key = os.getenv("OPENAI_API_KEY")
+        self.model: str = "gpt-3.5-turbo-0613"
         self.system: str = system.strip()
         self.temperature: float = temperature
         self.messages: list[dict[str, str]] = [
@@ -42,39 +43,11 @@ class ChatBot:
     def add_message(self, role: str, content: str) -> None:
         self.messages.append({"role": role, "content": content.strip()})
 
-    def function_completion(self, prompt) -> dict:
-        self.add_user_message(prompt)
-        model = self.model
-        if self.get_messages_length() > 4000:
-            model = "gpt-3.5-turbo-16k-0613"
-
-        response = openai.ChatCompletion.create(
-            model=model,
-            messages=self.messages,
-            temperature=self.temperature,
-            functions=self.functions,
-        )
-        message = response.get("choices")[0]["message"]  # type: ignore
-        if message.get("function_call"):
-            func_name = message.get("function_call")["name"]
-            func_args = {}
-            if message.get("function_call")["arguments"]:
-                func_args: dict = json.loads(message.get("function_call")["arguments"])
-            self.add_function_message(
-                func_name, message.get("function_call")["arguments"]
-            )
-            return {"function_name": func_name, "function_arguments": func_args}
-        else:
-            return {}
-
     def completion(self, prompt) -> str:
         self.add_user_message(prompt)
-        model = self.model
-        if self.get_messages_length() > 4000:
-            model = "gpt-3.5-turbo-16k-0613"
 
         response = openai.ChatCompletion.create(
-            model=model,
+            model=self.model,
             messages=self.messages,
             temperature=self.temperature,
         )
