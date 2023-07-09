@@ -59,7 +59,7 @@ def command_blogplan(ack, body, say):
 
 
 @functions_framework.http
-def slack_bot(request: Request):
+def main(request: Request):
     if request.method != "POST":
         return "Only POST requests are accepted", 405
     if request.headers.get("x-slack-retry-num"):
