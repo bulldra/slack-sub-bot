@@ -10,7 +10,7 @@ from google.cloud import pubsub_v1
 from slack_bolt import App
 from slack_bolt.adapter.google_cloud_functions import SlackRequestHandler
 
-GCP_PROJECT_ID = os.getenv("GCP_PROJECT")
+GCP_PROJECT_ID = "radiant-voyage-325608"
 app = App(
     token=os.getenv("SLACK_BOT_TOKEN"),
     signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
@@ -32,21 +32,30 @@ def pub(topic_id, response_url, command, text):
 
 
 @app.event("app_mention")
-def handle_app_mention_events(event, say):
-    text = event["text"]
+def handle_app_mention_events(context, body, say):
+    say("/コマンドでお手伝いしますよ")
+
+
+def command_preprocessing(ack, body, say):
+    ack()
+    response_url = body["response_url"]
+    text = body["text"]
     text = re.sub("<@[a-zA-Z0-9]{11}>", "", text)
+    return response_url, text
+
+
+@app.command("/gpt")
+def command_gpt(ack, body, say):
+    response_url, text = command_preprocessing(ack, body, say)
     say(f"{text}について思案中...")
-    response_url = event["response_url"]
-    pub("slack-ai-chat", "plain", response_url, text)
+    pub("slack-ai-chat", response_url, "completion", text)
 
 
 @app.command("/blogplan")
-def blogplan_command(ack, body, say):
-    ack()
-    text = re.sub("<@[a-zA-Z0-9]{11}>", "", body["text"])
-    say(f"{text}について思案中...")
-    response_url = body["response_url"]
-    pub("slack-ai-chat", "blogplan", response_url, text)
+def command_blogplan(ack, body, say):
+    response_url, text = command_preprocessing(ack, body, say)
+    say(f"「{text}」の記事企画について思案中...")
+    pub("slack-ai-chat", response_url, "blogplan", text)
 
 
 @functions_framework.http
