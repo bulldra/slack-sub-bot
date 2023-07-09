@@ -8,7 +8,7 @@ class Planner:
     def completion(self, theme) -> str:
         return self.chatbot.completion(theme)
 
-    def paln(self, theme) -> str:
+    def plan(self, theme) -> str:
         res = self.chatbot.completion(
             f"""## 指示
 あなたはWebメディアの編集者です。
