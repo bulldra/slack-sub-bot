@@ -11,14 +11,18 @@ def main(event, context):
     if not message.get("response_url"):
         return
 
-    text = message.get("text", "")
-    command = message.get("command")
+    text = message.get("text", "").strip()
+    command = message.get("command").strip()
 
     res = ""
     if command == "blogplan":
         res = Planner().plan(text)
-    else:
+    elif command == "abstract":
+        res = Planner().abstract(text)
+    elif command == "gpt":
         res = Planner().completion(text)
+    else:
+        res = "コマンドが見つかりませんでした"
 
     payload = {"text": res, "response_type": "in_channel"}
     response_url = message["response_url"]
