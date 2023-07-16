@@ -15,11 +15,11 @@ def main(event, context):
     command = message.get("command").strip()
 
     res = ""
-    if command == "blogplan":
+    if command == "/blogplan":
         res = Planner().plan(text)
-    elif command == "abstract":
+    elif command == "/abstract":
         res = Planner().abstract(text)
-    elif command == "gpt":
+    elif command == "/gpt":
         res = Planner().completion(text)
     else:
         res = "コマンドが見つかりませんでした"

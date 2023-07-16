@@ -41,31 +41,20 @@ def handle_app_mention_events(context, body, say):
 
 def command_preprocessing(ack, body, say):
     ack()
+    command = body["command"]
     response_url = body["response_url"]
     text = body["text"]
     text = re.sub("<@[a-zA-Z0-9]{11}>", "", text)
+    say(f"{command} {text}")
+    pub("slack-ai-chat", response_url, command, text)
     return response_url, text
 
 
 @app.command("/gpt")
-def command_gpt(ack, body, say):
-    response_url, text = command_preprocessing(ack, body, say)
-    say(f"「{text}」について思案中...")
-    pub("slack-ai-chat", response_url, "completion", text)
-
-
 @app.command("/blogplan")
-def command_blogplan(ack, body, say):
-    response_url, text = command_preprocessing(ack, body, say)
-    say(f"「{text}」の記事企画について思案中...")
-    pub("slack-ai-chat", response_url, "blogplan", text)
-
-
 @app.command("/abstract")
-def command_abstract(ack, body, say):
-    response_url, text = command_preprocessing(ack, body, say)
-    say(f"「{text}」を解析中...")
-    pub("slack-ai-chat", response_url, "abstract", text)
+def command_gpt(ack, body, say):
+    command_preprocessing(ack, body, say)
 
 
 @functions_framework.http
