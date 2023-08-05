@@ -1,12 +1,13 @@
 import json
 import os
 import re
-import urllib
 
 import openai
 import requests
 import wikipedia
 from bs4 import BeautifulSoup
+
+import url_utils
 
 SECRETS: dict = json.loads(os.getenv("SECRETS"))
 OPENAI_API_KEY = SECRETS.get("OPENAI_API_KEY")
@@ -37,7 +38,7 @@ class AgentAI(Agent):
     def __init__(self) -> None:
         super().__init__()
         openai.api_key = OPENAI_API_KEY
-        self.model = "gpt-3.5-turbo-0613"
+        self.model = "gpt-4-0613"
         self.temperature = 0.0
 
     def completion(self, prompt: str) -> str:
@@ -52,47 +53,52 @@ class AgentAI(Agent):
         return content.strip()
 
 
-class AgentSummarizeURL(AgentAI):
-    def __init__(self):
+class AgentSummarizeURL(Agent):
+    MAX_TEXT_TOKEN: str = 10000
+
+    def __init__(self) -> None:
         super().__init__()
+        openai.api_key = OPENAI_API_KEY
+        self.model = "gpt-3.5-turbo-16k-0613"
+        self.temperature = 0.0
 
     def completion(self, message) -> str:
-        url: str = message.strip()
-        parsed_url: urllib.ParseResult = urllib.parse.urlparse(url)
-        if parsed_url.scheme not in ["http", "https"]:
-            return "URL解析に失敗しました"
-
+        url = url_utils.extract_url(message)
         res = requests.get(url)
-        if res.status_code != 200:
-            return "URL解析に失敗しました"
-        canonical_url = res.url
 
         soup = BeautifulSoup(res.content, "html.parser")
         for script in soup(["script", "style"]):
             script.decompose()
-        title = canonical_url
+        title = url
         if soup.title.string is not None:
             title = re.sub(r"\n", " ", soup.title.string.strip())
         text = "\n".join([line for line in soup.stripped_strings])[
             0 : self.MAX_TEXT_TOKEN
         ]
-        res = super().completion(
-            f"""### 指示 ###
-文章を以下の制約に沿って要約してください。
+        prompt = f"""### 指示 ###
+あなたはアシスタントです。
+以下のテキストを制約に沿って箇条書きで要約してください。
 
 ### 制約 ###
-- 日本語
-- である口調
-- 3000文字以内
-- "•  "を修飾文字にした箇条書き形式
-- 具体例や得られる示唆があれば優先的に出力
-- 印象的な文章を""引用形式で出力
-- 最後にまとめを出力
+• 日本語
+• である口調
+• 3000文字以内
+• "•"を修飾文字にした箇条書き
+• 印象的な文章を""引用形式で出力
 
-### 文章 ###
+### テキスト ###
 {text}"""
+
+        messages: [] = [{"role": "user", "content": prompt.strip()}]
+        response = openai.ChatCompletion.create(
+            messages=messages,
+            model=self.model,
+            temperature=self.temperature,
         )
-        return f"""<{canonical_url}|{title}>
+        content = response.get("choices")[0]["message"]["content"]  # type: ignore
+        res = content.strip()
+
+        return f"""<{url}|{title}>
 {res}"""
 
 
