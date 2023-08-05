@@ -67,11 +67,25 @@ class AgentSummarizeURL(Agent):
         res = requests.get(url)
 
         soup = BeautifulSoup(res.content, "html.parser")
-        for script in soup(["script", "style"]):
-            script.decompose()
         title = url
         if soup.title.string is not None:
             title = re.sub(r"\n", " ", soup.title.string.strip())
+
+        for script in soup(
+            [
+                "head",
+                "script",
+                "style",
+                "header",
+                "footer",
+                "nav",
+                "iframe",
+                "aside",
+                "form",
+                "button",
+            ]
+        ):
+            script.decompose()
         text = "\n".join([line for line in soup.stripped_strings])[
             0 : self.MAX_TEXT_TOKEN
         ]
@@ -79,15 +93,16 @@ class AgentSummarizeURL(Agent):
 あなたはアシスタントです。
 以下のテキストを制約に沿って箇条書きで要約してください。
 
-### 制約 ###
+制約:
 • 日本語
 • である口調
 • 3000文字以内
 • "•"を修飾文字にした箇条書き
-• 印象的な文章を""引用形式で出力
+• パンチラインを""引用形式で出力
 
-### テキスト ###
-{text}"""
+テキスト:
+{text}
+"""
 
         messages: [] = [{"role": "user", "content": prompt.strip()}]
         response = openai.ChatCompletion.create(
