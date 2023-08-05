@@ -1,4 +1,5 @@
-__pycache__
+secrets.json
 .env
 .pytest_cache
+__pycache__/
 venv/
