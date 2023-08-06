@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import urllib
 
 import openai
 import requests
@@ -62,13 +63,28 @@ class AgentSummarizeURL(Agent):
         self.model = "gpt-3.5-turbo-16k-0613"
         self.temperature = 0.0
 
+    def is_not_scraping(self, url):
+        blacklist: [str] = [
+            "twitter.com",
+            "speakerdeck.com",
+            "youtube.com",
+        ]
+        url_obj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
+        if url_obj.netloc == b"" or url_obj.netloc == "" or url_obj.netloc in blacklist:
+            return True
+        else:
+            return False
+
     def completion(self, message) -> str:
         url = url_utils.extract_url(message)
-        res = requests.get(url)
+        if self.is_not_scraping(url):
+            return f"{url} はスクレイピングできません。"
 
+        res = requests.get(url)
         soup = BeautifulSoup(res.content, "html.parser")
         title = url
-        if soup.title.string is not None:
+
+        if soup.title is not None and soup.title.string is not None:
             title = re.sub(r"\n", " ", soup.title.string.strip())
 
         for script in soup(
