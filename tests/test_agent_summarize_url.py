@@ -9,9 +9,10 @@ import agent
 Case = collections.namedtuple("Case", ("argument", "expected"))
 
 
-def test_passing():
+def test_scraping():
     agt = agent.AgentSummarizeURL()
-    print(agt.completion("https://newspicks.com/news/8692095/body/"))
+    title, text = agt.scraping("https://www.sbbit.jp/article/cont1/120122")
+    print(text)
 
 
 def test_is_not_scraping_url():
@@ -29,7 +30,7 @@ def test_is_not_scraping_url():
 
     agt = agent.AgentSummarizeURL()
     for case in case_list:
-        actual = agt.url_utils.is_not_scraping(case.argument)
+        actual = agt.is_not_scraping(case.argument)
         print(
             f"""url_utils.is_not_scraping('{case.argument}')
 assert '{actual}' == '{case.expected}'"""
