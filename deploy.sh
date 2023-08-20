@@ -5,7 +5,7 @@ gcloud functions deploy ${FUNCTION_NAME} \
 	--region=asia-northeast1 \
 	--runtime=python311 \
 	--trigger-topic=${TRIGGER_TOPIC} \
-	--timeout=60s \
+	--timeout=120s \
 	--min-instances=0 \
 	--max-instances=10 \
 	--memory=512Mi \

@@ -1,6 +1,6 @@
+functions-framework==3.4.0
 beautifulsoup4==4.12.2
 google-cloud-logging==3.6.0
 openai==0.27.8
-requests==2.31.0
 slack-sdk==3.21.3
-wikipedia==1.4.0
+requests==2.31.0
