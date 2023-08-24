@@ -38,9 +38,8 @@ def is_allow_scraping(url: str):
         return True
 
 
-def scraping(url: str) -> (str, str):
+def scraping(url: str) -> Site:
     """スクレイピングの実施"""
-
     res = requests.get(url, timeout=(3.0, 8.0))
     soup = BeautifulSoup(res.content, "html.parser")
     title = url

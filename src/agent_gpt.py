@@ -8,6 +8,7 @@ import re
 import google.cloud.logging
 import openai
 import slack_sdk
+import tiktoken
 
 import common.slack_link_utils as link_utils
 from agent import Agent
@@ -17,18 +18,20 @@ class AgentGPT(Agent):
     """GPT-4を用いたAgent"""
 
     MAX_TOKEN: int = 8192 - 2000
-    CHUNK_SIZE: int = 500
+    CHUNK_SIZE: int = MAX_TOKEN // 20
+    BORDER_LAMBDA: int = CHUNK_SIZE // 5
 
     def __init__(self, context_memory: dict) -> None:
         """初期化"""
         super().__init__(context_memory)
 
         self.secrets: dict = json.loads(os.getenv("SECRETS"))
-        self.slack = slack_sdk.WebClient(token=self.secrets.get("SLACK_BOT_TOKEN"))
-
+        self.slack: slack_sdk.WebClient = slack_sdk.WebClient(
+            token=self.secrets.get("SLACK_BOT_TOKEN")
+        )
         openai.api_key = self.secrets.get("OPENAI_API_KEY")
-        self.model = "gpt-4-0613"
-        self.temperature = 0.0
+        self.openai_model: str = "gpt-4-0613"
+        self.openai_temperature: float = 0.0
 
         logging_client = google.cloud.logging.Client()
         logging_client.setup_logging()
@@ -39,10 +42,20 @@ class AgentGPT(Agent):
         """更新処理本体"""
         channel: str = self.context_memory.get("channel")
         timestamp: str = self.context_memory.get("ts")
-        self.update_post(channel, timestamp, "(Processing..)")
+        processing_message: str = self.context_memory.get("processing_message")
+        processing_message += "."
+        self.update_post(channel, timestamp, processing_message)
+        self.learn_context_memory(chat_history)
         prompt_messages: [dict] = self.build_prompt(chat_history)
-        for content in self.completion(prompt_messages):
-            self.update_post(channel, timestamp, content)
+        processing_message += "."
+        self.update_post(channel, timestamp, processing_message)
+        try:
+            for content in self.completion(prompt_messages):
+                self.update_post(channel, timestamp, content)
+        except openai.error.APIError as err:
+            self.logger.error(err)
+            self.update_post(channel, timestamp, "エラーが発生しました。")
+            raise err
 
     def learn_context_memory(self, chat_history: [dict]) -> None:
         """コンテキストメモリの学習反映"""
@@ -58,47 +71,69 @@ ChatGPT="現在の最新APIバージョンはGPT-4-0613"
     def build_prompt(self, chat_history: [dict]) -> [dict]:
         """promptを生成する"""
         common_sense: str = self.context_memory.get("common_sense", "")
-        system_prompt = f"""## 指示
-あなたは優秀なコンサルタントです。
-必要に応じて適切なフレームワークやテクニックを用いながら、ユーザーの質問や共有されたリンクにプロアクティブに対応してください。
-
-## 制約
+        system_prompt = f"""[assistantの設定]
+役割="優秀なマーケティングコンサルタント"
+挙動=[
+  "ステップバイステップで考える",
+  "必要に応じて追加質問",
+  "独自のアイディアを付け足す",
+  "挨拶抜きでシンプルに伝える"
+]
 言語="日本語"
-思考様式=["ステップバイステップで考える","独自のアイディアを付け足す","必要に応じて追加質問する"]
-出力形式="Markdown"
-見出し文字="##"
-強調文字="*強調*"
-句点=""
-文末="だ・である"
+口調="である"
+最終行の冒頭="お分かりいただけただろうか。"
+最終行の文末="、とでも言うのだろうか。"
+出力形式="Markdown形式"
 
-## アップデートされた基礎知識
+[アップデートされた基礎知識]
 {common_sense}
 """
+        openai_encoding: tiktoken.core.Encoding = tiktoken.encoding_for_model(
+            self.openai_model
+        )
         prompt_messages: [dict] = [{"role": "system", "content": system_prompt}]
         for chat in chat_history:
-            content: str = chat.get("content")
-            plen: int = sum([len(p.get("content")) for p in prompt_messages])
-            while len(content) + plen > self.MAX_TOKEN:
-                if len(prompt_messages) > 1:
-                    del prompt_messages[1]
-                    plen = sum([len(p.get("content")) for p in prompt_messages])
-                else:
-                    content = content[: self.MAX_TOKEN - plen]
-                    content = re.sub("(.*)\n[^\n]+?$", "\\1", content)
+            current_content: str = chat.get("content")
+            current_count: int = len(openai_encoding.encode(current_content))
+            while ():
+                prompt_count: int = len(
+                    openai_encoding.encode(
+                        "".join([p.get("content") for p in prompt_messages])
+                    )
+                )
 
-            prompt_messages.append({"role": chat.get("role"), "content": content})
-            self.logger.debug(prompt_messages)
+                if current_count + prompt_count < self.MAX_TOKEN:
+                    break
+                elif len(prompt_messages) <= 1:
+                    current_content = current_content[: self.MAX_TOKEN - prompt_count]
+                    current_content = re.sub("(.*)\n[^\n]+?$", "\\1", current_content)
+                    break
+                else:
+                    del prompt_messages[1]
+
+            prompt_messages.append(
+                {"role": chat.get("role"), "content": current_content}
+            )
+
+        prompt_count: int = len(
+            openai_encoding.encode(
+                "".join([p.get("content") for p in prompt_messages])
+            )
+        )
+        self.logger.debug(prompt_messages)
+        self.logger.debug("token count %s", prompt_count)
         return prompt_messages
 
     def completion(self, prompt_messages: [dict]):
         """OpenAIのAPIを用いて文章を生成する"""
         stream = openai.ChatCompletion.create(
             messages=prompt_messages,
-            model=self.model,
-            temperature=self.temperature,
+            model=self.openai_model,
+            temperature=self.openai_temperature,
             stream=True,
         )
         response_text = ""
+        prev_text: str = ""
         str_mark: int = 0
         border: int = self.CHUNK_SIZE
         for chunk in stream:
@@ -109,20 +144,25 @@ ChatGPT="現在の最新APIバージョンはGPT-4-0613"
                     if len(response_text) >= border:
                         res: str = self.banning(response_text, str_mark)
                         str_mark = len(response_text)
-                        border += self.CHUNK_SIZE
-                        yield self.decolation_response(res)
-        response_text = self.decolation_response(response_text)
-        self.logger.debug(response_text)
-        yield response_text
+                        if prev_text != res:
+                            border += self.CHUNK_SIZE
+                            prev_text = res
+                            yield self.decolation_response(res)
+                        else:
+                            border += self.BORDER_LAMBDA
+        response_text += "\n"
+        res: str = self.decolation_response(response_text)
+        self.logger.debug(res)
+        yield res
 
     def banning(self, content, begin) -> str:
-        """2回以上連続で改行が入る場合に文章出力を止める"""
-        split_token = "\n\n"
-        tokens = re.split(split_token, content[begin:])
-        result = content
+        """改行途中で出力が止まらないようにする"""
+        split_token: str = "\n"
+        tokens: [str] = re.split(split_token, content[begin:])
         if len(tokens) > 1:
-            result = content[0:begin] + split_token.join(tokens[:-1])
-        return result
+            return content[0:begin] + split_token.join(tokens[:-1])
+        else:
+            return content
 
     def decolation_response(self, response: str) -> str:
         """レスポンスをデコレーションする"""
@@ -131,5 +171,5 @@ ChatGPT="現在の最新APIバージョンはGPT-4-0613"
     def update_post(self, channel, timestamp, content: str) -> dict:
         """Slack投稿の更新"""
         return self.slack.chat_update(
-            channel=channel, ts=timestamp, text=content[:4000]
+            channel=channel, ts=timestamp, text=content[:3900]
         )
