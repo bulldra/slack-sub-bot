@@ -26,4 +26,6 @@ def main(cloud_event):
     context_memory: dict = topics_message.get("context")
     chat_history: [dict] = topics_message.get("chat_history")
 
-    agent_factory.create(context_memory, chat_history).execute(chat_history)
+    agent_factory.create(context_memory, chat_history).execute(
+        context_memory, chat_history
+    )

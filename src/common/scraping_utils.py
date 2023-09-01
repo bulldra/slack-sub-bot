@@ -46,12 +46,12 @@ def scraping(url: str) -> Site:
     if soup.title is not None and soup.title.string is not None:
         title = re.sub(r"\n", " ", soup.title.string.strip())
 
-    description = ""
+    description: str = None
     meta_discription = soup.find("meta", attrs={"name": "description"})
     if meta_discription and meta_discription.get("content"):
         description = meta_discription.get("content")
 
-    keywords = []
+    keywords: [str] = None
     meta_keywords = soup.find("meta", attrs={"name": "keywords"})
     if meta_keywords and meta_keywords.get("content"):
         keywords = meta_keywords.get("content").split(",")
@@ -71,5 +71,23 @@ def scraping(url: str) -> Site:
     ):
         script.decompose()
 
-    content: str = "".join([line for line in soup.stripped_strings])
+    for cr_tag in soup(
+        [
+            "br",
+            "div",
+            "table",
+            "li",
+            "tr",
+            "td",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+        ]
+    ):
+        cr_tag.insert_after("\n")
+    content: str = re.sub(r"[\n\s]+", "\n", soup.get_text())
+
     return Site(url, title, description, keywords, content)

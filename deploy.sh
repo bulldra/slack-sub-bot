@@ -7,7 +7,7 @@ gcloud functions deploy ${FUNCTION_NAME} \
 	--trigger-topic=${TRIGGER_TOPIC} \
 	--timeout=120s \
 	--min-instances=0 \
-	--max-instances=20 \
+	--max-instances=30 \
 	--memory=512Mi \
 	--source=src/ \
 	--entry-point=main \

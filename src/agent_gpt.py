@@ -20,11 +20,10 @@ class AgentGPT(Agent):
     MAX_TOKEN: int = 8192 - 2000
     CHUNK_SIZE: int = MAX_TOKEN // 20
     BORDER_LAMBDA: int = CHUNK_SIZE // 5
+    SLACK_MAX_MESSAGE: int = 1333
 
-    def __init__(self, context_memory: dict) -> None:
+    def __init__(self) -> None:
         """初期化"""
-        super().__init__(context_memory)
-
         self.secrets: dict = json.loads(os.getenv("SECRETS"))
         self.slack: slack_sdk.WebClient = slack_sdk.WebClient(
             token=self.secrets.get("SLACK_BOT_TOKEN")
@@ -38,39 +37,54 @@ class AgentGPT(Agent):
         self.logger: logging.Logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
 
-    def execute(self, chat_history: [dict]) -> None:
+    def execute(self, context_memory: dict, chat_history: [dict]) -> None:
         """更新処理本体"""
-        channel: str = self.context_memory.get("channel")
-        timestamp: str = self.context_memory.get("ts")
-        processing_message: str = self.context_memory.get("processing_message")
+        channel: str = context_memory.get("channel")
+        timestamp: str = context_memory.get("ts")
+        processing_message: str = context_memory.get("processing_message")
         processing_message += "."
-        self.update_post(channel, timestamp, processing_message)
-        self.learn_context_memory(chat_history)
-        prompt_messages: [dict] = self.build_prompt(chat_history)
+        self.slack.chat_update(channel=channel, ts=timestamp, text=processing_message)
+        self.learn_context_memory(context_memory, chat_history)
+        prompt_messages: [dict] = self.build_prompt(context_memory, chat_history)
         processing_message += "."
-        self.update_post(channel, timestamp, processing_message)
+        self.slack.chat_update(channel=channel, ts=timestamp, text=processing_message)
+        result_content: str = ""
         try:
-            for content in self.completion(prompt_messages):
-                self.update_post(channel, timestamp, content)
+            for content in self.completion(context_memory, prompt_messages):
+                result_content = content
+                if len(result_content) <= self.SLACK_MAX_MESSAGE:
+                    self.slack.chat_update(
+                        channel=channel, ts=timestamp, text=result_content
+                    )
         except openai.error.APIError as err:
             self.logger.error(err)
-            self.update_post(channel, timestamp, "エラーが発生しました。")
+            self.slack.chat_update(channel=channel, ts=timestamp, text="エラーが発生しました。")
             raise err
+        if len(result_content) > self.SLACK_MAX_MESSAGE:
+            self.slack.chat_delete(channel=channel, ts=timestamp)
+            thread_ts: str = context_memory.get("thread_ts")
+            self.logger.debug(thread_ts)
+            self.logger.debug(result_content)
+            self.slack.chat_postMessage(
+                channel=channel,
+                thread_ts=thread_ts,
+                text=result_content,
+            )
 
-    def learn_context_memory(self, chat_history: [dict]) -> None:
+    def learn_context_memory(self, context_memory: dict, chat_history: [dict]) -> None:
         """コンテキストメモリの学習反映"""
-        self.context_memory[
+        context_memory[
             "common_sense"
         ] = """
 Twitter="Xに改称。現在のCEOはリンダ・ヤッカリーノでイーロン・マスクの影響が強い"
 Threads=["METAの運営するTwitter代替プラットフォーム","Instrgramのユーザー情報を利用","APIには対応してない"]
 ChatGPT="現在の最新APIバージョンはGPT-4-0613"
 """
-        self.context_memory["chat_history"] = chat_history
+        context_memory["chat_history"] = chat_history
 
-    def build_prompt(self, chat_history: [dict]) -> [dict]:
+    def build_prompt(self, context_memory, chat_history: [dict]) -> [dict]:
         """promptを生成する"""
-        common_sense: str = self.context_memory.get("common_sense", "")
+        common_sense: str = context_memory.get("common_sense", "")
         system_prompt = f"""[assistantの設定]
 役割="優秀なマーケティングコンサルタント"
 挙動=[
@@ -95,7 +109,7 @@ ChatGPT="現在の最新APIバージョンはGPT-4-0613"
         for chat in chat_history:
             current_content: str = chat.get("content")
             current_count: int = len(openai_encoding.encode(current_content))
-            while ():
+            while True:
                 prompt_count: int = len(
                     openai_encoding.encode(
                         "".join([p.get("content") for p in prompt_messages])
@@ -106,7 +120,7 @@ ChatGPT="現在の最新APIバージョンはGPT-4-0613"
                     break
                 elif len(prompt_messages) <= 1:
                     current_content = current_content[: self.MAX_TOKEN - prompt_count]
-                    current_content = re.sub("(.*)\n[^\n]+?$", "\\1", current_content)
+                    current_content = re.sub("\n[^\n]+?$", "\n", current_content)
                     break
                 else:
                     del prompt_messages[1]
@@ -116,15 +130,13 @@ ChatGPT="現在の最新APIバージョンはGPT-4-0613"
             )
 
         prompt_count: int = len(
-            openai_encoding.encode(
-                "".join([p.get("content") for p in prompt_messages])
-            )
+            openai_encoding.encode("".join([p.get("content") for p in prompt_messages]))
         )
         self.logger.debug(prompt_messages)
         self.logger.debug("token count %s", prompt_count)
         return prompt_messages
 
-    def completion(self, prompt_messages: [dict]):
+    def completion(self, context_memory, prompt_messages: [dict]):
         """OpenAIのAPIを用いて文章を生成する"""
         stream = openai.ChatCompletion.create(
             messages=prompt_messages,
@@ -132,44 +144,27 @@ ChatGPT="現在の最新APIバージョンはGPT-4-0613"
             temperature=self.openai_temperature,
             stream=True,
         )
-        response_text = ""
+        response_text: str = ""
         prev_text: str = ""
-        str_mark: int = 0
-        border: int = self.CHUNK_SIZE
+        border: int = self.BORDER_LAMBDA
         for chunk in stream:
-            if chunk:
-                content = chunk["choices"][0]["delta"].get("content")
-                if content:
-                    response_text += content
-                    if len(response_text) >= border:
-                        res: str = self.banning(response_text, str_mark)
-                        str_mark = len(response_text)
-                        if prev_text != res:
-                            border += self.CHUNK_SIZE
-                            prev_text = res
-                            yield self.decolation_response(res)
-                        else:
-                            border += self.BORDER_LAMBDA
-        response_text += "\n"
-        res: str = self.decolation_response(response_text)
+            add_content: str = chunk["choices"][0]["delta"].get("content")
+            if add_content:
+                response_text += add_content
+                if len(response_text) >= border:
+                    # 追加で表示されるコンテンツが複数行の場合は最終行の表示を留保する
+                    tokens: [str] = re.split("\n", response_text[len(prev_text) :])
+                    if len(tokens) >= 2:
+                        res: str = prev_text + "\n".join(tokens[:-1])
+                        border += self.CHUNK_SIZE
+                        prev_text = res
+                        yield self.decolation_response(context_memory, res)
+                    else:
+                        border += self.BORDER_LAMBDA
+        res: str = self.decolation_response(context_memory, response_text + "\n")
         self.logger.debug(res)
         yield res
 
-    def banning(self, content, begin) -> str:
-        """改行途中で出力が止まらないようにする"""
-        split_token: str = "\n"
-        tokens: [str] = re.split(split_token, content[begin:])
-        if len(tokens) > 1:
-            return content[0:begin] + split_token.join(tokens[:-1])
-        else:
-            return content
-
-    def decolation_response(self, response: str) -> str:
+    def decolation_response(self, context_memory: dict, response: str) -> str:
         """レスポンスをデコレーションする"""
         return link_utils.convert_mrkdwn(response)
-
-    def update_post(self, channel, timestamp, content: str) -> dict:
-        """Slack投稿の更新"""
-        return self.slack.chat_update(
-            channel=channel, ts=timestamp, text=content[:3900]
-        )

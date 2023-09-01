@@ -12,9 +12,9 @@ class AgentSummarize(AgentGPT):
 
     MAX_TOKEN: int = 16384 - 2000
 
-    def learn_context_memory(self, chat_history: [dict]) -> None:
+    def learn_context_memory(self, context_memory, chat_history: [dict]) -> None:
         """コンテキストメモリの初期化"""
-        super().learn_context_memory(chat_history)
+        super().learn_context_memory(context_memory, chat_history)
         self.openai_model = "gpt-3.5-turbo-16k-0613"
         url: str = link_utils.extract_and_remove_tracking_url(
             chat_history[-1].get("content")
@@ -22,40 +22,42 @@ class AgentSummarize(AgentGPT):
         if not scraping_utils.is_allow_scraping(url):
             raise ValueError("is not allow scraping.")
         site: scraping_utils.Site = scraping_utils.scraping(url)
-        self.context_memory["site"] = site
-        self.context_memory["title"] = link_utils.build_link(site.url, site.title)
+        context_memory["site"] = site
+        context_memory["title"] = link_utils.build_link(site.url, site.title)
 
-    def build_prompt(self, chat_history: [dict]) -> [dict]:
+    def build_prompt(self, context_memory: dict, chat_history: [dict]) -> [dict]:
         """OpenAI APIを使って要約するためのpromptを生成する"""
-        site: scraping_utils.Site = self.context_memory.get("site")
-        prompt = f"""指示=以下の[本文]から[制約]に沿って[処理]を実行してください。
+        site: scraping_utils.Site = context_memory.get("site")
+        prompt = f"""指示=以下の[記事情報]と[本文]から[制約]に沿って[処理]を実行してください。
 
-## 制約
-文字数制限="3000文字以内"
-出力形式="Markdown"
+[制約]
+文字数制限="1000文字以内"
+出力形式="Markdown形式"
 見出し文字="##"
 句点=""
 文末="である"
 
-## 処理
-概要="この記事のまとめ。discriptionがあればそれを使う"
+[処理]
+概要="descriptionがあればdescriptionを出力"
 要約="記事の内容を箇条書きで要約"
-引用="示唆の得られる複数の文章を先頭に>引用形式で出力"
+引用="本文中から示唆の得られる文章群を先頭に>引用形式で出力"
 考察="記事から演繹的に導出される考察をステップバイステップで出力"
-反論と改善="記事に対する反論とアウフヘーベンを出力"
+反論と改善="記事に対する反論と改善案を出力"
 ネクストアクション="次にすべきことや関連して調べるべき内容を出力"
 
-
-*本文*
+[記事情報]
 title="{site.title}"
-discription="{site.title}"
-keywords="{site.keywords}"
-content="{site.content}"
 """
-        prompt_messages: [dict] = [{"role": "user", "content": prompt}]
-        return super().build_prompt(prompt_messages)
 
-    def decolation_response(self, response: str) -> str:
+        if site.description is not None:
+            prompt += f'description="{site.description}"\n'
+        if site.keywords is not None:
+            prompt += f'keywords="{site.keywords}"\n'
+        prompt += f"[本文]\n{site.content}\n"
+        prompt_messages: [dict] = [{"role": "user", "content": prompt}]
+        return super().build_prompt(context_memory, prompt_messages)
+
+    def decolation_response(self, context_memory: dict, response: str) -> str:
         """レスポンスをデコレーションする"""
-        title: str = self.context_memory.get("title")
-        return super().decolation_response(f"{title}\n{response}")
+        title: str = context_memory.get("title")
+        return super().decolation_response(context_memory, f"{title}\n{response}")
