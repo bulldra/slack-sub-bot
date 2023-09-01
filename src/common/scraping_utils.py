@@ -1,4 +1,4 @@
-"""スクレイピング関連おユーティリティ"""
+"""スクレイピング関連のユーティリティ"""
 import os
 import re
 import urllib
