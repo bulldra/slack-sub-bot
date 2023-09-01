@@ -23,9 +23,7 @@ def main(cloud_event):
         base64.b64decode(cloud_event.data["message"].get("data")).decode()
     )
     logger.debug(topics_message)
-    context_memory: dict = topics_message.get("context")
+    context: dict = topics_message.get("context")
     chat_history: [dict] = topics_message.get("chat_history")
 
-    agent_factory.create(context_memory, chat_history).execute(
-        context_memory, chat_history
-    )
+    agent_factory.create(context, chat_history).execute(context, chat_history)

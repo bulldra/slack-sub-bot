@@ -8,13 +8,13 @@ from agent_gpt import AgentGPT
 from agent_summarize import AgentSummarize
 
 
-def create(context_memory: dict, chat_history: [dict]) -> Agent:
+def create(context: dict, chat_history: [dict]) -> Agent:
     """AgentFactory"""
 
     if chat_history is None or len(chat_history) == 0:
         raise ValueError("chat_history is empty")
 
-    command: str = context_memory.get("command")
+    command: str = context.get("command")
     if command is None:
         command = "/gpt"
         text: str = chat_history[-1].get("content")

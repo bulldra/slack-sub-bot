@@ -37,20 +37,20 @@ class AgentGPT(Agent):
         self.logger: logging.Logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
 
-    def execute(self, context_memory: dict, chat_history: [dict]) -> None:
+    def execute(self, context: dict, chat_history: [dict]) -> None:
         """更新処理本体"""
-        channel: str = context_memory.get("channel")
-        timestamp: str = context_memory.get("ts")
-        processing_message: str = context_memory.get("processing_message")
+        channel: str = context.get("channel")
+        timestamp: str = context.get("ts")
+        processing_message: str = context.get("processing_message")
         processing_message += "."
         self.slack.chat_update(channel=channel, ts=timestamp, text=processing_message)
-        self.learn_context_memory(context_memory, chat_history)
-        prompt_messages: [dict] = self.build_prompt(context_memory, chat_history)
+        self.learn_context_memory(context, chat_history)
+        prompt_messages: [dict] = self.build_prompt(context, chat_history)
         processing_message += "."
         self.slack.chat_update(channel=channel, ts=timestamp, text=processing_message)
         result_content: str = ""
         try:
-            for content in self.completion(context_memory, prompt_messages):
+            for content in self.completion(context, prompt_messages):
                 result_content = content
                 if len(result_content) <= self.SLACK_MAX_MESSAGE:
                     self.slack.chat_update(
@@ -62,7 +62,7 @@ class AgentGPT(Agent):
             raise err
         if len(result_content) > self.SLACK_MAX_MESSAGE:
             self.slack.chat_delete(channel=channel, ts=timestamp)
-            thread_ts: str = context_memory.get("thread_ts")
+            thread_ts: str = context.get("thread_ts")
             self.logger.debug(thread_ts)
             self.logger.debug(result_content)
             self.slack.chat_postMessage(
@@ -71,20 +71,21 @@ class AgentGPT(Agent):
                 text=result_content,
             )
 
-    def learn_context_memory(self, context_memory: dict, chat_history: [dict]) -> None:
+    def learn_context_memory(self, context: dict, chat_history: [dict]) -> None:
         """コンテキストメモリの学習反映"""
-        context_memory[
+
+        context[
             "common_sense"
         ] = """
 Twitter="Xに改称。現在のCEOはリンダ・ヤッカリーノでイーロン・マスクの影響が強い"
 Threads=["METAの運営するTwitter代替プラットフォーム","Instrgramのユーザー情報を利用","APIには対応してない"]
 ChatGPT="現在の最新APIバージョンはGPT-4-0613"
 """
-        context_memory["chat_history"] = chat_history
+        context["chat_history"] = chat_history
 
-    def build_prompt(self, context_memory, chat_history: [dict]) -> [dict]:
+    def build_prompt(self, context, chat_history: [dict]) -> [dict]:
         """promptを生成する"""
-        common_sense: str = context_memory.get("common_sense", "")
+        common_sense: str = context.get("common_sense", "")
         system_prompt = f"""[assistantの設定]
 役割="優秀なマーケティングコンサルタント"
 挙動=[
@@ -136,7 +137,7 @@ ChatGPT="現在の最新APIバージョンはGPT-4-0613"
         self.logger.debug("token count %s", prompt_count)
         return prompt_messages
 
-    def completion(self, context_memory, prompt_messages: [dict]):
+    def completion(self, context, prompt_messages: [dict]):
         """OpenAIのAPIを用いて文章を生成する"""
         stream = openai.ChatCompletion.create(
             messages=prompt_messages,
@@ -158,13 +159,14 @@ ChatGPT="現在の最新APIバージョンはGPT-4-0613"
                         res: str = prev_text + "\n".join(tokens[:-1])
                         border += self.CHUNK_SIZE
                         prev_text = res
-                        yield self.decolation_response(context_memory, res)
+                        yield self.decolation_response(context, res)
                     else:
                         border += self.BORDER_LAMBDA
-        res: str = self.decolation_response(context_memory, response_text + "\n")
+        res: str = self.decolation_response(context, response_text + "\n")
         self.logger.debug(res)
         yield res
 
-    def decolation_response(self, context_memory: dict, response: str) -> str:
+    def decolation_response(self, context: dict, response: str) -> str:
         """レスポンスをデコレーションする"""
-        return link_utils.convert_mrkdwn(response)
+        processing_message: str = context.get("processing_message")
+        return link_utils.convert_mrkdwn(response) + f"\n{processing_message}"

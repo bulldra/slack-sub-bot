@@ -12,9 +12,9 @@ class AgentSummarize(AgentGPT):
 
     MAX_TOKEN: int = 16384 - 2000
 
-    def learn_context_memory(self, context_memory, chat_history: [dict]) -> None:
+    def learn_context_memory(self, context, chat_history: [dict]) -> None:
         """コンテキストメモリの初期化"""
-        super().learn_context_memory(context_memory, chat_history)
+        super().learn_context_memory(context, chat_history)
         self.openai_model = "gpt-3.5-turbo-16k-0613"
         url: str = link_utils.extract_and_remove_tracking_url(
             chat_history[-1].get("content")
@@ -22,12 +22,12 @@ class AgentSummarize(AgentGPT):
         if not scraping_utils.is_allow_scraping(url):
             raise ValueError("is not allow scraping.")
         site: scraping_utils.Site = scraping_utils.scraping(url)
-        context_memory["site"] = site
-        context_memory["title"] = link_utils.build_link(site.url, site.title)
+        context["site"] = site
+        context["title"] = link_utils.build_link(site.url, site.title)
 
-    def build_prompt(self, context_memory: dict, chat_history: [dict]) -> [dict]:
+    def build_prompt(self, context: dict, chat_history: [dict]) -> [dict]:
         """OpenAI APIを使って要約するためのpromptを生成する"""
-        site: scraping_utils.Site = context_memory.get("site")
+        site: scraping_utils.Site = context.get("site")
         prompt = f"""指示=以下の[記事情報]と[本文]から[制約]に沿って[処理]を実行してください。
 
 [制約]
@@ -55,9 +55,9 @@ title="{site.title}"
             prompt += f'keywords="{site.keywords}"\n'
         prompt += f"[本文]\n{site.content}\n"
         prompt_messages: [dict] = [{"role": "user", "content": prompt}]
-        return super().build_prompt(context_memory, prompt_messages)
+        return super().build_prompt(context, prompt_messages)
 
-    def decolation_response(self, context_memory: dict, response: str) -> str:
+    def decolation_response(self, context: dict, response: str) -> str:
         """レスポンスをデコレーションする"""
-        title: str = context_memory.get("title")
-        return super().decolation_response(context_memory, f"{title}\n{response}")
+        title: str = context.get("title")
+        return super().decolation_response(context, f"{title}\n{response}")
