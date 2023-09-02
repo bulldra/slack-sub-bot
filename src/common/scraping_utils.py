@@ -40,7 +40,14 @@ def is_allow_scraping(url: str):
 
 def scraping(url: str) -> Site:
     """スクレイピングの実施"""
-    res = requests.get(url, timeout=(3.0, 8.0))
+    res = None
+    try:
+        res = requests.get(url, timeout=(3.0, 8.0))
+    except requests.exceptions.TooManyRedirects:
+        return None
+    except requests.exceptions.RequestException:
+        return None
+
     soup = BeautifulSoup(res.content, "html.parser")
     title = url
     if soup.title is not None and soup.title.string is not None:
