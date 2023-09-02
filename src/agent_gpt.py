@@ -17,7 +17,6 @@ from agent import Agent
 class AgentGPT(Agent):
     """GPT-4を用いたAgent"""
 
-    MAX_TOKEN: int = 8192 - 2000
     SLACK_MAX_MESSAGE: int = 1333
 
     def __init__(self) -> None:
@@ -29,6 +28,7 @@ class AgentGPT(Agent):
         openai.api_key = self.secrets.get("OPENAI_API_KEY")
         self.openai_model: str = "gpt-4-0613"
         self.openai_temperature: float = 0.0
+        self.max_token: int = 8192 - 2000
 
         logging_client = google.cloud.logging.Client()
         logging_client.setup_logging()
@@ -97,10 +97,10 @@ class AgentGPT(Agent):
                     )
                 )
 
-                if current_count + prompt_count < self.MAX_TOKEN:
+                if current_count + prompt_count < self.max_token:
                     break
                 if len(prompt_messages) <= 1:
-                    current_content = current_content[: self.MAX_TOKEN - prompt_count]
+                    current_content = current_content[: self.max_token - prompt_count]
                     current_content = re.sub("\n[^\n]+?$", "\n", current_content)
                     break
                 del prompt_messages[1]
@@ -118,7 +118,7 @@ class AgentGPT(Agent):
 
     def completion(self, context, prompt_messages: [dict]):
         """OpenAIのAPIを用いて文章を生成する"""
-        chunk_size: int = self.MAX_TOKEN // 15
+        chunk_size: int = self.max_token // 15
         border_lambda: int = chunk_size // 5
 
         stream = openai.ChatCompletion.create(

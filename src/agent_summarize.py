@@ -10,12 +10,15 @@ from agent_gpt import AgentGPT
 class AgentSummarize(AgentGPT):
     """URLから本文を抜き出して要約する"""
 
-    MAX_TOKEN: int = 16384 - 2000
+    def __init__(self) -> None:
+        """初期化"""
+        super().__init__()
+        self.max_token: int = 16384 - 2000
+        self.openai_model = "gpt-3.5-turbo-16k-0613"
 
     def learn_context_memory(self, context, chat_history: [dict]) -> dict:
         """コンテキストメモリの初期化"""
         super().learn_context_memory(context, chat_history)
-        self.openai_model = "gpt-3.5-turbo-16k-0613"
         url: str = link_utils.extract_and_remove_tracking_url(
             chat_history[-1].get("content")
         )
