@@ -20,8 +20,10 @@ class AgentSummarize(AgentGPT):
             chat_history[-1].get("content")
         )
         if not scraping_utils.is_allow_scraping(url):
-            raise ValueError("is not allow scraping.")
+            return ValueError("scraping is not allowed")
         site: scraping_utils.Site = scraping_utils.scraping(url)
+        if site is None:
+            raise ValueError("scraping failed")
         context["site"] = site
         context["title"] = link_utils.build_link(site.url, site.title)
         return context

@@ -44,7 +44,10 @@ class AgentGPT(Agent):
         processing_message: str = context.get("processing_message")
         processing_message += "."
         self.slack.chat_update(channel=channel, ts=timestamp, text=processing_message)
-        self.learn_context_memory(context, chat_history)
+        try:
+            self.learn_context_memory(context, chat_history)
+        except ValueError as err:
+            self.error(context, err)
         prompt_messages: [dict] = self.build_prompt(context, chat_history)
         processing_message += "."
         self.slack.chat_update(channel=channel, ts=timestamp, text=processing_message)
@@ -57,9 +60,7 @@ class AgentGPT(Agent):
                         channel=channel, ts=timestamp, text=result_content
                     )
         except openai.error.APIError as err:
-            self.logger.error(err)
-            self.slack.chat_update(channel=channel, ts=timestamp, text="エラーが発生しました。")
-            raise err
+            self.error(context, err)
         if len(result_content) > self.SLACK_MAX_MESSAGE:
             self.slack.chat_delete(channel=channel, ts=timestamp)
             thread_ts: str = context.get("thread_ts")
@@ -169,3 +170,11 @@ ChatGPT="現在の最新APIバージョンはGPT-4-0613"
     def decolation_response(self, context: dict, response: str) -> str:
         """レスポンスをデコレーションする"""
         return link_utils.convert_mrkdwn(response)
+
+    def error(self, context: dict, err: Exception) -> None:
+        """エラー処理"""
+        self.logger.error(err)
+        channel: str = context.get("channel")
+        timestamp: str = context.get("ts")
+        self.slack.chat_update(channel=channel, ts=timestamp, text="エラーが発生しました。")
+        raise err
