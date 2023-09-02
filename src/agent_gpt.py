@@ -71,7 +71,7 @@ class AgentGPT(Agent):
                 text=result_content,
             )
 
-    def learn_context_memory(self, context: dict, chat_history: [dict]) -> None:
+    def learn_context_memory(self, context: dict, chat_history: [dict]) -> dict:
         """コンテキストメモリの学習反映"""
 
         context[
@@ -82,6 +82,7 @@ Threads=["METAの運営するTwitter代替プラットフォーム","Instrgram�
 ChatGPT="現在の最新APIバージョンはGPT-4-0613"
 """
         context["chat_history"] = chat_history
+        return context
 
     def build_prompt(self, context, chat_history: [dict]) -> [dict]:
         """promptを生成する"""
@@ -119,12 +120,11 @@ ChatGPT="現在の最新APIバージョンはGPT-4-0613"
 
                 if current_count + prompt_count < self.MAX_TOKEN:
                     break
-                elif len(prompt_messages) <= 1:
+                if len(prompt_messages) <= 1:
                     current_content = current_content[: self.MAX_TOKEN - prompt_count]
                     current_content = re.sub("\n[^\n]+?$", "\n", current_content)
                     break
-                else:
-                    del prompt_messages[1]
+                del prompt_messages[1]
 
             prompt_messages.append(
                 {"role": chat.get("role"), "content": current_content}
@@ -162,11 +162,10 @@ ChatGPT="現在の最新APIバージョンはGPT-4-0613"
                         yield self.decolation_response(context, res)
                     else:
                         border += self.BORDER_LAMBDA
-        res: str = self.decolation_response(context, response_text + "\n")
+        res: str = self.decolation_response(context, response_text)
         self.logger.debug(res)
         yield res
 
     def decolation_response(self, context: dict, response: str) -> str:
         """レスポンスをデコレーションする"""
-        processing_message: str = context.get("processing_message")
-        return link_utils.convert_mrkdwn(response) + f"\n{processing_message}"
+        return link_utils.convert_mrkdwn(response)

@@ -12,7 +12,7 @@ class AgentSummarize(AgentGPT):
 
     MAX_TOKEN: int = 16384 - 2000
 
-    def learn_context_memory(self, context, chat_history: [dict]) -> None:
+    def learn_context_memory(self, context, chat_history: [dict]) -> dict:
         """コンテキストメモリの初期化"""
         super().learn_context_memory(context, chat_history)
         self.openai_model = "gpt-3.5-turbo-16k-0613"
@@ -24,6 +24,7 @@ class AgentSummarize(AgentGPT):
         site: scraping_utils.Site = scraping_utils.scraping(url)
         context["site"] = site
         context["title"] = link_utils.build_link(site.url, site.title)
+        return context
 
     def build_prompt(self, context: dict, chat_history: [dict]) -> [dict]:
         """OpenAI APIを使って要約するためのpromptを生成する"""
