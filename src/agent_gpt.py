@@ -75,7 +75,6 @@ class AgentGPT(Agent):
             with open(f"conf/{interaction}.toml", "r", encoding="utf-8") as file:
                 system_prompt += f"[{interaction}]\n{file.read()}\n\n"
         context["system_prompt"] = system_prompt
-        context["chat_history"] = chat_history
         return context
 
     def build_prompt(self, context, chat_history: [dict]) -> [dict]:
