@@ -62,15 +62,7 @@ class AgentGPT(Agent):
         except openai.error.APIError as err:
             self.error(context, err)
         if len(result_content) > self.SLACK_MAX_MESSAGE:
-            self.slack.chat_delete(channel=channel, ts=timestamp)
-            thread_ts: str = context.get("thread_ts")
-            self.logger.debug(thread_ts)
-            self.logger.debug(result_content)
-            self.slack.chat_postMessage(
-                channel=channel,
-                thread_ts=thread_ts,
-                text=result_content,
-            )
+            self.delete_and_post_message(context, result_content)
 
     def learn_context_memory(self, context: dict, chat_history: [dict]) -> dict:
         """コンテキストメモリの学習反映"""
@@ -98,8 +90,6 @@ ChatGPT="現在の最新APIバージョンはGPT-4-0613"
 ]
 言語="日本語"
 口調="である"
-最終行の冒頭="お分かりいただけただろうか。"
-最終行の文末="、とでも言うのだろうか。"
 出力形式="Markdown形式"
 
 [アップデートされた基礎知識]
@@ -178,3 +168,13 @@ ChatGPT="現在の最新APIバージョンはGPT-4-0613"
         timestamp: str = context.get("ts")
         self.slack.chat_update(channel=channel, ts=timestamp, text="エラーが発生しました。")
         raise err
+
+    def delete_and_post_message(self, context: dict, content: str) -> None:
+        """メッセージを投稿する"""
+        channel: str = context.get("channel")
+        timestamp: str = context.get("ts")
+        thread_ts = context.get("thread_ts")
+
+        self.slack.chat_delete(channel=channel, ts=timestamp)
+        self.logger.debug(content)
+        self.slack.chat_postMessage(channel=channel, thread_ts=thread_ts, text=content)
