@@ -18,8 +18,6 @@ class AgentGPT(Agent):
     """GPT-4を用いたAgent"""
 
     MAX_TOKEN: int = 8192 - 2000
-    CHUNK_SIZE: int = MAX_TOKEN // 20
-    BORDER_LAMBDA: int = CHUNK_SIZE // 5
     SLACK_MAX_MESSAGE: int = 1333
 
     def __init__(self) -> None:
@@ -67,32 +65,28 @@ class AgentGPT(Agent):
     def learn_context_memory(self, context: dict, chat_history: [dict]) -> dict:
         """コンテキストメモリの学習反映"""
 
+        system_prompt: str = """[assistantの設定]
+言語="日本語"
+口調="である"
+出力形式="Markdown形式"
+"""
         interactions: [str] = ["common_sense", "interaction"]
         for interaction in interactions:
             with open(f"conf/{interaction}.toml", "r", encoding="utf-8") as file:
-                context[interaction] = file.read()
+                system_prompt += f"[{interaction}]\n{file.read()}\n\n"
+        context["system_prompt"] = system_prompt
         context["chat_history"] = chat_history
         return context
 
     def build_prompt(self, context, chat_history: [dict]) -> [dict]:
         """promptを生成する"""
-        common_sense: str = context.get("common_sense", "")
-        interaction: str = context.get("interaction", "")
-        system_prompt = f"""[assistantの設定]
-言語="日本語"
-口調="である"
-出力形式="Markdown形式"
 
-[行動指針]
-{interaction}
-
-[基礎知識]
-{common_sense}
-"""
+        prompt_messages: [dict] = [
+            {"role": "system", "content": context.get("system_prompt")}
+        ]
         openai_encoding: tiktoken.core.Encoding = tiktoken.encoding_for_model(
             self.openai_model
         )
-        prompt_messages: [dict] = [{"role": "system", "content": system_prompt}]
         for chat in chat_history:
             current_content: str = chat.get("content")
             current_count: int = len(openai_encoding.encode(current_content))
@@ -124,6 +118,9 @@ class AgentGPT(Agent):
 
     def completion(self, context, prompt_messages: [dict]):
         """OpenAIのAPIを用いて文章を生成する"""
+        chunk_size: int = self.MAX_TOKEN // 15
+        border_lambda: int = chunk_size // 5
+
         stream = openai.ChatCompletion.create(
             messages=prompt_messages,
             model=self.openai_model,
@@ -132,7 +129,7 @@ class AgentGPT(Agent):
         )
         response_text: str = ""
         prev_text: str = ""
-        border: int = self.BORDER_LAMBDA
+        border: int = border_lambda
         for chunk in stream:
             add_content: str = chunk["choices"][0]["delta"].get("content")
             if add_content:
@@ -142,11 +139,11 @@ class AgentGPT(Agent):
                     tokens: [str] = re.split("\n", response_text[len(prev_text) :])
                     if len(tokens) >= 2:
                         res: str = prev_text + "\n".join(tokens[:-1])
-                        border += self.CHUNK_SIZE
+                        border += chunk_size
                         prev_text = res
                         yield self.decolation_response(context, res)
                     else:
-                        border += self.BORDER_LAMBDA
+                        border += border_lambda
         res: str = self.decolation_response(context, response_text)
         self.logger.debug(res)
         yield res
