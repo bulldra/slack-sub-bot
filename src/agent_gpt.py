@@ -67,32 +67,26 @@ class AgentGPT(Agent):
     def learn_context_memory(self, context: dict, chat_history: [dict]) -> dict:
         """コンテキストメモリの学習反映"""
 
-        context[
-            "common_sense"
-        ] = """
-Twitter="Xに改称。現在のCEOはリンダ・ヤッカリーノでイーロン・マスクの影響が強い"
-Threads=["METAの運営するTwitter代替プラットフォーム","Instrgramのユーザー情報を利用","APIには対応してない"]
-ChatGPT="現在の最新APIバージョンはGPT-4-0613"
-"""
+        interactions: [str] = ["common_sense", "interaction"]
+        for interaction in interactions:
+            with open(f"conf/{interaction}.toml", "r", encoding="utf-8") as file:
+                context[interactions] = file.read()
         context["chat_history"] = chat_history
         return context
 
     def build_prompt(self, context, chat_history: [dict]) -> [dict]:
         """promptを生成する"""
         common_sense: str = context.get("common_sense", "")
+        interaction: str = context.get("interaction", "")
         system_prompt = f"""[assistantの設定]
-役割="優秀なマーケティングコンサルタント"
-挙動=[
-  "ステップバイステップで考える",
-  "必要に応じて追加質問",
-  "独自のアイディアを付け足す",
-  "挨拶抜きでシンプルに伝える"
-]
 言語="日本語"
 口調="である"
 出力形式="Markdown形式"
 
-[アップデートされた基礎知識]
+[行動指針]
+{interaction}
+
+[基礎知識]
 {common_sense}
 """
         openai_encoding: tiktoken.core.Encoding = tiktoken.encoding_for_model(
