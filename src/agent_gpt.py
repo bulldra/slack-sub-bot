@@ -70,7 +70,7 @@ class AgentGPT(Agent):
         interactions: [str] = ["common_sense", "interaction"]
         for interaction in interactions:
             with open(f"conf/{interaction}.toml", "r", encoding="utf-8") as file:
-                context[interactions] = file.read()
+                context[interaction] = file.read()
         context["chat_history"] = chat_history
         return context
 
