@@ -1,70 +1,47 @@
 """GPT-4を用いたAgent"""
 
-import json
-import logging
-import os
 import re
 
-import google.cloud.logging
 import openai
-import slack_sdk
 import tiktoken
 
 import common.slack_link_utils as link_utils
-from agent import Agent
+from agent_slack import AgentSlack
 
 
-class AgentGPT(Agent):
+class AgentGPT(AgentSlack):
     """GPT-4を用いたAgent"""
-
-    SLACK_MAX_MESSAGE: int = 1333
 
     def __init__(self) -> None:
         """初期化"""
-        self.secrets: dict = json.loads(os.getenv("SECRETS"))
-        self.slack: slack_sdk.WebClient = slack_sdk.WebClient(
-            token=self.secrets.get("SLACK_BOT_TOKEN")
-        )
+        super().__init__()
         openai.api_key = self.secrets.get("OPENAI_API_KEY")
         self.openai_model: str = "gpt-4-0613"
         self.openai_temperature: float = 0.0
         self.max_token: int = 8192 - 2000
 
-        logging_client = google.cloud.logging.Client()
-        logging_client.setup_logging()
-        self.logger: logging.Logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.DEBUG)
-
     def execute(self, context: dict, chat_history: [dict]) -> None:
         """更新処理本体"""
-        channel: str = context.get("channel")
-        timestamp: str = context.get("ts")
-        processing_message: str = context.get("processing_message")
-        processing_message += "."
-        self.slack.chat_update(channel=channel, ts=timestamp, text=processing_message)
+        self.tik_process(context)
         try:
             self.learn_context_memory(context, chat_history)
         except ValueError as err:
             self.error(context, err)
         prompt_messages: [dict] = self.build_prompt(context, chat_history)
-        processing_message += "."
-        self.slack.chat_update(channel=channel, ts=timestamp, text=processing_message)
-        result_content: str = ""
+        self.tik_process(context)
+
+        content: str = ""
         try:
             for content in self.completion(context, prompt_messages):
-                result_content = content
-                if len(result_content) <= self.SLACK_MAX_MESSAGE:
-                    self.slack.chat_update(
-                        channel=channel, ts=timestamp, text=result_content
-                    )
+                content = self.decolation_response(context, content)
+                self.update_message(context, content)
         except openai.error.APIError as err:
             self.error(context, err)
-        if len(result_content) > self.SLACK_MAX_MESSAGE:
-            self.delete_and_post_message(context, result_content)
+            raise err
+        self.delete_and_post_message(context, content)
 
     def learn_context_memory(self, context: dict, chat_history: [dict]) -> dict:
         """コンテキストメモリの学習反映"""
-
         system_prompt: str = """[assistantの設定]
 言語="日本語"
 口調="である"
@@ -140,31 +117,11 @@ class AgentGPT(Agent):
                         res: str = prev_text + "\n".join(tokens[:-1])
                         border += chunk_size
                         prev_text = res
-                        yield self.decolation_response(context, res)
+                        yield res
                     else:
                         border += border_lambda
-        res: str = self.decolation_response(context, response_text)
-        self.logger.debug(res)
-        yield res
+        yield response_text
 
     def decolation_response(self, context: dict, response: str) -> str:
         """レスポンスをデコレーションする"""
         return link_utils.convert_mrkdwn(response)
-
-    def error(self, context: dict, err: Exception) -> None:
-        """エラー処理"""
-        self.logger.error(err)
-        channel: str = context.get("channel")
-        timestamp: str = context.get("ts")
-        self.slack.chat_update(channel=channel, ts=timestamp, text="エラーが発生しました。")
-        raise err
-
-    def delete_and_post_message(self, context: dict, content: str) -> None:
-        """メッセージを投稿する"""
-        channel: str = context.get("channel")
-        timestamp: str = context.get("ts")
-        thread_ts = context.get("thread_ts")
-
-        self.slack.chat_delete(channel=channel, ts=timestamp)
-        self.logger.debug(content)
-        self.slack.chat_postMessage(channel=channel, thread_ts=thread_ts, text=content)
