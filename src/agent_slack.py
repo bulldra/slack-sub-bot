@@ -12,9 +12,6 @@ from agent import Agent
 
 class AgentSlack(Agent):
     """Slackを用いたAgent"""
-
-    SLACK_MAX_MESSAGE: int = 1333
-
     def __init__(self) -> None:
         """初期化"""
         self.secrets: dict = json.loads(os.getenv("SECRETS"))
@@ -41,47 +38,21 @@ class AgentSlack(Agent):
 
     def update_message(self, context: dict, content: str) -> None:
         """メッセージを更新する"""
-        if len(content) <= self.SLACK_MAX_MESSAGE:
-            blocks: list = [
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": content,
-                    },
-                }
-            ]
+        blocks: list = [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": content,
+                },
+            }
+        ]
 
-            self.slack.chat_update(
-                channel=context.get("channel"),
-                ts=context.get("ts"),
-                blocks=blocks,
-            )
-
-    def delete_and_post_message(self, context: dict, content: str) -> None:
-        """更新できないほど長いメッセージは削除してから投稿する"""
-        if len(content) > self.SLACK_MAX_MESSAGE:
-            channel: str = context.get("channel")
-            self.slack.chat_delete(
-                channel=channel,
-                ts=context.get("ts"),
-            )
-
-            blocks: list = [
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": content,
-                    },
-                }
-            ]
-
-            self.slack.chat_postMessage(
-                channel=channel,
-                thread_ts=context.get("thread_ts"),
-                blocks=blocks,
-            )
+        self.slack.chat_update(
+            channel=context.get("channel"),
+            ts=context.get("ts"),
+            blocks=blocks,
+        )
 
     def error(self, context: dict, err: Exception) -> None:
         """エラー処理"""

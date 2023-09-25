@@ -38,7 +38,7 @@ class AgentGPT(AgentSlack):
         except openai.error.APIError as err:
             self.error(context, err)
             raise err
-        self.delete_and_post_message(context, content)
+        self.update_message(context, content)
 
     def learn_context_memory(self, context: dict, chat_history: [dict]) -> dict:
         """コンテキストメモリの学習反映"""
