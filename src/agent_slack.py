@@ -42,10 +42,20 @@ class AgentSlack(Agent):
     def update_message(self, context: dict, content: str) -> None:
         """メッセージを更新する"""
         if len(content) <= self.SLACK_MAX_MESSAGE:
+            blocks: list = [
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": content,
+                    },
+                }
+            ]
+
             self.slack.chat_update(
                 channel=context.get("channel"),
                 ts=context.get("ts"),
-                text=content,
+                blocks=blocks,
             )
 
     def delete_and_post_message(self, context: dict, content: str) -> None:
@@ -56,10 +66,21 @@ class AgentSlack(Agent):
                 channel=channel,
                 ts=context.get("ts"),
             )
+
+            blocks: list = [
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": content,
+                    },
+                }
+            ]
+
             self.slack.chat_postMessage(
                 channel=channel,
                 thread_ts=context.get("thread_ts"),
-                text=content,
+                blocks=blocks,
             )
 
     def error(self, context: dict, err: Exception) -> None:
