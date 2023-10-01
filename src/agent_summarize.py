@@ -23,7 +23,7 @@ class AgentSummarize(AgentGPT):
             chat_history[-1].get("content")
         )
         if not scraping_utils.is_allow_scraping(url):
-            return ValueError("scraping is not allowed")
+            raise ValueError("scraping is not allowed")
         site: scraping_utils.Site = scraping_utils.scraping(url)
         if site is None:
             raise ValueError("scraping failed")
@@ -37,19 +37,15 @@ class AgentSummarize(AgentGPT):
         prompt = f"""指示=以下の[記事情報]と[本文]から[制約]に沿って[処理]を実行してください。
 
 [制約]
-文字数制限="1000文字以内"
+文字数制限="2000文字以内"
 出力形式="Markdown形式"
 見出し文字="##"
-句点=""
-文末="である"
 
 [処理]
-概要="descriptionがあればdescriptionを出力"
-要約="記事の内容を箇条書きでまとめる"
-引用="本文中から示唆の得られる文章群を引用形式で出力"
-考察="記事から演繹的に導出される考察をステップバイステップで出力"
-反論と改善="記事に対する反論と改善案を出力"
-アイディア="他と組み合わせて使えそうなアイディアを出力"
+主張="本文の主張を140字以内で簡潔に出力"
+要約="本文の内容を箇条書きでまとめる"
+考察="記事から演繹的に導出される考察や新しい視点をステップバイステップで出力"
+反論と改善="記事に対する反論と、それに対する改善案を出力"
 ネクストアクション="次にすべきことや関連して調べるべき内容を出力"
 
 [記事情報]
@@ -60,6 +56,14 @@ title="{site.title}"
             prompt += f'description="{site.description}"\n'
         if site.keywords is not None:
             prompt += f'keywords="{site.keywords}"\n'
+
+        if site.heading is not None:
+            prompt += "heading=["
+            for head in site.heading:
+                prompt += f'"{head}",\n'
+            prompt += "]\n"
+        prompt += "\n"
+
         prompt += f"[本文]\n{site.content}\n"
         prompt_messages: [dict] = [{"role": "user", "content": prompt}]
         return super().build_prompt(context, prompt_messages)

@@ -12,6 +12,7 @@ from agent import Agent
 
 class AgentSlack(Agent):
     """Slackを用いたAgent"""
+
     def __init__(self) -> None:
         """初期化"""
         self.secrets: dict = json.loads(os.getenv("SECRETS"))
@@ -30,11 +31,7 @@ class AgentSlack(Agent):
     def tik_process(self, context: dict) -> None:
         """処理中メッセージを更新する"""
         context["processing_message"] += "."
-        self.slack.chat_update(
-            channel=context.get("channel"),
-            ts=context.get("ts"),
-            text=context.get("processing_message"),
-        )
+        self.update_message(context, context.get("processing_message"))
 
     def update_message(self, context: dict, content: str) -> None:
         """メッセージを更新する"""
@@ -52,12 +49,11 @@ class AgentSlack(Agent):
             channel=context.get("channel"),
             ts=context.get("ts"),
             blocks=blocks,
+            text=content,
         )
 
     def error(self, context: dict, err: Exception) -> None:
         """エラー処理"""
         self.logger.error(err)
-        channel: str = context.get("channel")
-        timestamp: str = context.get("ts")
-        self.slack.chat_update(channel=channel, ts=timestamp, text="エラーが発生しました。")
+        self.update_message(context, "エラーが発生しました。")
         raise err

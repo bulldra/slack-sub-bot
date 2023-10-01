@@ -7,7 +7,9 @@ from collections import namedtuple
 import requests
 from bs4 import BeautifulSoup
 
-Site = namedtuple("Site", ("url", "title", "description", "keywords", "content"))
+Site = namedtuple(
+    "Site", ("url", "title", "description", "keywords", "heading", "content")
+)
 
 
 def is_allow_scraping(url: str):
@@ -83,6 +85,7 @@ def scraping(url: str) -> Site:
             "br",
             "div",
             "table",
+            "p",
             "li",
             "tr",
             "td",
@@ -95,6 +98,20 @@ def scraping(url: str) -> Site:
         ]
     ):
         cr_tag.insert_after("\n")
+
+    heading: [str] = []
+    for cr_tag in soup(
+        [
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+        ]
+    ):
+        heading.append(cr_tag.get_text().strip())
+
     content: str = re.sub(r"[\n\s]+", "\n", soup.get_text())
 
-    return Site(url, title, description, keywords, content)
+    return Site(url, title, description, keywords, heading, content)
