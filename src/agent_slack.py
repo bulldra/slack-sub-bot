@@ -49,6 +49,7 @@ class AgentSlack(Agent):
             channel=context.get("channel"),
             ts=context.get("ts"),
             blocks=blocks,
+            text=content,
         )
 
     def error(self, context: dict, err: Exception) -> None:
