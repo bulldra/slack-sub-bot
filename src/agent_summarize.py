@@ -33,13 +33,14 @@ class AgentSummarize(AgentGPT):
 
     def build_prompt(self, context: dict, chat_history: [dict]) -> [dict]:
         """OpenAI APIを使って要約するためのpromptを生成する"""
-        site: scraping_utils.Site = context.get("site")
-        prompt = f"""指示=以下の[記事情報]と[本文]から[制約]に沿って[処理]を実行してください。
+        site: scraping_utils.Site = context.get("site")  # type: ignore
+        prompt = f"""指示=以下の[記事情報]と[本文]から[制約]に沿って[処理]を実行し、[記事情報]と[処理]の結果を出力する
 
 [制約]
 文字数制限="2000文字以内"
 出力形式="Markdown形式"
 見出し文字="##"
+文体="常体"
 
 [処理]
 主張="本文の主張を140字以内で簡潔に出力"
@@ -56,7 +57,6 @@ title="{site.title}"
             prompt += f'description="{site.description}"\n'
         if site.keywords is not None:
             prompt += f'keywords="{site.keywords}"\n'
-
         if site.heading is not None:
             prompt += "heading=["
             for head in site.heading:
@@ -70,5 +70,5 @@ title="{site.title}"
 
     def decolation_response(self, context: dict, response: str) -> str:
         """レスポンスをデコレーションする"""
-        title: str = context.get("title")
+        title: str = context.get("title")  # type: ignore
         return super().decolation_response(context, f"{title}\n{response}")

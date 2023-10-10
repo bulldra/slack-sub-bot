@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "slack-sub-bot"
+version = "0.1.0"
+description = ""
+authors = ["bulldra <bulldra@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+functions-framework = "^3.4.0"
+beautifulsoup4 = "^4.12.2"
+google-cloud-logging = "^3.6.0"
+openai = "^0.27.8"
+slack-sdk = "^3.21.3"
+tiktoken = "^0.4.0"
+requests = "^2.31.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
