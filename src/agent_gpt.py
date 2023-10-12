@@ -5,7 +5,6 @@ import re
 import openai
 import tiktoken
 
-import common.slack_link_utils as link_utils
 from agent_slack import AgentSlack
 
 
@@ -121,7 +120,3 @@ class AgentGPT(AgentSlack):
                     else:
                         border += border_lambda
         yield response_text
-
-    def decolation_response(self, context: dict, response: str) -> str:
-        """レスポンスをデコレーションする"""
-        return link_utils.convert_mrkdwn(response)
