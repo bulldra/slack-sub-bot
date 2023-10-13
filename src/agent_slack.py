@@ -89,7 +89,7 @@ class AgentSlack(Agent):
 
         # イタリック
         markdown_text = re.sub(
-            r"([^\*])\*([^\*].+?[^\*])\*([^\*])", r" \1_\2_\3 ", markdown_text
+            r"([^\*])\*([^\*]+?)\*([^\*])", r"\1 _\2_ \3", markdown_text
         )
 
         # 太字
