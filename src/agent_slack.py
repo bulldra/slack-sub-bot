@@ -3,11 +3,11 @@
 import json
 import logging
 import os
-import re
 
 import google.cloud.logging
 import slack_sdk
 
+import common.slack_mrkdwn_utils as slack_mrkdwn_utils
 from agent import Agent
 
 
@@ -16,7 +16,7 @@ class AgentSlack(Agent):
 
     def __init__(self) -> None:
         """初期化"""
-        self.secrets: dict = json.loads(os.getenv("SECRETS"))
+        self.secrets: dict = json.loads(str(os.getenv("SECRETS")))
         self.slack: slack_sdk.WebClient = slack_sdk.WebClient(
             token=self.secrets.get("SLACK_BOT_TOKEN")
         )
@@ -29,87 +29,29 @@ class AgentSlack(Agent):
         """更新処理本体"""
         raise NotImplementedError()
 
-    def decolation_response(self, context: dict, response: str) -> str:
-        """レスポンスをデコレーションする"""
-        return self.convert_mrkdwn(response)
-
     def tik_process(self, context: dict) -> None:
         """処理中メッセージを更新する"""
         context["processing_message"] += "."
-        self.update_message(context, context.get("processing_message"))
+        message: str = str(context.get("processing_message"))
+        blocks: list = slack_mrkdwn_utils.build_text_blocks(message)
+        self.update_message(context, blocks)
 
-    def update_message(self, context: dict, content: str) -> None:
+    def build_message_blocks(self, context: dict, content: str) -> list:
+        """レスポンスからブロックを作成する"""
+        return slack_mrkdwn_utils.build_and_convert_mrkdwn_blocks(content)
+
+    def update_message(self, context: dict, blocks: list) -> None:
         """メッセージを更新する"""
-        blocks: list = [
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": content,
-                },
-            }
-        ]
-
         self.slack.chat_update(
-            channel=context.get("channel"),
-            ts=context.get("ts"),
+            channel=str(context.get("channel")),
+            ts=str(context.get("ts")),
             blocks=blocks,
-            text=content,
+            text=str(blocks),
         )
 
     def error(self, context: dict, err: Exception) -> None:
         """エラー処理"""
         self.logger.error(err)
-        self.update_message(context, "エラーが発生しました。")
+        blocks: list = slack_mrkdwn_utils.build_text_blocks("エラーが発生しました。")
+        self.update_message(context, blocks)
         raise err
-
-    def convert_mrkdwn(self, markdown_text: str) -> str:
-        """convert markdown to mrkdwn"""
-
-        # コードブロックエスケープ
-        replacement: str = "!!!CODE_BLOCK!!!\n"
-        code_blocks: list = re.findall(
-            r"[^`]```([^`].+?[^`])```[^`]", markdown_text, flags=re.DOTALL
-        )
-        markdown_text = re.sub(
-            r"([^`])```[^`].+?[^`]```([^`])",
-            rf"\1{replacement}\2",
-            markdown_text,
-            flags=re.DOTALL,
-        )
-
-        # コード
-        markdown_text = re.sub(r"`(.+?)`", r" `\1` ", markdown_text)
-
-        # リスト・数字リストも・に変換
-        markdown_text = re.sub(
-            r"^\s*[\*\+-]\s+(.+?)\n", r"• \1\n", markdown_text, flags=re.MULTILINE
-        )
-        markdown_text = re.sub(r"\n\s*[\*\+-]+\s+(.+?)$", r"\n• \1\n", markdown_text)
-
-        # イタリック
-        markdown_text = re.sub(
-            r"([^\*])\*([^\*]+?)\*([^\*])", r"\1 _\2_ \3", markdown_text
-        )
-
-        # 太字
-        markdown_text = re.sub(r"\*\*(.+?)\*\*", r" *\1* ", markdown_text)
-
-        # 打ち消し
-        markdown_text = re.sub(r"~~(.+?)~~", r" ~\1~ ", markdown_text)
-
-        # 見出し
-        markdown_text = re.sub(
-            r"^#{1,6}\s*(.+?)\n", r"*\1*\n", markdown_text, flags=re.MULTILINE
-        )
-        markdown_text = re.sub(r"\n#{1,6}\s*(.+?)$", r"\n*\1*", markdown_text)
-
-        # リンク
-        markdown_text = re.sub(r"!?\[\]\((.+?)\)", r"<\1>", markdown_text)
-        markdown_text = re.sub(r"!?\[(.+?)\]\((.+?)\)", r"<\2|\1>", markdown_text)
-
-        for code in code_blocks:
-            markdown_text = re.sub(
-                replacement, f"```{code}```\n", markdown_text, count=1
-            )
-        return markdown_text

@@ -24,9 +24,18 @@ def build_link(url: str, title: str) -> str:
 
 def extract_and_remove_tracking_url(text: str) -> str:
     """リンクを抽出してトラッキングURLを除去する"""
-    url: str = extract_url(text)
+    url: str | None = extract_url(text)
+    if url is None:
+        return None
+
     url = redirect_url(url)
+    if url is None:
+        return None
+
     url = canonicalize_url(url)
+    if url is None:
+        return None
+
     return remove_tracking_query(url)
 
 
@@ -46,9 +55,9 @@ def is_only_url(text: str) -> bool:
     return html.unescape(text) == extract_url(text)
 
 
-def extract_url(text: str) -> str:
+def extract_url(text: str) -> str | None:
     """URLを抽出する"""
-    links: [str] = re.findall(
+    links: list[str] = re.findall(
         r"https?://[a-zA-Z0-9_/:%#\$&;\?\(\)~\.=\+\-]+", text or ""
     )
     if len(links) == 0:
@@ -58,14 +67,14 @@ def extract_url(text: str) -> str:
         return result
 
 
-def redirect_url(url: str) -> str:
+def redirect_url(url: str) -> str | None:
     """URLをリダイレクトする"""
 
     if url is None or url == "":
         return None
 
     Redirect = collections.namedtuple("Redirect", ("url", "param"))
-    redirect_urls: [Redirect] = [
+    redirect_urls: list[Redirect] = [
         Redirect(url="https://www.google.com/url", param="url"),
     ]
 
@@ -82,7 +91,7 @@ def redirect_url(url: str) -> str:
     return canonical_url
 
 
-def canonicalize_url(url: str) -> str:
+def canonicalize_url(url: str) -> str | None:
     """URLを正規化する"""
 
     if url is None or url == "":
@@ -100,11 +109,11 @@ def canonicalize_url(url: str) -> str:
     return canonical_url
 
 
-def remove_tracking_query(url: str) -> str:
+def remove_tracking_query(url: str) -> str | None:
     """トラッキングクエリを除去する"""
     if url is None:
         return None
-    tracking_param: [str] = [
+    tracking_param: list[str] = [
         "utm_medium",
         "utm_source",
         "utm_campaign",

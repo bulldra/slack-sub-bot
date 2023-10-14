@@ -1,9 +1,8 @@
-"""
-AgentSummarize
-"""
+"""AgentSummarize"""
 
 import common.scraping_utils as scraping_utils
 import common.slack_link_utils as link_utils
+import common.slack_mrkdwn_utils as slack_mrkdwn_utils
 from agent_gpt import AgentGPT
 
 
@@ -16,7 +15,7 @@ class AgentSummarize(AgentGPT):
         self.max_token: int = 16384 - 2000
         self.openai_model = "gpt-3.5-turbo-16k-0613"
 
-    def learn_context_memory(self, context, chat_history: [dict]) -> dict:
+    def learn_context_memory(self, context: dict, chat_history: [dict]) -> dict:
         """コンテキストメモリの初期化"""
         super().learn_context_memory(context, chat_history)
         url: str = link_utils.extract_and_remove_tracking_url(
@@ -28,7 +27,6 @@ class AgentSummarize(AgentGPT):
         if site is None:
             raise ValueError("scraping failed")
         context["site"] = site
-        context["title"] = link_utils.build_link(site.url, site.title)
         return context
 
     def build_prompt(self, context: dict, chat_history: [dict]) -> [dict]:
@@ -65,10 +63,28 @@ title="{site.title}"
         prompt += "\n"
 
         prompt += f"[本文]\n{site.content}\n"
-        prompt_messages: [dict] = [{"role": "user", "content": prompt}]
+        prompt_messages: list[dict] = [{"role": "user", "content": prompt}]
         return super().build_prompt(context, prompt_messages)
 
-    def decolation_response(self, context: dict, response: str) -> str:
-        """レスポンスをデコレーションする"""
-        title: str = context.get("title")  # type: ignore
-        return super().decolation_response(context, f"{title}\n{response}")
+    def build_message_blocks(self, context: dict, content: str) -> list:
+        """レスポンスからブロックを作成する"""
+        site: scraping_utils.Site = context.get("site")  # type: ignore
+        if site is None:
+            super().build_message_blocks(context, content)
+
+        link_utils.build_link(site.url, site.title)
+        title_list: str = link_utils.build_link(site.url, site.title)
+        mrkdwn: str = slack_mrkdwn_utils.convert_mrkdwn(content)
+
+        blocks: list = [
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": title_list},
+            },
+            {"type": "divider"},
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": mrkdwn},
+            },
+        ]
+        return blocks

@@ -26,27 +26,29 @@ class AgentGPT(AgentSlack):
             self.learn_context_memory(context, chat_history)
         except ValueError as err:
             self.error(context, err)
-        prompt_messages: [dict] = self.build_prompt(context, chat_history)
+        prompt_messages: list[dict] = self.build_prompt(context, chat_history)
         self.tik_process(context)
 
         content: str = ""
+        blocks: list = []
         try:
             for content in self.completion(context, prompt_messages):
-                content = self.decolation_response(context, content)
-                self.update_message(context, content)
+                blocks = self.build_message_blocks(context, content)
+                self.update_message(context, blocks)
         except openai.error.APIError as err:
             self.error(context, err)
             raise err
-        self.update_message(context, content)
+        blocks = self.build_message_blocks(context, content)
+        self.update_message(context, blocks)
 
-    def learn_context_memory(self, context: dict, chat_history: [dict]) -> dict:
+    def learn_context_memory(self, context: dict, chat_history: list[dict]) -> dict:
         """コンテキストメモリの学習反映"""
         system_prompt: str = """[assistantの設定]
 言語="日本語"
 口調="である"
 出力形式="Markdown形式"
 """
-        interactions: [str] = ["common_sense", "interaction"]
+        interactions: list[str] = ["common_sense", "interaction"]
         for interaction in interactions:
             with open(f"conf/{interaction}.toml", "r", encoding="utf-8") as file:
                 system_prompt += f"[{interaction}]\n{file.read()}\n\n"
@@ -56,7 +58,7 @@ class AgentGPT(AgentSlack):
     def build_prompt(self, context, chat_history: [dict]) -> [dict]:
         """promptを生成する"""
 
-        prompt_messages: [dict] = [
+        prompt_messages: list[dict[str, str]] = [
             {"role": "system", "content": context.get("system_prompt")}
         ]
         openai_encoding: tiktoken.core.Encoding = tiktoken.encoding_for_model(
@@ -68,7 +70,7 @@ class AgentGPT(AgentSlack):
             while True:
                 prompt_count: int = len(
                     openai_encoding.encode(
-                        "".join([p.get("content") for p in prompt_messages])
+                        "".join([str(p.get("content")) for p in prompt_messages])
                     )
                 )
 
@@ -84,11 +86,13 @@ class AgentGPT(AgentSlack):
                 {"role": chat.get("role"), "content": current_content}
             )
 
-        prompt_count: int = len(
-            openai_encoding.encode("".join([p.get("content") for p in prompt_messages]))
+        last_prompt_count: int = len(
+            openai_encoding.encode(
+                "".join([str(p.get("content")) for p in prompt_messages])
+            )
         )
         self.logger.debug(prompt_messages)
-        self.logger.debug("token count %s", prompt_count)
+        self.logger.debug("token count %s", last_prompt_count)
         return prompt_messages
 
     def completion(self, context, prompt_messages: [dict]):
@@ -111,7 +115,7 @@ class AgentGPT(AgentSlack):
                 response_text += add_content
                 if len(response_text) >= border:
                     # 追加で表示されるコンテンツが複数行の場合は最終行の表示を留保する
-                    tokens: [str] = re.split("\n", response_text[len(prev_text) :])
+                    tokens: list[str] = re.split("\n", response_text[len(prev_text) :])
                     if len(tokens) >= 2:
                         res: str = prev_text + "\n".join(tokens[:-1])
                         border += chunk_size
