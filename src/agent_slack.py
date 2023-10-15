@@ -47,11 +47,16 @@ class AgentSlack(Agent):
 
     def update_message(self, blocks: list) -> None:
         """メッセージを更新する"""
+        text: str = ""
+        for b in blocks:
+            if b.get("type") == "section":
+                text += b["text"]["text"] + "\n"
+
         self._slack.chat_update(
             channel=str(self._context.get("channel")),
             ts=str(self._context.get("ts")),
             blocks=blocks,
-            text=str(blocks[0].get("text")),
+            text=text,
         )
 
     def error(self, err: Exception) -> None:

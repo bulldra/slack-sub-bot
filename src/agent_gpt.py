@@ -24,25 +24,18 @@ class AgentGPT(AgentSlack):
 
     def execute(self) -> None:
         """更新処理本体"""
-        self.tik_process()
         try:
+            self.tik_process()
             self.learn_context_memory()
-        except ValueError as err:
-            self.error(err)
-        prompt_messages: list[dict] = self.build_prompt(self._chat_history)
-        self.tik_process()
-
-        content: str = ""
-        blocks: list = []
-        try:
+            prompt_messages: list[dict] = self.build_prompt(self._chat_history)
+            self.tik_process()
+            content: str = ""
             for content in self.completion(prompt_messages):
-                blocks = self.build_message_blocks(content)
-                self.update_message(blocks)
-        except openai.error.APIError as err:
+                self.update_message(self.build_message_blocks(content))
+            self.update_message(self.build_message_blocks(content))
+        except Exception as err:
             self.error(err)
             raise err
-        blocks = self.build_message_blocks(content)
-        self.update_message(blocks)
 
     def learn_context_memory(self) -> None:
         """コンテキストメモリの学習反映"""
@@ -68,7 +61,6 @@ class AgentGPT(AgentSlack):
                         "".join([p["content"] for p in prompt_messages])
                     )
                 )
-
                 if current_count + prompt_count < self.max_token:
                     break
                 if len(prompt_messages) <= 1:
@@ -76,7 +68,6 @@ class AgentGPT(AgentSlack):
                     current_content = re.sub("\n[^\n]+?$", "\n", current_content)
                     break
                 del prompt_messages[1]
-
             prompt_messages.append({"role": chat["role"], "content": current_content})
 
         last_prompt_count: int = len(

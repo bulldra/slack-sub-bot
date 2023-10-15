@@ -53,16 +53,15 @@ class AgentSummarize(AgentGPT):
         """レスポンスからブロックを作成する"""
         site: scraping_utils.Site = self._context.get("site")  # type: ignore
         if site is None:
-            super().build_message_blocks(content)
+            raise ValueError("site is empty")
 
-        link_utils.build_link(site.url, site.title)
-        title_list: str = link_utils.build_link(site.url, site.title)
+        title_link: str = link_utils.build_link(site.url, site.title)
         mrkdwn: str = slack_mrkdwn_utils.convert_mrkdwn(content)
 
         blocks: list[dict] = [
             {
                 "type": "section",
-                "text": {"type": "mrkdwn", "text": title_list},
+                "text": {"type": "mrkdwn", "text": title_link},
             },
             {"type": "divider"},
             {
