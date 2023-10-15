@@ -4,6 +4,6 @@
 class Agent:
     """Agent Base Class"""
 
-    def execute(self, context: dict, chat_history: [dict]) -> None:
+    def execute(self) -> None:
         """Execute the agent"""
         raise NotImplementedError()
