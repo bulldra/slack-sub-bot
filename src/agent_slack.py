@@ -51,6 +51,7 @@ class AgentSlack(Agent):
         for b in blocks:
             if b.get("type") == "section":
                 text += b["text"]["text"] + "\n"
+        text = text[:1500]
 
         self._slack.chat_update(
             channel=str(self._context.get("channel")),
