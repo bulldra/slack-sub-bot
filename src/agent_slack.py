@@ -51,7 +51,7 @@ class AgentSlack(Agent):
             channel=str(self._context.get("channel")),
             ts=str(self._context.get("ts")),
             blocks=blocks,
-            text=str(blocks),
+            text=str(blocks[0].get("text")),
         )
 
     def error(self, err: Exception) -> None:
