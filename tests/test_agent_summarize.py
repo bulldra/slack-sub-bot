@@ -22,14 +22,13 @@ def test_scraping(pytestconfig: pytest.Config):
     messages = [
         {
             "role": "user",
-            "content": "https://qiita.com/aokikenichi/items/29165f719d6e5631d7d0",
+            "content": "https://www.du-soleil.com/entry/slack-share-bot",
         }
     ]
     agent = AgentSummarize({}, messages)
-
     agent.learn_context_memory()
     prompt = agent.build_prompt(messages)
-
+    print(prompt)
     content: str = ""
     for content in agent.completion(prompt):
         pass

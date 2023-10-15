@@ -46,16 +46,8 @@ class AgentGPT(AgentSlack):
 
     def learn_context_memory(self) -> None:
         """コンテキストメモリの学習反映"""
-        system_prompt: str = """[assistantの設定]
-言語="日本語"
-口調="である"
-出力形式="Markdown形式"
-"""
-        interactions: list[str] = ["common_sense", "interaction"]
-        for interaction in interactions:
-            with open(f"conf/{interaction}.toml", "r", encoding="utf-8") as file:
-                system_prompt += f"[{interaction}]\n{file.read()}\n\n"
-        self._context["system_prompt"] = system_prompt
+        with open("./conf/assistant.toml", "r", encoding="utf-8") as file:
+            self._context["system_prompt"] = file.read()
 
     def build_prompt(self, chat_history: list[dict[str, str]]) -> list[dict[str, str]]:
         """promptを生成する"""

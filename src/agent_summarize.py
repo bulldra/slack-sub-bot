@@ -32,29 +32,14 @@ class AgentSummarize(AgentGPT):
             raise ValueError("scraping failed")
         self._context["site"] = site
 
+        with open("./conf/summarize_prompt.toml", "r", encoding="utf-8") as file:
+            self._context["summarize_prompt"] = file.read()
+
     def build_prompt(self, chat_history: list[dict[str, str]]) -> list[dict[str, str]]:
         """OpenAI APIを使って要約するためのpromptを生成する"""
         site: scraping_utils.Site = self._context.get("site")  # type: ignore
-        prompt = f"""指示=以下の[記事情報]と[本文]から[制約]に沿って[処理]を実行し、[記事情報]と[処理]の結果を出力
-処理の内容
-
-[制約]
-文字数制限="2000文字以内"
-出力形式="Markdown形式"
-見出し文字="##"
-文体="常体"
-
-[処理]
-主張="記事情報と本文の主張したい内容を140字以内で簡潔に出力"
-要約="記事情報と本文の内容を箇条書きで出力"
-考察="記事情報と本文から演繹的に導出される考察や新しい視点をステップバイステップで出力"
-反論と改善="記事情報と本文に対する反論と、それに対する改善案をステップバイステップで出力"
-類似例="記事情報と本文と類似例があれば出力"
-ネクストアクション="記事情報と本文から導出される次にすべきことや関連して調べるべき内容を出力"
-
-[記事情報]
-title="{site.title}"
-"""
+        prompt: str = self._context["summarize_prompt"]
+        prompt += f'[記事情報]\ntitle="{site.title}"\n'
         if site.heading is not None:
             prompt += "heading=["
             for head in site.heading:
@@ -62,7 +47,6 @@ title="{site.title}"
             prompt += "]\n"
         prompt += "\n"
         prompt += f"[本文]\n{site.content}\n"
-
         return super().build_prompt([{"role": "user", "content": prompt}])
 
     def build_message_blocks(self, content: str) -> list:
@@ -75,7 +59,7 @@ title="{site.title}"
         title_list: str = link_utils.build_link(site.url, site.title)
         mrkdwn: str = slack_mrkdwn_utils.convert_mrkdwn(content)
 
-        blocks: list = [
+        blocks: list[dict] = [
             {
                 "type": "section",
                 "text": {"type": "mrkdwn", "text": title_list},

@@ -12,6 +12,15 @@ with open("secrets.json", "r", encoding="utf-8") as f:
 import agent_gpt
 
 
+def test_learn_context_memory(pytestconfig: pytest.Config):
+    """.env"""
+    os.chdir(pytestconfig.getini("pythonpath")[0])
+    text = [{"role": "user", "content": "コンサルタントの役割は？"}]
+    agt = agent_gpt.AgentGPT({}, text)
+    agt.learn_context_memory()
+    print(agt._context["system_prompt"])
+
+
 def test_completion(pytestconfig: pytest.Config):
     """.env"""
     os.chdir(pytestconfig.getini("pythonpath")[0])
