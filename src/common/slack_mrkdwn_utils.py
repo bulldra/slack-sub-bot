@@ -42,9 +42,9 @@ def convert_mrkdwn(markdown_text: str) -> str:
     )
     mrkdwn_text = re.sub(r"\n\s*[\*\+-]+\s+(.+?)$", r"\n• \1\n", mrkdwn_text)
 
-    # イタリック
+    # イタリックの意図で*単体は使わないため太字に変換する
     mrkdwn_text = re.sub(r"([^\*])\*([^\*]+?)\*([^\*])", r"\1_\2_\3", mrkdwn_text)
-    mrkdwn_text = re.sub(r"([^\_])\_([^\_]+?)\_([^\_])", r"\1 _\2_ \3", mrkdwn_text)
+    mrkdwn_text = re.sub(r"([^\_])\_([^\_]+?)\_([^\_])", r"\1 *\2* \3", mrkdwn_text)
 
     # 太字
     mrkdwn_text = re.sub(r"\*\*(.+?)\*\*", r" *\1* ", mrkdwn_text)

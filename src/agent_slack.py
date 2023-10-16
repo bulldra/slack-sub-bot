@@ -47,11 +47,12 @@ class AgentSlack(Agent):
 
     def update_message(self, blocks: list) -> None:
         """メッセージを更新する"""
-        text: str = ""
-        for b in blocks:
-            if b.get("type") == "section":
-                text += b["text"]["text"] + "\n"
-        text = text[:1500]
+
+        # 更新用テキストメッセージの取得と最大バイト数制限に対応
+        text: str = "\n".join(
+            [f"{b['text']['text']}" for b in blocks if b["type"] == "section"]
+        )
+        text = text.encode("utf-8")[:3000].decode("utf-8", errors="ignore")
 
         self._slack.chat_update(
             channel=str(self._context.get("channel")),
@@ -63,6 +64,15 @@ class AgentSlack(Agent):
     def error(self, err: Exception) -> None:
         """エラー処理"""
         self._logger.error(err)
-        blocks: list = slack_mrkdwn_utils.build_text_blocks("エラーが発生しました。")
+        blocks: list = [
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": "エラーが発生しました。"},
+            },
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": f"```{err}```"},
+            },
+        ]
         self.update_message(blocks)
         raise err
