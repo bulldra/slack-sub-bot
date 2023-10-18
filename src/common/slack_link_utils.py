@@ -58,11 +58,10 @@ def parse_url(url: str) -> str:
     url_obj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
     path: str = urllib.parse.quote(url_obj.path, safe="=&%/")
     if url_obj.query is not None and url_obj.query != "":
-        query: str = urllib.parse.unquote(url_obj.query)
+        query: str = html.unescape(url_obj.query)
         path += f"?{query}"
     if url_obj.fragment is not None and url_obj.fragment != "":
         path += f"#{url_obj.fragment}"
-    print(f"{url_obj.scheme}://{url_obj.netloc}{path}")
     return f"{url_obj.scheme}://{url_obj.netloc}{path}"
 
 
@@ -85,13 +84,14 @@ def redirect_url(url: str) -> str:
         Redirect(url="https://www.google.com/url", param="url"),
     ]
 
-    url_obj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
-    path = f"{url_obj.scheme}://{url_obj.netloc}{url_obj.path}"
     canonical_url: str = url
-
+    url_obj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
+    path: str = f"{url_obj.scheme}://{url_obj.netloc}{url_obj.path}"
     for redirect in redirect_urls:
         if path == redirect.url:
-            query_dict: dict = urllib.parse.parse_qs(url_obj.query)
+            query: str = urllib.parse.unquote(url_obj.query)
+            query = re.sub(";", "", query)
+            query_dict: dict = urllib.parse.parse_qs(query)
             if redirect.param in query_dict:
                 canonical_url = query_dict[redirect.param][0]
                 break
