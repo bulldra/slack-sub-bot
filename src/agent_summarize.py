@@ -25,6 +25,7 @@ class AgentSummarize(AgentGPT):
         url: str = link_utils.extract_and_remove_tracking_url(
             self._chat_history[-1]["content"]
         )
+        self._logger.debug("scraping url=%s", url)
         if not scraping_utils.is_allow_scraping(url):
             raise ValueError("scraping is not allowed")
         site: scraping_utils.Site = scraping_utils.scraping(url)

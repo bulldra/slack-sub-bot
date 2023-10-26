@@ -17,6 +17,7 @@ def is_allow_scraping(url: str):
         "twitter.com",
         "speakerdeck.com",
         "www.youtube.com",
+        "news.livedoor.com",
     ]
     black_list_ext: list[str] = [
         ".pdf",
@@ -42,7 +43,9 @@ def scraping(url: str) -> Site:
     """スクレイピングの実施"""
     res = requests.get(url, timeout=(3.0, 8.0))
     if res.status_code != 200:
-        raise ValueError(f"status code is not 200. status code:{res.status_code}")
+        raise ValueError(
+            f"status code is not 200. status code:{res.status_code} url:{url}"
+        )
 
     soup = BeautifulSoup(res.content, "html.parser")
     title = url
