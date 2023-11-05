@@ -3,113 +3,76 @@
 import json
 import logging
 import os
-import re
+from typing import Any
 
 import google.cloud.logging
 import slack_sdk
 
+import common.slack_mrkdwn_utils as slack_mrkdwn_utils
 from agent import Agent
 
 
 class AgentSlack(Agent):
     """Slackを用いたAgent"""
 
-    def __init__(self) -> None:
+    def __init__(
+        self, context: dict[str, Any], chat_history: list[dict[str, str]]
+    ) -> None:
         """初期化"""
-        self.secrets: dict = json.loads(os.getenv("SECRETS"))
-        self.slack: slack_sdk.WebClient = slack_sdk.WebClient(
-            token=self.secrets.get("SLACK_BOT_TOKEN")
+        self._secrets: dict = json.loads(str(os.getenv("SECRETS")))
+        self._slack: slack_sdk.WebClient = slack_sdk.WebClient(
+            token=self._secrets.get("SLACK_BOT_TOKEN")
         )
         logging_client = google.cloud.logging.Client()
         logging_client.setup_logging()
-        self.logger: logging.Logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.DEBUG)
+        self._logger: logging.Logger = logging.getLogger(__name__)
+        self._logger.setLevel(logging.DEBUG)
+        self._context: dict[str, Any] = context
+        self._chat_history: list[dict[str, str]] = chat_history
 
-    def execute(self, context: dict, chat_history: [dict]) -> None:
+    def execute(self) -> None:
         """更新処理本体"""
         raise NotImplementedError()
 
-    def decolation_response(self, context: dict, response: str) -> str:
-        """レスポンスをデコレーションする"""
-        return self.convert_mrkdwn(response)
-
-    def tik_process(self, context: dict) -> None:
+    def tik_process(self) -> None:
         """処理中メッセージを更新する"""
-        context["processing_message"] += "."
-        self.update_message(context, context.get("processing_message"))
+        self._context["processing_message"] += "."
+        message: str = str(self._context.get("processing_message"))
+        blocks: list = slack_mrkdwn_utils.build_text_blocks(message)
+        self.update_message(blocks)
 
-    def update_message(self, context: dict, content: str) -> None:
+    def build_message_blocks(self, content: str) -> list:
+        """レスポンスからブロックを作成する"""
+        return slack_mrkdwn_utils.build_and_convert_mrkdwn_blocks(content)
+
+    def update_message(self, blocks: list) -> None:
         """メッセージを更新する"""
+
+        # 更新用テキストメッセージの取得と最大バイト数制限に対応
+        text: str = "\n".join(
+            [f"{b['text']['text']}" for b in blocks if b["type"] == "section"]
+        )
+        text = text.encode("utf-8")[:3000].decode("utf-8", errors="ignore")
+
+        self._slack.chat_update(
+            channel=str(self._context.get("channel")),
+            ts=str(self._context.get("ts")),
+            blocks=blocks,
+            text=text,
+        )
+
+    def error(self, err: Exception) -> None:
+        """エラー処理"""
+        self._logger.error(err)
         blocks: list = [
             {
                 "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": content,
-                },
-            }
+                "text": {"type": "mrkdwn", "text": "エラーが発生しました。"},
+            },
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": f"```{err}```"},
+            },
         ]
-
-        self.slack.chat_update(
-            channel=context.get("channel"),
-            ts=context.get("ts"),
-            blocks=blocks,
-            text=content,
-        )
-
-    def error(self, context: dict, err: Exception) -> None:
-        """エラー処理"""
-        self.logger.error(err)
-        self.update_message(context, "エラーが発生しました。")
+        self.update_message(blocks)
         raise err
-
-    def convert_mrkdwn(self, markdown_text: str) -> str:
-        """convert markdown to mrkdwn"""
-
-        # コードブロックエスケープ
-        replacement: str = "!!!CODE_BLOCK!!!\n"
-        code_blocks: list = re.findall(
-            r"[^`]```([^`].+?[^`])```[^`]", markdown_text, flags=re.DOTALL
-        )
-        markdown_text = re.sub(
-            r"([^`])```[^`].+?[^`]```([^`])",
-            rf"\1{replacement}\2",
-            markdown_text,
-            flags=re.DOTALL,
-        )
-
-        # コード
-        markdown_text = re.sub(r"`(.+?)`", r" `\1` ", markdown_text)
-
-        # リスト・数字リストも・に変換
-        markdown_text = re.sub(
-            r"^\s*[\*\+-]\s+(.+?)\n", r"• \1\n", markdown_text, flags=re.MULTILINE
-        )
-        markdown_text = re.sub(r"\n\s*[\*\+-]+\s+(.+?)$", r"\n• \1\n", markdown_text)
-
-        # イタリック
-        markdown_text = re.sub(
-            r"([^\*])\*([^\*].+?[^\*])\*([^\*])", r" \1_\2_\3 ", markdown_text
-        )
-
-        # 太字
-        markdown_text = re.sub(r"\*\*(.+?)\*\*", r" *\1* ", markdown_text)
-
-        # 打ち消し
-        markdown_text = re.sub(r"~~(.+?)~~", r" ~\1~ ", markdown_text)
-
-        # 見出し
-        markdown_text = re.sub(
-            r"^#{1,6}\s*(.+?)\n", r"*\1*\n", markdown_text, flags=re.MULTILINE
-        )
-        markdown_text = re.sub(r"\n#{1,6}\s*(.+?)$", r"\n*\1*", markdown_text)
-
-        # リンク
-        markdown_text = re.sub(r"!?\[\]\((.+?)\)", r"<\1>", markdown_text)
-        markdown_text = re.sub(r"!?\[(.+?)\]\((.+?)\)", r"<\2|\1>", markdown_text)
-
-        for code in code_blocks:
-            markdown_text = re.sub(
-                replacement, f"```{code}```\n", markdown_text, count=1
-            )
-        return markdown_text

@@ -1,12 +1,12 @@
-"""
-subscribe pubsub topic and execute command
-"""
+"""subscribe pubsub topic and execute command"""
 import base64
 import json
 import logging
+from typing import Any
 
 import functions_framework
 import google.cloud.logging
+from cloudevents.http import CloudEvent
 
 import agent_factory
 
@@ -17,13 +17,11 @@ logger.setLevel(logging.DEBUG)
 
 
 @functions_framework.cloud_event
-def main(cloud_event):
+def main(cloud_event: CloudEvent):
     """subscribe pubsub topic and execute command"""
-    topics_message = json.loads(
-        base64.b64decode(cloud_event.data["message"].get("data")).decode()
-    )
+    event: str = base64.b64decode(cloud_event.data["message"]["data"]).decode()
+    topics_message: dict[str, Any] = json.loads(event)
     logger.debug(topics_message)
-    context: dict = topics_message.get("context")
-    chat_history: [dict] = topics_message.get("chat_history")
-
-    agent_factory.create(context, chat_history).execute(context, chat_history)
+    context: dict[str, Any] = topics_message["context"]
+    chat_history: list[dict[str, str]] = topics_message["chat_history"]
+    agent_factory.create(context, chat_history).execute()

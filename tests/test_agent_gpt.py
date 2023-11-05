@@ -4,47 +4,33 @@ agent_smmarize.pyのテスト
 import json
 import os
 
+import pytest
+
 with open("secrets.json", "r", encoding="utf-8") as f:
     os.environ["SECRETS"] = json.dumps(json.load(f))
+
 import agent_gpt
 
 
-def test_chatpost():
+def test_learn_context_memory(pytestconfig: pytest.Config):
     """.env"""
-    agt = agent_gpt.AgentGPT()
-
-    char = ["あ", "い", "う", "え", "お"]
-    text = "".join([char[i % 5] for i in range(0, 1333)])
-
-    res = agt.slack.chat_postMessage(channel="C05GDA42HJ5", text=text)
-    context = {"channel": res["channel"], "ts": res["ts"]}
-
-    agt.update_message(context, text)
-
-
-def test_chatpost_long():
-    """.env"""
-    agt = agent_gpt.AgentGPT()
-
-    char = ["あ", "い", "う", "え", "お"]
-    text = "".join([char[i % 5] for i in range(0, 1334)])
-
-    res = agt.slack.chat_postMessage(channel="C05GDA42HJ5", text=text)
-    context = {"channel": res["channel"], "ts": res["ts"]}
-
-    agt.update_message(context, text)
-
-
-def test_completion():
-    """.env"""
-    agt = agent_gpt.AgentGPT()
-    prev_content: str = ""
+    os.chdir(pytestconfig.getini("pythonpath")[0])
     text = [{"role": "user", "content": "コンサルタントの役割は？"}]
-    context = {}
-    agt.learn_context_memory(context, text)
-    prompt = agt.build_prompt(context, text)
+    agt = agent_gpt.AgentGPT({}, text)
+    agt.learn_context_memory()
+    print(agt._context["system_prompt"])
+
+
+def test_completion(pytestconfig: pytest.Config):
+    """.env"""
+    os.chdir(pytestconfig.getini("pythonpath")[0])
+    text = [{"role": "user", "content": "コンサルタントの役割は？"}]
+    agt = agent_gpt.AgentGPT({}, text)
+    agt.learn_context_memory()
+    prompt = agt.build_prompt(text)
     print(prompt)
-    for content in agt.completion(context, prompt):
+    prev_content = ""
+    for content in agt.completion(prompt):
         if content is not None and content != prev_content:
             print(f"-----\n{content}")
             prev_content = content
