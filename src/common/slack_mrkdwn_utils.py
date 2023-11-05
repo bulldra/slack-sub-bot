@@ -48,6 +48,7 @@ def convert_mrkdwn(markdown_text: str) -> str:
 
     # 太字
     mrkdwn_text = re.sub(r"\*\*(.+?)\*\*", r" *\1* ", mrkdwn_text)
+    mrkdwn_text = re.sub(r"([^\s])\*(.+?)\*([^\s])", r"\1 *\2* \3", mrkdwn_text)
 
     # 打ち消し
     mrkdwn_text = re.sub(r"~~(.+?)~~", r" ~\1~ ", mrkdwn_text)

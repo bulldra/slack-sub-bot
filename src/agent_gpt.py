@@ -1,12 +1,14 @@
 """GPT-4を用いたAgent"""
 
 import re
+import uuid
 from typing import Any
 
 import openai
 import tiktoken
 
 from agent_slack import AgentSlack
+from generative_action import GenerativeAction
 
 
 class AgentGPT(AgentSlack):
@@ -32,7 +34,26 @@ class AgentGPT(AgentSlack):
             content: str = ""
             for content in self.completion(prompt_messages):
                 self.update_message(self.build_message_blocks(content))
-            self.update_message(self.build_message_blocks(content))
+            blocks: list = self.build_message_blocks(content)
+
+            action_generator = GenerativeAction()
+            actions: list[dict[str, str]] = action_generator.run(content)
+            elements: list[dict[str, Any]] = [
+                {
+                    "type": "button",
+                    "text": {
+                        "type": "plain_text",
+                        "text": x["action_label"],
+                        "emoji": True,
+                    },
+                    "value": x["action_prompt"],
+                    "action_id": f"button-{uuid.uuid4()}",
+                }
+                for x in actions
+            ]
+
+            blocks.append({"type": "actions", "elements": elements})
+            self.update_message(blocks)
         except Exception as err:
             self.error(err)
             raise err
