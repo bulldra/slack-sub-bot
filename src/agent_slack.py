@@ -8,7 +8,7 @@ from typing import Any
 import google.cloud.logging
 import slack_sdk
 
-import common.slack_mrkdwn_utils as slack_mrkdwn_utils
+import slack_mrkdwn_utils
 from agent import Agent
 
 

@@ -1,8 +1,8 @@
 """AgentFactory"""
 from typing import Any
 
-import common.scraping_utils as scraping_utils
-import common.slack_link_utils as link_utils
+import scraping_utils
+import slack_link_utils
 from agent import Agent
 from agent_gpt import AgentGPT
 from agent_summarize import AgentSummarize
@@ -26,8 +26,8 @@ def select_command(context: dict[str, Any], chat_history: list[dict[str, str]]) 
         return str(context.get("command"))
     else:
         text: str = str(chat_history[-1].get("content"))
-        if link_utils.is_only_url(text):
-            url: str = link_utils.extract_and_remove_tracking_url(text)
+        if slack_link_utils.is_only_url(text):
+            url: str = slack_link_utils.extract_and_remove_tracking_url(text)
             if url is not None and scraping_utils.is_allow_scraping(url):
                 return "/summazise"
         return "/gpt"

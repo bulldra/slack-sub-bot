@@ -2,9 +2,9 @@
 
 from typing import Any
 
-import common.scraping_utils as scraping_utils
-import common.slack_link_utils as link_utils
-import common.slack_mrkdwn_utils as slack_mrkdwn_utils
+import scraping_utils
+import slack_link_utils
+import slack_mrkdwn_utils
 from agent_gpt import AgentGPT
 
 
@@ -17,12 +17,12 @@ class AgentSummarize(AgentGPT):
         """初期化"""
         super().__init__(context, chat_history)
         self.max_token: int = 16384 - 2000
-        self.openai_model = "gpt-3.5-turbo-16k-0613"
+        self.openai_model = "gpt-3.5-turbo-1106"
 
     def learn_context_memory(self) -> None:
         """コンテキストメモリの初期化"""
         super().learn_context_memory()
-        url: str = link_utils.extract_and_remove_tracking_url(
+        url: str = slack_link_utils.extract_and_remove_tracking_url(
             self._chat_history[-1]["content"]
         )
         self._logger.debug("scraping url=%s", url)
@@ -56,7 +56,7 @@ class AgentSummarize(AgentGPT):
         if site is None:
             raise ValueError("site is empty")
 
-        title_link: str = link_utils.build_link(site.url, site.title)
+        title_link: str = slack_link_utils.build_link(site.url, site.title)
         mrkdwn: str = slack_mrkdwn_utils.convert_mrkdwn(content)
 
         blocks: list[dict] = [
