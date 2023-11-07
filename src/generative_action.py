@@ -43,27 +43,26 @@ class GenerativeAction:
 
     def __init__(self) -> None:
         self._secrets: dict = json.loads(str(os.getenv("SECRETS")))
-        openai.api_key = self._secrets.get("OPENAI_API_KEY")
         self.openai_model: str = "gpt-3.5-turbo-0613"
         self.openai_temperature: float = 0.0
+        self.openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
 
     def run(self, content: str) -> list[dict[str, str]]:
         """回答内容をもとに次のアクション選択肢を生成する"""
 
-        prompt_messages: list[dict[str, str]] = [
-            {"role": "assistant", "content": content},
-        ]
-        prompt_messages.append(
-            {"role": "user", "content": "上記の回答に対して、次のアクションを生成してください。"}
-        )
+openai.types.chat.chat_completion_assistant_message_param()
 
-        response = openai.ChatCompletion.create(
+        prompt_messages = [
+            {"role": "assistant", "content": content},
+            {"role": "user", "content": "上記の回答に対して、次のアクションを生成してください。"},
+        ]
+
+        response = self.openai_client.chat.completions.create(
             messages=prompt_messages,
             model=self.openai_model,
             temperature=self.openai_temperature,
-            functions=self.def_functions,
-            function_call="auto",
-            stream=False,
+#            tools=self.def_functions,
+#            tool_choice="auto",
         )
 
         function_call = response["choices"][0]["message"]["function_call"]

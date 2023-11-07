@@ -19,10 +19,10 @@ class AgentGPT(AgentSlack):
     ) -> None:
         """初期化"""
         super().__init__(context, chat_history)
-        openai.api_key = self._secrets.get("OPENAI_API_KEY")
         self.openai_model: str = "gpt-4-1106-preview"
         self.openai_temperature: float = 0.0
         self.max_token: int = 128000 - 4096
+        self.openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
 
     def execute(self) -> None:
         """更新処理本体"""
@@ -105,12 +105,14 @@ class AgentGPT(AgentSlack):
         chunk_size: int = self.max_token // 15
         border_lambda: int = chunk_size // 5
 
-        stream = openai.Client.chat.completions.create(
+        stream: openai.Stream[
+            openai.types.chat.ChatCompletionChunk
+        ] = self.openai_client.chat.completions.create(
             messages=prompt_messages,
             model=self.openai_model,
             temperature=self.openai_temperature,
             stream=True,
-        )
+        )  # type: ignore
         response_text: str = ""
         prev_text: str = ""
         border: int = border_lambda
