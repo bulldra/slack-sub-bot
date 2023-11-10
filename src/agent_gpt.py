@@ -6,6 +6,14 @@ from typing import Any
 
 import openai
 import tiktoken
+from openai.types.chat import (
+    ChatCompletionAssistantMessageParam,
+    ChatCompletionChunk,
+    ChatCompletionFunctionMessageParam,
+    ChatCompletionSystemMessageParam,
+    ChatCompletionToolMessageParam,
+    ChatCompletionUserMessageParam,
+)
 
 from agent_slack import AgentSlack
 from generative_action import GenerativeAction
@@ -21,7 +29,7 @@ class AgentGPT(AgentSlack):
         super().__init__(context, chat_history)
         self.openai_model: str = "gpt-4-1106-preview"
         self.openai_temperature: float = 0.0
-        self.max_token: int = 128000 - 4096
+        self.max_token: int = (32 - 4) * 1024
         self.openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
 
     def execute(self) -> None:
@@ -29,7 +37,13 @@ class AgentGPT(AgentSlack):
         try:
             self.tik_process()
             self.learn_context_memory()
-            prompt_messages: list[dict] = self.build_prompt(self._chat_history)
+            prompt_messages: list[
+                ChatCompletionSystemMessageParam
+                | ChatCompletionUserMessageParam
+                | ChatCompletionAssistantMessageParam
+                | ChatCompletionToolMessageParam
+                | ChatCompletionFunctionMessageParam
+            ] = self.build_prompt(self._chat_history)
             self.tik_process()
             content: str = ""
             for content in self.completion(prompt_messages):
@@ -63,11 +77,26 @@ class AgentGPT(AgentSlack):
         with open("./conf/assistant.toml", "r", encoding="utf-8") as file:
             self._context["system_prompt"] = file.read()
 
-    def build_prompt(self, chat_history: list[dict[str, str]]) -> list[dict[str, str]]:
+    def build_prompt(
+        self, chat_history: list[dict[str, str]]
+    ) -> list[
+        ChatCompletionSystemMessageParam
+        | ChatCompletionUserMessageParam
+        | ChatCompletionAssistantMessageParam
+        | ChatCompletionToolMessageParam
+        | ChatCompletionFunctionMessageParam
+    ]:
         """promptを生成する"""
-
-        prompt_messages: list[dict[str, str]] = [
-            {"role": "system", "content": str(self._context.get("system_prompt"))}
+        prompt_messages: list[
+            ChatCompletionSystemMessageParam
+            | ChatCompletionUserMessageParam
+            | ChatCompletionAssistantMessageParam
+            | ChatCompletionToolMessageParam
+            | ChatCompletionFunctionMessageParam
+        ] = [
+            ChatCompletionSystemMessageParam(
+                role="system", content=str(self._context.get("system_prompt"))
+            )
         ]
         openai_encoding: tiktoken.core.Encoding = tiktoken.encoding_for_model(
             self.openai_model
@@ -79,7 +108,7 @@ class AgentGPT(AgentSlack):
             while True:
                 prompt_count: int = len(
                     openai_encoding.encode(
-                        "".join([p["content"] for p in prompt_messages])
+                        "".join([str(p.get("content")) for p in prompt_messages])
                     )
                 )
                 if current_count + prompt_count < self.max_token:
@@ -89,7 +118,17 @@ class AgentGPT(AgentSlack):
                     current_content = re.sub("\n[^\n]+?$", "\n", current_content)
                     break
                 del prompt_messages[1]
-            prompt_messages.append({"role": chat["role"], "content": current_content})
+
+            if chat["role"] == "user":
+                prompt_messages.append(
+                    ChatCompletionUserMessageParam(role="user", content=current_content)
+                )
+            elif chat["role"] == "assistant":
+                prompt_messages.append(
+                    ChatCompletionAssistantMessageParam(
+                        role="assistant", content=current_content
+                    )
+                )
 
         last_prompt_count: int = len(
             openai_encoding.encode(
@@ -100,19 +139,29 @@ class AgentGPT(AgentSlack):
         self._logger.debug("token count %s", last_prompt_count)
         return prompt_messages
 
-    def completion(self, prompt_messages) -> str:
+    def completion(
+        self,
+        prompt_messages: list[
+            ChatCompletionSystemMessageParam
+            | ChatCompletionUserMessageParam
+            | ChatCompletionAssistantMessageParam
+            | ChatCompletionToolMessageParam
+            | ChatCompletionFunctionMessageParam
+        ],
+    ) -> str:
         """OpenAIのAPIを用いて文章を生成する"""
         chunk_size: int = self.max_token // 15
         border_lambda: int = chunk_size // 5
 
         stream: openai.Stream[
-            openai.types.chat.ChatCompletionChunk
+            ChatCompletionChunk
         ] = self.openai_client.chat.completions.create(
             messages=prompt_messages,
             model=self.openai_model,
             temperature=self.openai_temperature,
             stream=True,
-        )  # type: ignore
+        )
+
         response_text: str = ""
         prev_text: str = ""
         border: int = border_lambda
