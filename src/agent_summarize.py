@@ -2,6 +2,14 @@
 
 from typing import Any
 
+from openai.types.chat import (
+    ChatCompletionAssistantMessageParam,
+    ChatCompletionFunctionMessageParam,
+    ChatCompletionSystemMessageParam,
+    ChatCompletionToolMessageParam,
+    ChatCompletionUserMessageParam,
+)
+
 import scraping_utils
 import slack_link_utils
 import slack_mrkdwn_utils
@@ -36,7 +44,15 @@ class AgentSummarize(AgentGPT):
         with open("./conf/summarize_prompt.toml", "r", encoding="utf-8") as file:
             self._context["summarize_prompt"] = file.read()
 
-    def build_prompt(self, chat_history: list[dict[str, str]]) -> list[dict[str, str]]:
+    def build_prompt(
+        self, chat_history: list[dict[str, str]]
+    ) -> list[
+        ChatCompletionSystemMessageParam
+        | ChatCompletionUserMessageParam
+        | ChatCompletionAssistantMessageParam
+        | ChatCompletionToolMessageParam
+        | ChatCompletionFunctionMessageParam
+    ]:
         """OpenAI APIを使って要約するためのpromptを生成する"""
         site: scraping_utils.Site = self._context.get("site")  # type: ignore
         prompt: str = self._context["summarize_prompt"]
