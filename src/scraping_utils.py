@@ -29,14 +29,25 @@ def is_allow_scraping(url: str):
     ]
     url_obj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
 
-    if url_obj.netloc == b"" or url_obj.netloc == "":
+    if url_obj.netloc in [b"", ""]:
         return False
-    elif url_obj.netloc in blacklist_domain:
+    if url_obj.netloc in blacklist_domain:
         return False
-    elif os.path.splitext(url_obj.path)[1] in black_list_ext:
+    if os.path.splitext(url_obj.path)[1] in black_list_ext:
         return False
-    else:
+    return True
+
+
+def is_image_url(url: str):
+    """画像URLかどうかの判定"""
+    image_ext: list[str] = [".jpg", ".png", ".gif", ".jpeg"]
+    url_obj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
+
+    if url_obj.netloc in [b"", ""]:
+        return False
+    if os.path.splitext(url_obj.path)[1] in image_ext:
         return True
+    return False
 
 
 def scraping(url: str) -> Site:

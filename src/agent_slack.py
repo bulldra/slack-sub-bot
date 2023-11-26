@@ -5,10 +5,9 @@ import logging
 import os
 from typing import Any
 
-import google.cloud.logging
 import slack_sdk
 
-import common.slack_mrkdwn_utils as slack_mrkdwn_utils
+import slack_mrkdwn_utils
 from agent import Agent
 
 
@@ -23,8 +22,6 @@ class AgentSlack(Agent):
         self._slack: slack_sdk.WebClient = slack_sdk.WebClient(
             token=self._secrets.get("SLACK_BOT_TOKEN")
         )
-        logging_client = google.cloud.logging.Client()
-        logging_client.setup_logging()
         self._logger: logging.Logger = logging.getLogger(__name__)
         self._logger.setLevel(logging.DEBUG)
         self._context: dict[str, Any] = context

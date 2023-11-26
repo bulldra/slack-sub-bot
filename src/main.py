@@ -10,15 +10,16 @@ from cloudevents.http import CloudEvent
 
 import agent_factory
 
-logging_client = google.cloud.logging.Client()
-logging_client.setup_logging()
-logger: logging.Logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
 
 @functions_framework.cloud_event
 def main(cloud_event: CloudEvent):
     """subscribe pubsub topic and execute command"""
+
+    logging_client = google.cloud.logging.Client()
+    logging_client.setup_logging()
+    logger: logging.Logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+
     event: str = base64.b64decode(cloud_event.data["message"]["data"]).decode()
     topics_message: dict[str, Any] = json.loads(event)
     logger.debug(topics_message)

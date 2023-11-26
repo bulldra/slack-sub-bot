@@ -6,6 +6,14 @@ from typing import Any
 
 import openai
 import tiktoken
+from openai.types.chat import (
+    ChatCompletionAssistantMessageParam,
+    ChatCompletionChunk,
+    ChatCompletionFunctionMessageParam,
+    ChatCompletionSystemMessageParam,
+    ChatCompletionToolMessageParam,
+    ChatCompletionUserMessageParam,
+)
 
 from agent_slack import AgentSlack
 from generative_action import GenerativeAction
@@ -19,23 +27,34 @@ class AgentGPT(AgentSlack):
     ) -> None:
         """初期化"""
         super().__init__(context, chat_history)
-        openai.api_key = self._secrets.get("OPENAI_API_KEY")
-        self.openai_model: str = "gpt-4-0613"
-        self.openai_temperature: float = 0.0
-        self.max_token: int = 8192 - 2000
+        self._openai_model: str = "gpt-4-1106-preview"
+        self._openai_temperature: float = 0.0
+        self._output_max_token: int = 4096
+        self._context_max_token: int = 128000 - self._output_max_token
+        self._openai_stream = True
+        self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
 
     def execute(self) -> None:
         """更新処理本体"""
         try:
             self.tik_process()
             self.learn_context_memory()
-            prompt_messages: list[dict] = self.build_prompt(self._chat_history)
+            prompt_messages: list[
+                ChatCompletionSystemMessageParam
+                | ChatCompletionUserMessageParam
+                | ChatCompletionAssistantMessageParam
+                | ChatCompletionToolMessageParam
+                | ChatCompletionFunctionMessageParam
+            ] = self.build_prompt(self._chat_history)
             self.tik_process()
             content: str = ""
-            for content in self.completion(prompt_messages):
-                self.update_message(self.build_message_blocks(content))
-            blocks: list = self.build_message_blocks(content)
+            if self._openai_stream:
+                for content in self.completion_stream(prompt_messages):
+                    self.update_message(self.build_message_blocks(content))
+            else:
+                content = self.completion(prompt_messages)
 
+            blocks: list = self.build_message_blocks(content)
             action_generator = GenerativeAction()
             actions: list[dict[str, str]] = action_generator.run(content)
             elements: list[dict[str, Any]] = [
@@ -63,59 +82,121 @@ class AgentGPT(AgentSlack):
         with open("./conf/assistant.toml", "r", encoding="utf-8") as file:
             self._context["system_prompt"] = file.read()
 
-    def build_prompt(self, chat_history: list[dict[str, str]]) -> list[dict[str, str]]:
+    def build_prompt(
+        self, chat_history: list[dict[str, Any]]
+    ) -> list[
+        ChatCompletionSystemMessageParam
+        | ChatCompletionUserMessageParam
+        | ChatCompletionAssistantMessageParam
+        | ChatCompletionToolMessageParam
+        | ChatCompletionFunctionMessageParam
+    ]:
         """promptを生成する"""
-
-        prompt_messages: list[dict[str, str]] = [
-            {"role": "system", "content": str(self._context.get("system_prompt"))}
+        prompt_messages: list[
+            ChatCompletionSystemMessageParam
+            | ChatCompletionUserMessageParam
+            | ChatCompletionAssistantMessageParam
+            | ChatCompletionToolMessageParam
+            | ChatCompletionFunctionMessageParam
+        ] = [
+            ChatCompletionSystemMessageParam(
+                role="system", content=str(self._context.get("system_prompt"))
+            )
         ]
         openai_encoding: tiktoken.core.Encoding = tiktoken.encoding_for_model(
-            self.openai_model
+            self._openai_model
         )
-
         for chat in chat_history:
-            current_content: str = chat["content"]
-            current_count: int = len(openai_encoding.encode(current_content))
+            current_content = chat["content"]
+            current_count_str: str = current_content
+            if not isinstance(current_content, str):
+                current_count_str = str(current_content)
+            current_count: int = len(openai_encoding.encode(current_count_str))
             while True:
                 prompt_count: int = len(
                     openai_encoding.encode(
-                        "".join([p["content"] for p in prompt_messages])
+                        "\n".join([str(p.get("content")) for p in prompt_messages])
                     )
                 )
-                if current_count + prompt_count < self.max_token:
+                if current_count + prompt_count < self._context_max_token:
                     break
                 if len(prompt_messages) <= 1:
-                    current_content = current_content[: self.max_token - prompt_count]
+                    current_content = current_content[
+                        : self._context_max_token - prompt_count
+                    ]
                     current_content = re.sub("\n[^\n]+?$", "\n", current_content)
                     break
-                del prompt_messages[1]
-            prompt_messages.append({"role": chat["role"], "content": current_content})
+                else:
+                    del prompt_messages[1]
+
+            if chat["role"] == "user":
+                prompt_messages.append(
+                    ChatCompletionUserMessageParam(role="user", content=current_content)
+                )
+            elif chat["role"] == "assistant":
+                prompt_messages.append(
+                    ChatCompletionAssistantMessageParam(
+                        role="assistant", content=current_content
+                    )
+                )
 
         last_prompt_count: int = len(
             openai_encoding.encode(
-                "".join([str(p.get("content")) for p in prompt_messages])
+                "\n".join([str(p.get("content")) for p in prompt_messages])
             )
         )
-        self._logger.debug(prompt_messages)
-        self._logger.debug("token count %s", last_prompt_count)
+        self._logger.debug("prompt token count %s", last_prompt_count)
         return prompt_messages
 
-    def completion(self, prompt_messages: list[dict[str, str]]) -> str:
+    def completion(
+        self,
+        prompt_messages: [
+            ChatCompletionSystemMessageParam
+            | ChatCompletionUserMessageParam
+            | ChatCompletionAssistantMessageParam
+            | ChatCompletionToolMessageParam
+            | ChatCompletionFunctionMessageParam
+        ],
+    ) -> str:
         """OpenAIのAPIを用いて文章を生成する"""
-        chunk_size: int = self.max_token // 15
+        response = self._openai_client.chat.completions.create(
+            messages=prompt_messages,
+            model=self._openai_model,
+            temperature=self._openai_temperature,
+            stream=False,
+            max_tokens=self._output_max_token,
+        )
+        return str(response.choices[0].message.content)
+
+    def completion_stream(
+        self,
+        prompt_messages: [
+            ChatCompletionSystemMessageParam
+            | ChatCompletionUserMessageParam
+            | ChatCompletionAssistantMessageParam
+            | ChatCompletionToolMessageParam
+            | ChatCompletionFunctionMessageParam
+        ],
+    ) -> str:
+        """OpenAIのAPIを用いて文章を生成する"""
+        chunk_size: int = self._output_max_token // 15
         border_lambda: int = chunk_size // 5
 
-        stream = openai.ChatCompletion.create(
+        stream: openai.Stream[
+            ChatCompletionChunk
+        ] = self._openai_client.chat.completions.create(
             messages=prompt_messages,
-            model=self.openai_model,
-            temperature=self.openai_temperature,
+            model=self._openai_model,
+            temperature=self._openai_temperature,
             stream=True,
+            max_tokens=self._output_max_token,
         )
+
         response_text: str = ""
         prev_text: str = ""
         border: int = border_lambda
         for chunk in stream:
-            add_content: str = chunk["choices"][0]["delta"].get("content")
+            add_content: str | None = chunk.choices[0].delta.content
             if add_content:
                 response_text += add_content
                 if len(response_text) >= border:
