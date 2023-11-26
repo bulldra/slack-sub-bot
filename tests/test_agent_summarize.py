@@ -31,4 +31,5 @@ def test_scraping(pytestconfig: pytest.Config):
     print(prompt)
     content: str = ""
     for content in agent.completion_stream(prompt):
-        print(content)
+        pass
+    print(content)
