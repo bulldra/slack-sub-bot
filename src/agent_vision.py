@@ -49,7 +49,7 @@ class AgentVision(agent_gpt.AgentGPT):
             ChatCompletionUserMessageParam(
                 role="user",
                 content=[
-                    {"type": "text", "text": "このイメージについて説明してください"},
+                    {"type": "text", "text": "このイメージの説明をしてください。"},
                     {
                         "type": "image_url",
                         "image_url": {

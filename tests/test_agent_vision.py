@@ -22,8 +22,7 @@ def test_vision(pytestconfig: pytest.Config):
     messages = [
         {
             "role": "user",
-            "content": "https://cdn-ak.f.st-hatena.com/images/\
-fotolife/b/bulldra/20230925/20230925125402.png",
+            "content": "https://m.media-amazon.com/images/I/51HrhpwcybL.jpg",
         }
     ]
     agent = AgentVision({}, messages)
