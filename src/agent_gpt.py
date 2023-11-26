@@ -29,8 +29,8 @@ class AgentGPT(AgentSlack):
         super().__init__(context, chat_history)
         self._openai_model: str = "gpt-4-1106-preview"
         self._openai_temperature: float = 0.0
-        self._context_max_token: int = 128000
         self._output_max_token: int = 4096
+        self._context_max_token: int = 128000 - self._output_max_token
         self._openai_stream = True
         self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
 
