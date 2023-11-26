@@ -23,8 +23,8 @@ class AgentVision(agent_gpt.AgentGPT):
     ) -> None:
         """初期化"""
         super().__init__(context, chat_history)
-        self.openai_model = "gpt-4-vision-preview"
-        self.openai_stream = False
+        self._openai_model = "gpt-4-vision-preview"
+        self._openai_stream = False
 
     def build_prompt(
         self, chat_history: list[dict[str, Any]]
@@ -39,16 +39,25 @@ class AgentVision(agent_gpt.AgentGPT):
             self._chat_history[-1]["content"]
         )
 
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": "このイメージはなんですか？"},
+        prompt_messages: list[
+            ChatCompletionSystemMessageParam
+            | ChatCompletionUserMessageParam
+            | ChatCompletionAssistantMessageParam
+            | ChatCompletionToolMessageParam
+            | ChatCompletionFunctionMessageParam
+        ] = [
+            ChatCompletionUserMessageParam(
+                role="user",
+                content=[
+                    {"type": "text", "text": "このイメージについて説明してください"},
                     {
                         "type": "image_url",
-                        "image_url": {"url": url, "detail": "high"},
+                        "image_url": {
+                            "url": url,
+                            "detail": "high",
+                        },
                     },
                 ],
-            }
+            )
         ]
-        return super().build_prompt(messages)
+        return prompt_messages
