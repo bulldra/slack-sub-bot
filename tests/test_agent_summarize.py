@@ -22,7 +22,7 @@ def test_scraping(pytestconfig: pytest.Config):
     messages = [
         {
             "role": "user",
-            "content": "https://www.du-soleil.com/entry/slack-share-bot",
+            "content": "https://xtrend.nikkei.com/atcl/contents/18/00915/00002/",
         }
     ]
     agent = AgentSummarize({}, messages)

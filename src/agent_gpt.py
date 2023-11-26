@@ -115,16 +115,18 @@ class AgentGPT(AgentSlack):
             while True:
                 prompt_count: int = len(
                     openai_encoding.encode(
-                        "\n".join([str(p.get("content")) for p in prompt_messages])
+                        "".join([str(p.get("content")) for p in prompt_messages])
                     )
                 )
-                if current_count + prompt_count < self._context_max_token:
+                if current_count + prompt_count <= self._context_max_token:
                     break
                 if len(prompt_messages) <= 1:
-                    current_content = current_content[
-                        : self._context_max_token - prompt_count
-                    ]
-                    current_content = re.sub("\n[^\n]+?$", "\n", current_content)
+                    while (
+                        prompt_count + len(openai_encoding.encode(str(current_content)))
+                        > self._context_max_token
+                    ):
+                        current_content = current_content[:-1]
+                        current_content = re.sub("\n[^\n]+?$", "\n", current_content)
                     break
                 else:
                     del prompt_messages[1]
@@ -142,7 +144,7 @@ class AgentGPT(AgentSlack):
 
         last_prompt_count: int = len(
             openai_encoding.encode(
-                "\n".join([str(p.get("content")) for p in prompt_messages])
+                "".join([str(p.get("content")) for p in prompt_messages])
             )
         )
         self._logger.debug("prompt token count %s", last_prompt_count)
