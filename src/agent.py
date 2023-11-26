@@ -7,3 +7,7 @@ class Agent:
     def execute(self) -> None:
         """Execute the agent"""
         raise NotImplementedError()
+
+    def error(self, err: Exception) -> None:
+        """Error handler"""
+        raise NotImplementedError()
