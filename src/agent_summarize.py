@@ -24,8 +24,10 @@ class AgentSummarize(AgentGPT):
     ) -> None:
         """初期化"""
         super().__init__(context, chat_history)
-        self.max_token: int = 16384 - 2000
-        self.openai_model = "gpt-3.5-turbo-1106"
+        self._openai_model = "gpt-3.5-turbo-1106"
+        self._prompt_max_token: int = 16385
+        self._openai_temperature: float = 0.0
+        self._openai_stream = True
 
     def learn_context_memory(self) -> None:
         """コンテキストメモリの初期化"""
@@ -45,7 +47,7 @@ class AgentSummarize(AgentGPT):
             self._context["summarize_prompt"] = file.read()
 
     def build_prompt(
-        self, chat_history: list[dict[str, str]]
+        self, chat_history: list[dict[str, Any]]
     ) -> list[
         ChatCompletionSystemMessageParam
         | ChatCompletionUserMessageParam

@@ -30,6 +30,8 @@ def select_command(context: dict[str, Any], chat_history: list[dict[str, str]]) 
             url: str = slack_link_utils.extract_and_remove_tracking_url(text)
             if url is not None and scraping_utils.is_allow_scraping(url):
                 return "/summazise"
+            if url is not None and not scraping_utils.is_image(url):
+                return "/image"
         return "/gpt"
 
 
