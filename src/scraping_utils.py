@@ -38,7 +38,7 @@ def is_allow_scraping(url: str):
     return True
 
 
-def is_image(url: str):
+def is_image_url(url: str):
     """画像URLかどうかの判定"""
     image_ext: list[str] = [".jpg", ".png", ".gif", ".jpeg"]
     url_obj: urllib.parse.ParseResult = urllib.parse.urlparse(url)

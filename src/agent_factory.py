@@ -1,14 +1,15 @@
 """AgentFactory"""
 from typing import Any
 
+import agent
+import agent_gpt
+import agent_summarize
+import agent_vision
 import scraping_utils
 import slack_link_utils
-from agent import Agent
-from agent_gpt import AgentGPT
-from agent_summarize import AgentSummarize
 
 
-def create(context: dict[str, Any], chat_history: list[dict[str, str]]) -> Agent:
+def create(context: dict[str, Any], chat_history: list[dict[str, str]]) -> agent.Agent:
     """AgentFactory"""
 
     if chat_history is None or len(chat_history) == 0:
@@ -30,18 +31,20 @@ def select_command(context: dict[str, Any], chat_history: list[dict[str, str]]) 
             url: str = slack_link_utils.extract_and_remove_tracking_url(text)
             if url is not None and scraping_utils.is_allow_scraping(url):
                 return "/summazise"
-            if url is not None and not scraping_utils.is_image(url):
-                return "/image"
+            if url is not None and scraping_utils.is_image_url(url):
+                return "/vision"
         return "/gpt"
 
 
 def select_agent(
     command: str, context: dict[str, Any], chat_history: list[dict[str, str]]
-) -> Agent:
+) -> agent.Agent:
     """コマンドを選択する"""
     if command == "/summazise":
-        return AgentSummarize(context, chat_history)
+        return agent_summarize.AgentSummarize(context, chat_history)
     elif command == "/gpt":
-        return AgentGPT(context, chat_history)
+        return agent_gpt.AgentGPT(context, chat_history)
+    elif command == "/vision":
+        return agent_vision.AgentVision(context, chat_history)
     else:
         raise ValueError(f"command is invalid. command:{command}")
