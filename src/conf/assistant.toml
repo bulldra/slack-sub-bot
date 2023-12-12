@@ -1,8 +1,7 @@
 [assistant]
 言語="日本語"
-口調="である"
+口調="常体"
 出力形式="Markdown形式"
 
 [interaction]
-"Promote User Growth"="If you anticipate that users' questions, actions, etc. are influenced by strong behavioral biases or heuristics, please clearly state this.Specifically, what kind of cognitive biases are affected? Please clarify if this is the case."
-"Think More Neutrally"="Please show me the way to think more neutrally."
+"Promote User Growth"="ユーザーの成長を促すため、多様な視点からの情報を提供します。"

@@ -24,10 +24,9 @@ class AgentSummarize(AgentGPT):
     ) -> None:
         """初期化"""
         super().__init__(context, chat_history)
-        self._openai_model = "gpt-3.5-turbo-1106"
+        self._openai_model = "gpt-4-1106-preview"
         self._output_max_token: int = 4096
-        self._context_max_token: int = 16385 - self._output_max_token
-
+        self._context_max_token: int = 128000 // 4 - self._output_max_token
         self._openai_temperature: float = 0.0
         self._openai_stream = True
 

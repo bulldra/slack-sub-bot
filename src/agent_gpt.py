@@ -30,7 +30,7 @@ class AgentGPT(AgentSlack):
         self._openai_model: str = "gpt-4-1106-preview"
         self._openai_temperature: float = 0.0
         self._output_max_token: int = 4096
-        self._context_max_token: int = 128000 - self._output_max_token
+        self._context_max_token: int = 128000 // 4 - self._output_max_token
         self._openai_stream = True
         self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
 
@@ -55,8 +55,11 @@ class AgentGPT(AgentSlack):
                 content = self.completion(prompt_messages)
 
             blocks: list = self.build_message_blocks(content)
+            self._logger.debug("content=%s", content)
+
             action_generator = GenerativeAction()
             actions: list[dict[str, str]] = action_generator.run(content)
+            self._logger.debug("actions=%s", actions)
             elements: list[dict[str, Any]] = [
                 {
                     "type": "button",
@@ -108,28 +111,28 @@ class AgentGPT(AgentSlack):
         )
         for chat in chat_history:
             current_content = chat["content"]
-            current_count_str: str = current_content
-            if not isinstance(current_content, str):
-                current_count_str = str(current_content)
-            current_count: int = len(openai_encoding.encode(current_count_str))
+
             while True:
+                current_count: int = len(openai_encoding.encode(str(current_content)))
                 prompt_count: int = len(
                     openai_encoding.encode(
                         "".join([str(p.get("content")) for p in prompt_messages])
                     )
                 )
-                if current_count + prompt_count <= self._context_max_token:
-                    break
-                if len(prompt_messages) <= 1:
-                    while (
-                        prompt_count + len(openai_encoding.encode(str(current_content)))
-                        > self._context_max_token
-                    ):
-                        current_content = current_content[:-1]
-                        current_content = re.sub("\n[^\n]+?$", "\n", current_content)
-                    break
+
+                if current_count + prompt_count > self._context_max_token:
+                    if len(prompt_messages) >= 2:
+                        del prompt_messages[1]
+                    else:
+                        if isinstance(current_content, str):
+                            current_content = current_content[:-1]
+                            current_content = re.sub(
+                                "\n[^\n]+?$", "\n", current_content
+                            )
+                        else:
+                            raise ValueError("current_content is not str and too long")
                 else:
-                    del prompt_messages[1]
+                    break
 
             if chat["role"] == "user":
                 prompt_messages.append(
@@ -181,7 +184,7 @@ class AgentGPT(AgentSlack):
         ],
     ) -> str:
         """OpenAIのAPIを用いて文章を生成する"""
-        chunk_size: int = self._output_max_token // 15
+        chunk_size: int = self._output_max_token // 5
         border_lambda: int = chunk_size // 5
 
         stream: openai.Stream[
