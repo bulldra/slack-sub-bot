@@ -15,5 +15,5 @@ def test(pytestconfig: pytest.Config):
 
     os.chdir(pytestconfig.getini("pythonpath")[0])
     next_action_generator = generative_action.GenerativeAction()
-    result = next_action_generator.run("""「ペイン・ストーム」と「ソルジャム」についての参考サイトを教えてください。""")
+    result = next_action_generator.run("""「ペイン・ストーム」と「ソルジャム」の違い""")
     print(result)

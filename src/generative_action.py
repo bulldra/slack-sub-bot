@@ -1,5 +1,6 @@
 """ 回答内容をもとに次のアクション選択肢を生成する """
 import json
+import logging
 import os
 
 import openai
@@ -21,6 +22,8 @@ class GenerativeAction:
         self.openai_model = "gpt-3.5-turbo-1106"
         self.openai_temperature: float = 0.0
         self.openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
+        self._logger: logging.Logger = logging.getLogger(__name__)
+        self._logger.setLevel(logging.DEBUG)
 
     def run(self, content: str) -> list[dict[str, str]]:
         """回答内容をもとに次のアクション選択肢を生成する"""
@@ -33,7 +36,7 @@ class GenerativeAction:
         ] = [
             ChatCompletionAssistantMessageParam(role="assistant", content=content),
             ChatCompletionUserMessageParam(
-                role="user", content="上記の回答に対して、次のアクションを生成してください。"
+                role="user", content="その回答に対して、次にすべきアクションを生成してください。"
             ),
         ]
 
@@ -60,6 +63,7 @@ class GenerativeAction:
             or function_calls[0].function.name != "generate_actions"
         ):
             return []
+        self._logger.debug("function_calls=%s", function_calls)
         args: dict = json.loads(function_calls[0].function.arguments)
         if args.get("actions") is None:
             return []
