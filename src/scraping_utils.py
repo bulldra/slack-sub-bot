@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 Site = namedtuple("Site", ("url", "title", "heading", "content"))
 
 
-def is_allow_scraping(url: str):
+def is_allow_scraping(url: str) -> bool:
     """スクレイピングできるかどうかの判定"""
 
     blacklist_domain: list[str] = [
@@ -27,25 +27,33 @@ def is_allow_scraping(url: str):
         ".jpeg",
         ".zip",
     ]
-    url_obj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
+    urlobj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
 
-    if url_obj.netloc in [b"", ""]:
+    if urlobj.netloc in [b"", ""]:
         return False
-    if url_obj.netloc in blacklist_domain:
+    if urlobj.netloc in blacklist_domain:
         return False
-    if os.path.splitext(url_obj.path)[1] in black_list_ext:
+    if os.path.splitext(urlobj.path)[1] in black_list_ext:
         return False
     return True
 
 
-def is_image_url(url: str):
+def is_image_url(url: str) -> bool:
     """画像URLかどうかの判定"""
     image_ext: list[str] = [".jpg", ".png", ".gif", ".jpeg"]
-    url_obj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
+    urlobj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
 
-    if url_obj.netloc in [b"", ""]:
+    if urlobj.netloc in [b"", ""]:
         return False
-    if os.path.splitext(url_obj.path)[1] in image_ext:
+    if os.path.splitext(urlobj.path)[1] in image_ext:
+        return True
+    return False
+
+
+def is_youtube_url(url: str) -> bool:
+    """YouTubeのリンクかどうかの判定"""
+    urlobj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
+    if urlobj.netloc == "youtu.be" or urlobj.netloc == "www.youtube.com":
         return True
     return False
 
