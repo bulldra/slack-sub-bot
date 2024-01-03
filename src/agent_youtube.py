@@ -60,7 +60,7 @@ class AgentYoutube(agent_gpt.AgentGPT):
         urlobj = urlparse(youtube_link)
         if urlobj.netloc == "youtu.be":
             return urlobj.path[1:]
-        elif urlobj.netloc == "www.youtube.com":
+        elif urlobj.netloc in ["www.youtube.com", "m.youtube.com"]:
             query: dict = urllib.parse.parse_qs(urlobj.query)
             if query.get("v") is not None and len(query["v"]) > 0:
                 return str(query["v"][0])

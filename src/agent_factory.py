@@ -37,13 +37,14 @@ def select_command(
         text: str = str(chat_history[-1].get("content"))
         if slack_link_utils.is_only_url(text):
             url: str = slack_link_utils.extract_and_remove_tracking_url(text)
-            if url is not None and scraping_utils.is_youtube_url(url):
+            if scraping_utils.is_youtube_url(url):
                 command = "/youtube"
-            elif url is not None and scraping_utils.is_image_url(url):
+            elif scraping_utils.is_image_url(url):
                 command = "/vision"
-            elif url is not None and scraping_utils.is_allow_scraping(url):
+            elif scraping_utils.is_allow_scraping(url):
                 command = "/summazise"
-    if command is None:
-        command = "/gpt"
 
+    # default command
+    if command not in command_dict:
+        command = "/gpt"
     return command_dict[command](context, chat_history)
