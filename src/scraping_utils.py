@@ -12,10 +12,7 @@ Site = namedtuple("Site", ("url", "title", "heading", "content"))
 
 def is_allow_scraping(url: str) -> bool:
     """スクレイピングできるかどうかの判定"""
-    blacklist_domain: list[str] = [
-        "twitter.com",
-        "speakerdeck.com",
-    ]
+    blacklist_domain: list[str] = ["speakerdeck.com", "twitter.com"]
     black_list_ext: list[str] = [
         ".pdf",
         ".zip",
@@ -53,7 +50,7 @@ def is_youtube_url(url: str) -> bool:
     return urlobj.netloc in youtube_url_list
 
 
-def scraping(url: str) -> Site:
+def scraping_raw(url: str) -> str:
     """スクレイピングの実施"""
     headers: dict[str, str] = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6\
@@ -64,8 +61,13 @@ def scraping(url: str) -> Site:
         raise ValueError(
             f"status code is not 200. status code:{res.status_code} url:{url}"
         )
+    return res.content
 
-    soup = BeautifulSoup(res.content, "html.parser")
+
+def scraping(url: str) -> Site:
+    """スクレイピングの実施"""
+    content: str = scraping_raw(url)
+    soup = BeautifulSoup(content, "html.parser")
     title = url
     if soup.title is not None and soup.title.string is not None:
         title = re.sub(r"\n", " ", soup.title.string.strip())

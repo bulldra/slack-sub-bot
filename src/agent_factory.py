@@ -3,6 +3,8 @@ from typing import Any
 
 import agent
 import agent_gpt
+import agent_idea
+import agent_slack
 import agent_summarize
 import agent_vision
 import agent_youtube
@@ -29,6 +31,8 @@ def select_command(
         "/summazise": agent_summarize.AgentSummarize,
         "/vision": agent_vision.AgentVision,
         "/youtube": agent_youtube.AgentYoutube,
+        "/idea": agent_idea.AgentIdea,
+        "/delete": agent_slack.AgentDelete,
     }
     command: str | None = None
     if "command" in context and context.get("command") is not None:
@@ -43,7 +47,8 @@ def select_command(
                 command = "/vision"
             elif scraping_utils.is_allow_scraping(url):
                 command = "/summazise"
-
+            else:
+                command = "/delete"
     # default command
     if command not in command_dict:
         command = "/gpt"

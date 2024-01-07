@@ -22,6 +22,10 @@ class AgentSlack(Agent):
         self._slack: slack_sdk.WebClient = slack_sdk.WebClient(
             token=self._secrets.get("SLACK_BOT_TOKEN")
         )
+        self._slack_behalf_user: slack_sdk.WebClient = slack_sdk.WebClient(
+            token=self._secrets.get("SLACK_USER_TOKEN")
+        )
+        self._share_channel: str = self._secrets.get("SHARE_CHANNEL_ID")
         self._logger: logging.Logger = logging.getLogger(__name__)
         self._logger.setLevel(logging.DEBUG)
         self._context: dict[str, Any] = context
@@ -46,16 +50,25 @@ class AgentSlack(Agent):
         """メッセージを更新する"""
 
         # 更新用テキストメッセージの取得と最大バイト数制限に対応
-        text: str = "\n".join(
-            [f"{b['text']['text']}" for b in blocks if b["type"] == "section"]
+        text: str = (
+            "\n".join(
+                [f"{b['text']['text']}" for b in blocks if b["type"] == "section"]
+            )
+            .encode("utf-8")[:3000]
+            .decode("utf-8", errors="ignore")
         )
-        text = text.encode("utf-8")[:3000].decode("utf-8", errors="ignore")
-
         self._slack.chat_update(
             channel=str(self._context.get("channel")),
             ts=str(self._context.get("ts")),
             blocks=blocks,
             text=text,
+        )
+
+    def delete_message(self) -> None:
+        """メッセージを削除する"""
+        self._slack.chat_delete(
+            channel=str(self._context.get("channel")),
+            ts=str(self._context.get("ts")),
         )
 
     def error(self, err: Exception) -> None:
@@ -73,3 +86,15 @@ class AgentSlack(Agent):
         ]
         self.update_message(blocks)
         raise err
+
+
+class AgentDelete(AgentSlack):
+    """削除処理を行うAgent"""
+
+    def execute(self) -> None:
+        """更新処理本体"""
+        self._logger.debug("delete")
+        self._slack.chat_delete(
+            channel=self._context.get("channel"),
+            ts=self._context.get("ts"),
+        )

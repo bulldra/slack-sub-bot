@@ -1,0 +1,17 @@
+{
+	"type": "function",
+	"function": {
+		"name": "get_slack_search_result",
+		"description": "Slack検索を行い、検索結果を取得する。クエリには検索単語に加えてfrom:<@(ユーザーID)>と指定すると特定のユーザーのメッセージ、in<#（チャンネルID>と指定すると特定のチャンネルのメッセージを検索できる。つまり<@(ユーザーID)>形式の固有の Slackユーザーの情報や、<#（チャンネルID)>形式の固有のSlackチャンネルの情報についての情報を取得できる。has:(絵文字コード）で、特定の絵文字を持つメッセージの検索を、before:(YYYY-MM-DD形式の日付) 日付以前、 after:(YYYY-MM-DD形式の日付) 日付以降、on:(YYYY-MM-DD形式の日付) その日付、during:(YYYY-MMの月) その月のメッセージを検索する条件を追加できる。",
+		"parameters": {
+			"type": "object",
+			"properties": {
+				"query": {
+					"type": "string",
+					"description": "検索クエリは、シャム猫犬，「柴犬と三毛猫、飼うならどっち？\"，'from<@UOVKMCTEV>'，'in:<#COVF1QBEK>','before:2022-11-25', 'after:2022-11-25', 'on:2022-11-25','during:2022-11' などを組み合わせて使う。例えば、ユーザー<@U0VKMCTEV>のチャンネル<#COVF1QBEK>での2022年11月1日以前のシャム猫に関することを調べるクエリは、'from:<@U0VKMCTEV> in:<#COVF1QBEK> before:2022-11-01 シャム猫' というクエリとなる"
+				},
+				"required": ["query"]
+			}
+		}
+	}
+}

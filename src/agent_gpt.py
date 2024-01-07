@@ -150,6 +150,7 @@ class AgentGPT(AgentSlack):
                 "".join([str(p.get("content")) for p in prompt_messages])
             )
         )
+        self._logger.debug("prompt %s", prompt_messages)
         self._logger.debug("prompt token count %s", last_prompt_count)
         return prompt_messages
 
@@ -184,7 +185,7 @@ class AgentGPT(AgentSlack):
         ],
     ) -> str:
         """OpenAIのAPIを用いて文章を生成する"""
-        chunk_size: int = self._output_max_token // 5
+        chunk_size: int = self._output_max_token // 15
         border_lambda: int = chunk_size // 5
 
         stream: openai.Stream[
