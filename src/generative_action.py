@@ -19,9 +19,9 @@ class GenerativeAction:
 
     def __init__(self) -> None:
         self._secrets: dict = json.loads(str(os.getenv("SECRETS")))
-        self.openai_model = "gpt-3.5-turbo-1106"
-        self.openai_temperature: float = 0.0
-        self.openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
+        self._openai_model: str = "gpt-4-1106-preview"
+        self._openai_temperature: float = 0.0
+        self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
         self._logger: logging.Logger = logging.getLogger(__name__)
         self._logger.setLevel(logging.DEBUG)
 
@@ -36,22 +36,22 @@ class GenerativeAction:
         ] = [
             ChatCompletionAssistantMessageParam(role="assistant", content=content),
             ChatCompletionUserMessageParam(
-                role="user", content="その回答に対して、次にすべきアクションを生成してください。"
+                role="user", content="以上までの回答に対して、次に取るべきアクションを生成してください。"
             ),
         ]
 
         with open("./conf/generative_action.json", "r", encoding="utf-8") as file:
             function_def: dict = json.load(file)
-        tools: list[ChatCompletionToolParam] = [
-            ChatCompletionToolParam(
-                type=function_def["type"], function=function_def["function"]
-            )
-        ]
+            tools: list[ChatCompletionToolParam] = [
+                ChatCompletionToolParam(
+                    type=function_def["type"], function=function_def["function"]
+                )
+            ]
 
-        response = self.openai_client.chat.completions.create(
-            model=self.openai_model,
+        response = self._openai_client.chat.completions.create(
+            model=self._openai_model,
             messages=prompt_messages,
-            temperature=self.openai_temperature,
+            temperature=self._openai_temperature,
             tools=tools,
             tool_choice="auto",
         )
@@ -66,12 +66,27 @@ class GenerativeAction:
         self._logger.debug("function_calls=%s", function_calls)
         args: dict = json.loads(function_calls[0].function.arguments)
         if args.get("actions") is None:
-            return []
+            args["actions"] = {}
+        actions: list[dict[str, str]] = [
+            {
+                "action_label": "PREP形式",
+                "action_prompt": "Point, Reason, Example, Pointに分けて文章を生成してください。",
+            },
+            {
+                "action_label": "SDS形式",
+                "action_prompt": "Summary, Details, Summaryに分けて文章を生成してください。",
+            },
+            {
+                "action_label": "DESC形式",
+                "action_prompt": "Describe, Explain, Specify, Chooseに分けて文章を生成してください。",
+            },
+        ]
+        actions.extend(args["actions"])
 
         return [
             {
-                "action_label": x["action_label"],
-                "action_prompt": x["action_prompt"],
+                "action_label": x.get("action_label", "None"),
+                "action_prompt": x.get("action_prompt", "None"),
             }
-            for x in args["actions"]
+            for x in actions
         ]

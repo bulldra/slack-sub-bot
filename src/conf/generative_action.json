@@ -2,7 +2,7 @@
 	"type": "function",
 	"function": {
 		"name": "generate_actions",
-		"description": "回答された内容をもとに次のアクションとなる選択肢を5個生成する。解像度を高めたり、反論したり、異なる視点を提示する",
+		"description": "回答された内容をもとに次のアクションとなる選択肢を最大3個生成する。解像度を高めたり、反論したり、異なる視点を提示する",
 		"parameters": {
 			"type": "object",
 			"properties": {
@@ -14,11 +14,11 @@
 						"properties": {
 							"action_prompt": {
 								"type": "string",
-								"description": "生成されたアクションの実行方法をChatGPTで問いかけるためのプロンプトをステップ・バイ・ステップで生成"
+								"description": "生成されたアクションの実行方法をChatGPTに問いかけるためのプロンプトをステップ・バイ・ステップで生成"
 							},
 							"action_label": {
 								"type": "string",
-								"description": "生成されたアクションのボタン表記。簡潔で短い文言にする"
+								"description": "生成されたアクションのボタン表記。簡潔で短い日本語文言にする"
 							}
 						}
 					}
