@@ -10,6 +10,8 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 
+import google_trends_utils
+import scraping_utils
 from agent_gpt import AgentGPT
 
 
@@ -25,31 +27,31 @@ class AgentIdea(AgentGPT):
         | ChatCompletionToolMessageParam
         | ChatCompletionFunctionMessageParam
     ]:
-        word: str = self._chat_history[-1]["content"].strip()
+        prompt_messages: [dict[str, str]] = []
+        keyword: str = self._chat_history[-1]["content"].strip()
         query: str = f"in:<#{self._share_channel}> is:thread"
-        if len(word) >= 1:
-            query = f'"{word}" {query}'
+        if keyword is None or len(keyword) == 0:
+            trend: dict = google_trends_utils.get_ramdom()
+            keyword = trend.get("title", "")
+            url: str = trend.get("ht_news_item_url")
+            if scraping_utils.is_allow_scraping(url):
+                site: scraping_utils.Site = scraping_utils.scraping(url)
+                prompt_messages.append({"role": "assistant", "content": site.content})
+        query = f'"{keyword}" {query}'
         self._logger.debug("query=%s", query)
-        print(query)
 
-        prompt_messages = []
         for message in self.extract_messages(query, 4):
             prompt_messages.extend(message)
 
-        prompt = "アイディアを提示してください"
-        if len(prompt_messages) >= 1:
-            with open("./conf/idea_prompt.toml", "r", encoding="utf-8") as file:
-                prompt = file.read()
-        elif len(word) >= 1:
-            prompt = f'"{word}"に関する{prompt}'
+        with open("./conf/idea_prompt.toml", "r", encoding="utf-8") as file:
+            prompt = file.read()
+            prompt = prompt.replace("${keyword}", keyword)
 
         prompt_messages.append({"role": "user", "content": prompt.strip()})
         return super().build_prompt(prompt_messages)
 
     def extract_messages(self, query, num) -> []:
-        """
-        メッセージ選択
-        """
+        """Slackから関連するメッセージを抽出"""
         serarch_result = self._slack_behalf_user.search_messages(
             query=query,
             count=50,
@@ -87,9 +89,7 @@ class AgentIdea(AgentGPT):
             yield result_messages
 
     def extract_thread_message(self, channel, timestamp) -> []:
-        """
-        スレッド取得
-        """
+        """スレッド取得"""
         history: dict = self._slack.conversations_replies(
             channel=channel, ts=timestamp, limit=1
         )
