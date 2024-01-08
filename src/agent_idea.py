@@ -11,7 +11,6 @@ from openai.types.chat import (
 )
 
 import google_trends_utils
-import scraping_utils
 from agent_gpt import AgentGPT
 
 
@@ -27,20 +26,20 @@ class AgentIdea(AgentGPT):
         | ChatCompletionToolMessageParam
         | ChatCompletionFunctionMessageParam
     ]:
+        max_search_length: int = 3
         prompt_messages: [dict[str, str]] = []
         keyword: str = self._chat_history[-1]["content"].strip()
-        query: str = f"in:<#{self._share_channel}> is:thread"
         if keyword is None or len(keyword) == 0:
-            trend: dict = google_trends_utils.get_ramdom()
-            keyword = trend.get("title", "")
-            url: str = trend.get("ht_news_item_url")
-            if scraping_utils.is_allow_scraping(url):
-                site: scraping_utils.Site = scraping_utils.scraping(url)
-                prompt_messages.append({"role": "assistant", "content": site.content})
-        query = f'"{keyword}" {query}'
-        self._logger.debug("query=%s", query)
+            keyword = google_trends_utils.get_ramdom_trend_word()
 
-        for message in self.extract_messages(query, 4):
+        query: str = f'"{keyword}" is:thread in:<#{self._share_channel}>'
+        self._logger.debug("query=%s", query)
+        for message in self.extract_messages(query, max_search_length):
+            prompt_messages.extend(message)
+
+        for message in self.extract_news(
+            keyword, max(max_search_length - len(prompt_messages), 1)
+        ):
             prompt_messages.extend(message)
 
         with open("./conf/idea_prompt.toml", "r", encoding="utf-8") as file:
@@ -64,7 +63,6 @@ class AgentIdea(AgentGPT):
 
         for message in selected:
             result_messages: [dict] = []
-            attachments = message.get("attachments")
             timestamp: str = message.get("ts")
             if timestamp is not None:
                 thread = self.extract_thread_message(
@@ -74,6 +72,7 @@ class AgentIdea(AgentGPT):
                     result_messages.extend(thread)
 
             if len(result_messages) == 0:
+                attachments = message.get("attachments")
                 if attachments is not None and len(attachments) > 0:
                     attachment = attachments[0]
                     title = attachment.get("title") or ""
@@ -103,3 +102,15 @@ class AgentIdea(AgentGPT):
                     role = "assistant"
                 result_messages.append({"role": role, "content": message.get("text")})
         return result_messages
+
+    def extract_news(self, keyword: str, num) -> []:
+        """ニュースを抽出"""
+        matches: [] = google_trends_utils.get_keyword_news(keyword)
+        selected = matches
+        if len(matches) > num:
+            selected = random.sample(matches, num)
+        for entry in selected:
+            title: str = entry.get("title", "")
+            link: str = entry.get("link", "")
+            summary: str = entry.get("summary", "")
+            yield [{"role": "assistant", "content": f"<{link}|{title}>\n{summary}"}]
