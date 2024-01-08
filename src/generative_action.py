@@ -19,9 +19,9 @@ class GenerativeAction:
 
     def __init__(self) -> None:
         self._secrets: dict = json.loads(str(os.getenv("SECRETS")))
-        self._openai_model: str = "gpt-4-1106-preview"
-        self._openai_temperature: float = 0.0
         self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
+        self._openai_model: str = "gpt-3.5-turbo-1106"
+        self._openai_temperature: float = 0.0
         self._logger: logging.Logger = logging.getLogger(__name__)
         self._logger.setLevel(logging.DEBUG)
 
@@ -56,17 +56,6 @@ class GenerativeAction:
             tool_choice="auto",
         )
 
-        function_calls = response.choices[0].message.tool_calls
-        if (
-            function_calls is None
-            or len(function_calls) != 1
-            or function_calls[0].function.name != "generate_actions"
-        ):
-            return []
-        self._logger.debug("function_calls=%s", function_calls)
-        args: dict = json.loads(function_calls[0].function.arguments)
-        if args.get("actions") is None:
-            args["actions"] = {}
         actions: list[dict[str, str]] = [
             {
                 "action_label": "PREP形式",
@@ -81,8 +70,16 @@ class GenerativeAction:
                 "action_prompt": "Describe, Explain, Specify, Chooseに分けて文章を生成してください。",
             },
         ]
-        actions.extend(args["actions"])
-
+        function_calls = response.choices[0].message.tool_calls
+        if not (
+            function_calls is None
+            or len(function_calls) != 1
+            or function_calls[0].function.name != "generate_actions"
+        ):
+            self._logger.debug("function_calls=%s", function_calls)
+            args: dict = json.loads(function_calls[0].function.arguments)
+            if args.get("actions") is not None:
+                actions.extend(args["actions"])
         return [
             {
                 "action_label": x.get("action_label", "None"),
