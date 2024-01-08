@@ -46,6 +46,13 @@ class AgentSlack(Agent):
         """レスポンスからブロックを作成する"""
         return slack_mrkdwn_utils.build_and_convert_mrkdwn_blocks(content)
 
+    def post_message(self, blocks: list) -> None:
+        """メッセージを投稿する"""
+        self._slack.chat_postMessage(
+            channel=str(self._context.get("channel")),
+            blocks=blocks,
+        )
+
     def update_message(self, blocks: list) -> None:
         """メッセージを更新する"""
 
@@ -84,7 +91,7 @@ class AgentSlack(Agent):
                 "text": {"type": "mrkdwn", "text": f"```{err}```"},
             },
         ]
-        self.update_message(blocks)
+        self.post_message(blocks)
         raise err
 
 
