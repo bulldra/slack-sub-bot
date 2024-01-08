@@ -21,6 +21,8 @@ class GenerativeAction:
         self._secrets: dict = json.loads(str(os.getenv("SECRETS")))
         self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
         self._openai_model: str = "gpt-3.5-turbo-1106"
+        # self._openai_model: str = "gpt-4-1106-preview"
+
         self._openai_temperature: float = 0.0
         self._logger: logging.Logger = logging.getLogger(__name__)
         self._logger.setLevel(logging.DEBUG)
