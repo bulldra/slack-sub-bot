@@ -29,8 +29,12 @@ class AgentIdea(AgentGPT):
         max_search_length: int = 3
         prompt_messages: [dict[str, str]] = []
         keyword: str = self._chat_history[-1]["content"].strip()
+
+        # キーワード指定がない場合はトレンドワードを取得
         if keyword is None or len(keyword) == 0:
             keyword = google_trends_utils.get_ramdom_trend_word()
+
+        syno
 
         query: str = f'"{keyword}" is:thread in:<#{self._share_channel}>'
         self._logger.debug("query=%s", query)

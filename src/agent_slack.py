@@ -50,6 +50,7 @@ class AgentSlack(Agent):
         """メッセージを投稿する"""
         self._slack.chat_postMessage(
             channel=str(self._context.get("channel")),
+            ts=str(self._context.get("ts")),
             blocks=blocks,
         )
 
@@ -91,7 +92,7 @@ class AgentSlack(Agent):
                 "text": {"type": "mrkdwn", "text": f"```{err}```"},
             },
         ]
-        self.post_message(blocks)
+        self.update_message(blocks)
         raise err
 
 

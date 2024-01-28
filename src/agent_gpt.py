@@ -15,8 +15,8 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 
+from action.generative_action import GenerativeAction
 from agent_slack import AgentSlack
-from generative_action import GenerativeAction
 
 
 class AgentGPT(AgentSlack):
@@ -27,10 +27,10 @@ class AgentGPT(AgentSlack):
     ) -> None:
         """初期化"""
         super().__init__(context, chat_history)
-        self._openai_model: str = "gpt-4-1106-preview"
+        self._openai_model: str = "gpt-4-0125-preview"
         self._openai_temperature: float = 0.0
-        self._output_max_token: int = 4096
-        self._context_max_token: int = 128000 // 4 - self._output_max_token
+        self._output_max_token: int = 3000
+        self._context_max_token: int = 128000 // 2 - self._output_max_token
         self._openai_stream = True
         self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
 
@@ -82,8 +82,6 @@ class AgentGPT(AgentSlack):
 
     def learn_context_memory(self) -> None:
         """コンテキストメモリの学習反映"""
-        with open("./conf/assistant.toml", "r", encoding="utf-8") as file:
-            self._context["system_prompt"] = file.read()
 
     def build_prompt(
         self, chat_history: list[dict[str, Any]]
@@ -95,17 +93,16 @@ class AgentGPT(AgentSlack):
         | ChatCompletionFunctionMessageParam
     ]:
         """promptを生成する"""
+        with open("./conf/assistant.toml", "r", encoding="utf-8") as file:
+            system_prompt: str = file.read()
+
         prompt_messages: list[
             ChatCompletionSystemMessageParam
             | ChatCompletionUserMessageParam
             | ChatCompletionAssistantMessageParam
             | ChatCompletionToolMessageParam
             | ChatCompletionFunctionMessageParam
-        ] = [
-            ChatCompletionSystemMessageParam(
-                role="system", content=str(self._context.get("system_prompt"))
-            )
-        ]
+        ] = [ChatCompletionSystemMessageParam(role="system", content=system_prompt)]
         openai_encoding: tiktoken.core.Encoding = tiktoken.encoding_for_model(
             self._openai_model
         )
