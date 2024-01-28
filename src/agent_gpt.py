@@ -15,8 +15,8 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 
-from action.generative_action import GenerativeAction
 from agent_slack import AgentSlack
+from function.generative_actions import GenerativeActions
 
 
 class AgentGPT(AgentSlack):
@@ -57,8 +57,8 @@ class AgentGPT(AgentSlack):
             blocks: list = self.build_message_blocks(content)
             self._logger.debug("content=%s", content)
 
-            action_generator = GenerativeAction()
-            actions: list[dict[str, str]] = action_generator.run(content)
+            action_generator = GenerativeActions()
+            actions: list[dict[str, str]] = action_generator.execute(content)
             self._logger.debug("actions=%s", actions)
             elements: list[dict[str, Any]] = [
                 {
