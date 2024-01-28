@@ -1,0 +1,21 @@
+{
+	"type": "function",
+	"function": {
+		"name": "generate_synonyms",
+		"description": "入力されたキーワードから検索するためのシノニムを4個返却する",
+		"parameters": {
+			"type": "object",
+			"properties": {
+				"synonyms": {
+					"type": "array",
+					"description": "生成されたシノニムのリスト",
+					"items": {
+						"type": "string",
+						"description": "シノニムの値"
+					}
+				}
+			},
+			"required": ["synonyms"]
+		}
+	}
+}
