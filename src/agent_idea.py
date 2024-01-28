@@ -34,8 +34,6 @@ class AgentIdea(AgentGPT):
         if keyword is None or len(keyword) == 0:
             keyword = google_trends_utils.get_ramdom_trend_word()
 
-        syno
-
         query: str = f'"{keyword}" is:thread in:<#{self._share_channel}>'
         self._logger.debug("query=%s", query)
         for message in self.extract_messages(query, max_search_length):

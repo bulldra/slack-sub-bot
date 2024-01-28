@@ -1,33 +1,22 @@
 """ 回答内容をもとに次のアクション選択肢を生成する """
 import json
-import logging
-import os
 
-import openai
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
     ChatCompletionFunctionMessageParam,
     ChatCompletionSystemMessageParam,
     ChatCompletionToolMessageParam,
-    ChatCompletionToolParam,
     ChatCompletionUserMessageParam,
 )
+from openai.types.chat.chat_completion_message_tool_call import Function
+
+from function.generative_function import GenerativeFunction
 
 
-class GenerativeAction:
+class GenerativeActions(GenerativeFunction):
     """回答内容をもとに次のアクション選択肢を生成する"""
 
-    def __init__(self) -> None:
-        self._secrets: dict = json.loads(str(os.getenv("SECRETS")))
-        self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
-        self._openai_model: str = "gpt-3.5-turbo-1106"
-        # self._openai_model: str = "gpt-4-1106-preview"
-
-        self._openai_temperature: float = 0.0
-        self._logger: logging.Logger = logging.getLogger(__name__)
-        self._logger.setLevel(logging.DEBUG)
-
-    def run(self, content: str) -> list[dict[str, str]]:
+    def execute(self, content: str) -> list[dict[str, str]]:
         """回答内容をもとに次のアクション選択肢を生成する"""
         prompt_messages: list[
             ChatCompletionSystemMessageParam
@@ -42,21 +31,8 @@ class GenerativeAction:
             ),
         ]
 
-        with open("./conf/generative_action.json", "r", encoding="utf-8") as file:
+        with open("./conf/generative_actions.json", "r", encoding="utf-8") as file:
             function_def: dict = json.load(file)
-            tools: list[ChatCompletionToolParam] = [
-                ChatCompletionToolParam(
-                    type=function_def["type"], function=function_def["function"]
-                )
-            ]
-
-        response = self._openai_client.chat.completions.create(
-            model=self._openai_model,
-            messages=prompt_messages,
-            temperature=self._openai_temperature,
-            tools=tools,
-            tool_choice="auto",
-        )
 
         actions: list[dict[str, str]] = [
             {
@@ -72,16 +48,13 @@ class GenerativeAction:
                 "action_prompt": "Describe, Explain, Specify, Chooseに分けて文章を生成してください。",
             },
         ]
-        function_calls = response.choices[0].message.tool_calls
-        if not (
-            function_calls is None
-            or len(function_calls) != 1
-            or function_calls[0].function.name != "generate_actions"
-        ):
-            self._logger.debug("function_calls=%s", function_calls)
-            args: dict = json.loads(function_calls[0].function.arguments)
+
+        function: Function | None = self.function_call(function_def, prompt_messages)
+        if function is not None and function.name == "generate_actions":
+            args: dict = json.loads(function.arguments)
             if args.get("actions") is not None:
                 actions.extend(args["actions"])
+
         return [
             {
                 "action_label": x.get("action_label", "None"),

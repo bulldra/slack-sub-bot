@@ -11,8 +11,12 @@ Site = namedtuple("Site", ("url", "title", "heading", "content"))
 
 
 def is_allow_scraping(url: str) -> bool:
-    """スクレイピングできるかどうかの判定"""
-    blacklist_domain: list[str] = ["speakerdeck.com", "twitter.com"]
+    """スクレイピングできるかの判定"""
+    blacklist_domain: list[str] = [
+        "speakerdeck.com",
+        "twitter.com",
+        "open.spotify.com",
+    ]
     black_list_ext: list[str] = [
         ".pdf",
         ".zip",
