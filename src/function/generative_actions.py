@@ -1,4 +1,5 @@
 """ 回答内容をもとに次のアクション選択肢を生成する """
+
 import json
 
 from openai.types.chat import (
@@ -27,7 +28,8 @@ class GenerativeActions(GenerativeFunction):
         ] = [
             ChatCompletionAssistantMessageParam(role="assistant", content=content),
             ChatCompletionUserMessageParam(
-                role="user", content="以上までの回答に対して、次に取るべきアクションを生成してください。"
+                role="user",
+                content="以上までの回答に対して、次に取るべきアクションとそれを実行するプロンプトを生成してください。",
             ),
         ]
 
@@ -36,12 +38,12 @@ class GenerativeActions(GenerativeFunction):
 
         actions: list[dict[str, str]] = [
             {
-                "action_label": "PREP形式",
-                "action_prompt": "Point, Reason, Example, Pointに分けて文章を生成してください。",
+                "action_label": "挿絵",
+                "action_prompt": "絵にして。",
             },
             {
-                "action_label": "SDS形式",
-                "action_prompt": "Summary, Details, Summaryに分けて文章を生成してください。",
+                "action_label": "PREP形式",
+                "action_prompt": "Point, Reason, Example, Pointに分けて文章を生成してください。",
             },
             {
                 "action_label": "DESC形式",
@@ -50,7 +52,7 @@ class GenerativeActions(GenerativeFunction):
         ]
 
         function: Function | None = self.function_call(function_def, prompt_messages)
-        if function is not None and function.name == "generate_actions":
+        if function is not None and function.arguments is not None:
             args: dict = json.loads(function.arguments)
             if args.get("actions") is not None:
                 actions.extend(args["actions"])

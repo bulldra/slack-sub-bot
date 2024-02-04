@@ -1,4 +1,5 @@
 """グーグルトレンドを取得するモジュール"""
+
 import random
 import urllib
 
@@ -25,15 +26,14 @@ def get_trends() -> []:
     return feed.entries
 
 
-def get_keyword_news(keyword: str) -> []:
+def get_keyword_news(keyword: str, num: int = 5) -> []:
     """グーグルニュースを取得する"""
     url = "https://news.google.com/rss/search"
-    params = {
-        "q": keyword,
-        "hl": "ja",
-        "gl": "JP",
-        "ceid": "JP:ja",
-    }
+    params = {"q": keyword, "hl": "ja", "gl": "JP", "ceid": "JP:ja", "num": num}
     url += "?" + urllib.parse.urlencode(params)
     feed = feedparser.parse(url)
-    return feed.entries
+
+    selected = feed.entries
+    if len(selected) > num:
+        selected = random.sample(selected, num)
+    return selected

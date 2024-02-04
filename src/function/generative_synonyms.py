@@ -17,7 +17,7 @@ from function.generative_function import GenerativeFunction
 class GenerativeSynonyms(GenerativeFunction):
     """回答内容をもとにシノニムを生成する"""
 
-    def execute(self, content: str) -> list[dict[str, str]]:
+    def generate(self, content: str) -> list[dict[str, str]]:
         """回答内容をもとにシノニムを生成する"""
         prompt_messages: list[
             ChatCompletionSystemMessageParam
@@ -28,7 +28,8 @@ class GenerativeSynonyms(GenerativeFunction):
         ] = [
             ChatCompletionAssistantMessageParam(role="assistant", content=content),
             ChatCompletionUserMessageParam(
-                role="user", content="上記キーワードのシノニムを生成してください。"
+                role="user",
+                content="上記文章から検索キーワードを複数生成してください。",
             ),
         ]
 
@@ -36,10 +37,16 @@ class GenerativeSynonyms(GenerativeFunction):
             function_def: dict = json.load(file)
 
         function: Function | None = self.function_call(function_def, prompt_messages)
-        if function is None or function.name != "generate_synonyms":
-            return []
-        args: dict = json.loads(function.arguments)
-        if args.get("synonyms") is None:
-            return []
-
-        return args["synonyms"]
+        if function is not None and function.arguments is not None:
+            args: dict = json.loads(function.arguments)
+            if args.get("synonyms") is not None:
+                if isinstance(args["synonyms"], list):
+                    synonyms: list = args["synonyms"]
+                    ngword: list = ["調査", "アイディア"]
+                    for ng in ngword:
+                        if ng in synonyms:
+                            synonyms.remove(ng)
+                    return synonyms
+                else:
+                    return [str(args["synonyms"])]
+        return []

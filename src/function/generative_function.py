@@ -1,4 +1,5 @@
 """回答内容をもとにファンクションを生成する"""
+
 import json
 import logging
 import os
@@ -30,7 +31,7 @@ class GenerativeFunction:
     def function_call(
         self,
         function_def: dict,
-        prompt_messages: list[
+        messages: list[
             ChatCompletionSystemMessageParam
             | ChatCompletionUserMessageParam
             | ChatCompletionAssistantMessageParam
@@ -47,7 +48,7 @@ class GenerativeFunction:
 
         response = self._openai_client.chat.completions.create(
             model=self._openai_model,
-            messages=prompt_messages,
+            messages=messages,
             temperature=self._openai_temperature,
             tools=tools,
             tool_choice="auto",
@@ -56,8 +57,10 @@ class GenerativeFunction:
         function_calls: [ChatCompletionMessage.tool_calls] = response.choices[
             0
         ].message.tool_calls
+
+        # 呼び出された function_call が1つだけかつ定義通りの名前だった場合のみ返す
         if not (function_calls is None or len(function_calls) != 1):
             self._logger.debug("function_calls=%s", function_calls)
-            return function_calls[0].function
-        else:
-            return None
+            if function_calls[0].function.name == function_def["function"]["name"]:
+                return function_calls[0].function
+        return None

@@ -3,9 +3,12 @@
 import json
 import logging
 import os
+import time
 from typing import Any
 
+import requests
 import slack_sdk
+from slack_sdk.web.slack_response import SlackResponse
 
 import slack_mrkdwn_utils
 from agent import Agent
@@ -26,6 +29,7 @@ class AgentSlack(Agent):
             token=self._secrets.get("SLACK_USER_TOKEN")
         )
         self._share_channel: str = self._secrets.get("SHARE_CHANNEL_ID")
+        self._image_channel: str = self._secrets.get("IMAGE_CHANNEL_ID")
         self._logger: logging.Logger = logging.getLogger(__name__)
         self._logger.setLevel(logging.DEBUG)
         self._context: dict[str, Any] = context
@@ -48,11 +52,25 @@ class AgentSlack(Agent):
 
     def post_message(self, blocks: list) -> None:
         """メッセージを投稿する"""
+        text: str = (
+            "\n".join(
+                [f"{b['text']['text']}" for b in blocks if b["type"] == "section"]
+            )
+            .encode("utf-8")[:3000]
+            .decode("utf-8", errors="ignore")
+        )
+
         self._slack.chat_postMessage(
             channel=str(self._context.get("channel")),
             ts=str(self._context.get("ts")),
+            text=text,
             blocks=blocks,
         )
+
+    def post_single_message(self, content: str) -> None:
+        """メッセージを投稿する"""
+        blocks: list = self.build_message_blocks(content)
+        self.post_message(blocks)
 
     def update_message(self, blocks: list) -> None:
         """メッセージを更新する"""
@@ -70,7 +88,13 @@ class AgentSlack(Agent):
             ts=str(self._context.get("ts")),
             blocks=blocks,
             text=text,
+            unfurl_links=True,
         )
+
+    def update_single_message(self, content: str) -> None:
+        """メッセージを更新する"""
+        blocks: list = self.build_message_blocks(content)
+        self.update_message(blocks)
 
     def delete_message(self) -> None:
         """メッセージを削除する"""
@@ -78,6 +102,38 @@ class AgentSlack(Agent):
             channel=str(self._context.get("channel")),
             ts=str(self._context.get("ts")),
         )
+
+    def update_image(self, title: str, image_url: str) -> None:
+        """画像を投稿する"""
+        self._slack.chat_update(
+            channel=str(self._context.get("channel")),
+            ts=str(self._context.get("ts")),
+            blocks=[
+                {
+                    "type": "image",
+                    "title": {
+                        "type": "plain_text",
+                        "text": title,
+                    },
+                    "slack_file": {
+                        "url": image_url,
+                    },
+                    "alt_text": title,
+                },
+            ],
+            text=title,
+        )
+
+    def upload_image(self, image_url: str) -> str:
+        """画像を投稿する"""
+        file = requests.get(image_url, timeout=10).content
+        res: SlackResponse = self._slack.files_upload_v2(
+            channel=self._image_channel,
+            file=file,
+            filename=image_url.split("/")[-1],
+        )
+        time.sleep(10)
+        return res["file"]["permalink"]
 
     def error(self, err: Exception) -> None:
         """エラー処理"""
