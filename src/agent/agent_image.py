@@ -1,20 +1,15 @@
-"""This is a agent that uses the GPT-4 Vision model to answer questions about images."""
-
 from typing import Any
 
 import openai
 
-import agent_slack
+from agent.agent_slack import AgentSlack
 from function.generative_image_prompt import GenerativeImagePrompt
 
 
-class AgentImage(agent_slack.AgentSlack):
-    """image agent"""
-
+class AgentImage(AgentSlack):
     def __init__(
         self, context: dict[str, Any], chat_history: list[dict[str, str]]
     ) -> None:
-        """初期化"""
         super().__init__(context, chat_history)
         self._openai_model: str = "dall-e-3"
         self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))

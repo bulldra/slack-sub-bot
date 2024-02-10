@@ -1,5 +1,3 @@
-"""AgentFactory"""
-
 import json
 
 from openai.types.chat import (
@@ -11,34 +9,34 @@ from openai.types.chat import (
 )
 from openai.types.chat.chat_completion_message_tool_call import Function
 
-import agent
-import agent_gpt
-import agent_idea
-import agent_image
-import agent_research
-import agent_slack
-import agent_summarize
-import agent_vision
-import agent_youtube
-import scraping_utils
-import slack_link_utils
+import utils.scraping_utils as scraping_utils
+import utils.slack_link_utils as slack_link_utils
+from agent.agent import Agent
+from agent.agent_gpt import AgentGPT
+from agent.agent_idea import AgentIdea
+from agent.agent_image import AgentImage
+from agent.agent_research import AgentResearch
+from agent.agent_slack import AgentDelete
+from agent.agent_summarize import AgentSummarize
+from agent.agent_vision import AgentVision
+from agent.agent_youtube import AgentYoutube
 from function.generative_function import GenerativeFunction
 
 
 class GenerativeAgent(GenerativeFunction):
     """AgentFactory"""
 
-    def generate(self, command: None | str, arg: str) -> agent.Agent:
+    def generate(self, command: None | str, arg: str) -> Agent:
         """AgentFactory"""
-        command_dict: dict[str, type[agent.Agent]] = {
-            "/gpt": agent_gpt.AgentGPT,
-            "/summazise": agent_summarize.AgentSummarize,
-            "/vision": agent_vision.AgentVision,
-            "/youtube": agent_youtube.AgentYoutube,
-            "/idea": agent_idea.AgentIdea,
-            "/image": agent_image.AgentImage,
-            "/research": agent_research.AgentResearch,
-            "/delete": agent_slack.AgentDelete,
+        command_dict: dict[str, type[Agent]] = {
+            "/gpt": AgentGPT,
+            "/summazise": AgentSummarize,
+            "/vision": AgentVision,
+            "/youtube": AgentYoutube,
+            "/idea": AgentIdea,
+            "/image": AgentImage,
+            "/research": AgentResearch,
+            "/delete": AgentDelete,
         }
 
         # 有効なコマンドが設定されていない場合はルールベースでのcommand設定
@@ -71,8 +69,25 @@ class GenerativeAgent(GenerativeFunction):
                 ),
             ]
 
-            with open("./conf/generative_agent.json", "r", encoding="utf-8") as file:
-                function_def: dict = json.load(file)
+            function_def: dict = {
+                "type": "function",
+                "function": {
+                    "name": "generate_agent",
+                    "description": "画像生成なら /image, アイデア出しなら /idea, 検索依頼なら /resea\
+rch。それ以外なら /gpt を指定",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "agent": {
+                                "type": "string",
+                                "description": "生成されたエージェント名",
+                                "enum": ["/gpt", "/image", "/idea", "/research"],
+                            }
+                        },
+                        "required": ["agent"],
+                    },
+                },
+            }
             function: Function | None = self.function_call(function_def, messages)
             if function is not None and function.arguments is not None:
                 args: dict = json.loads(function.arguments)

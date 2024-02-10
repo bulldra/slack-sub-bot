@@ -7,7 +7,7 @@ import os
 
 import pytest
 
-from agent_idea import AgentIdea
+from agent.agent_idea import AgentIdea
 
 with open("secrets.json", "r", encoding="utf-8") as f:
     os.environ["SECRETS"] = json.dumps(json.load(f))

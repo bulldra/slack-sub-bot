@@ -1,4 +1,5 @@
 """ YouTubeの文字起こしを取得する """
+
 import urllib
 from typing import Any
 from urllib.parse import urlparse
@@ -12,13 +13,11 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 
-import agent_gpt
-import slack_link_utils
+import utils.slack_link_utils as slack_link_utils
+from agent.agent_gpt import AgentGPT
 
 
-class AgentYoutube(agent_gpt.AgentGPT):
-    """YouTubeの文字起こしを取得する"""
-
+class AgentYoutube(AgentGPT):
     def build_prompt(
         self, chat_history: list[dict[str, Any]]
     ) -> list[
@@ -29,7 +28,7 @@ class AgentYoutube(agent_gpt.AgentGPT):
         | ChatCompletionFunctionMessageParam
     ]:
         url: str = slack_link_utils.extract_and_remove_tracking_url(
-            self._chat_history[-1]["content"]
+            chat_history[-1]["content"]
         )
         self._logger.debug("youtube url=%s", url)
         with open("./conf/youtube_prompt.toml", "r", encoding="utf-8") as file:
@@ -39,7 +38,6 @@ class AgentYoutube(agent_gpt.AgentGPT):
         return super().build_prompt([{"role": "user", "content": prompt.strip()}])
 
     def extract_youtube_video_id(self, youtube_link: str) -> str:
-        """YouTubeのリンクから動画IDを抽出する"""
         urlobj = urlparse(youtube_link)
         if urlobj.netloc == "youtu.be":
             return urlobj.path[1:]
@@ -50,7 +48,6 @@ class AgentYoutube(agent_gpt.AgentGPT):
         raise ValueError("YouTube link must be provided.")
 
     def extract_youtube_transcript(self, youtube_link: str) -> str:
-        """YouTubeの文字起こしを取得する"""
         video_id: str = self.extract_youtube_video_id(youtube_link)
         transcript = youtube_transcript_api.YouTubeTranscriptApi.get_transcript(
             video_id, languages=["ja"]

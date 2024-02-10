@@ -1,5 +1,3 @@
-"""ランダムに選択したエントリを組み合わせて文章を生成する"""
-
 from typing import Any
 
 from openai.types.chat import (
@@ -10,14 +8,12 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 
-import google_trends_utils
-from agent_gpt import AgentGPT
+import utils.google_trends_utils as google_trends_utils
+from agent.agent_gpt import AgentGPT
 from function.generative_synonyms import GenerativeSynonyms
 
 
 class AgentResearch(AgentGPT):
-    """ランダムに選択したエントリを組み合わせて文章を生成する"""
-
     def build_prompt(
         self, chat_history: list[dict[str, Any]]
     ) -> list[
@@ -27,7 +23,6 @@ class AgentResearch(AgentGPT):
         | ChatCompletionToolMessageParam
         | ChatCompletionFunctionMessageParam
     ]:
-        """promptを生成する"""
         conetnt: str = chat_history[-1]["content"].strip()
         keywords: [str] = GenerativeSynonyms().generate(conetnt)
         keyword_query = " OR ".join(keywords)
@@ -45,7 +40,6 @@ class AgentResearch(AgentGPT):
         return super().build_prompt(prompt_messages)
 
     def extract_news(self, keyword: str) -> dict[str, str]:
-        """ニュースを抽出"""
         matches: [] = google_trends_utils.get_keyword_news(keyword)
         for entry in matches:
             title: str = entry.get("title", "")

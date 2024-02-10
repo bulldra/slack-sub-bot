@@ -1,5 +1,3 @@
-"""回答内容をもとにファンクションを生成する"""
-
 import json
 import logging
 import os
@@ -18,7 +16,6 @@ from openai.types.chat.chat_completion_message_tool_call import Function
 
 
 class GenerativeFunction:
-    """回答内容をもとにファンクションを生成する"""
 
     def __init__(self) -> None:
         self._secrets: dict = json.loads(str(os.getenv("SECRETS")))

@@ -1,15 +1,11 @@
-"""
-slack_link_utils.pyのテスト
-"""
 import collections
 
-import common.slack_link_utils as slack_link_utils
+import utils.slack_link_utils as slack_link_utils
 
 Case = collections.namedtuple("Case", ("argument", "expected"))
 
 
 def test_is_only_url():
-    """is_only_urlのテスト"""
     case_list = [
         Case(argument=None, expected=False),
         Case(argument="", expected=False),
@@ -40,7 +36,6 @@ def test_is_only_url():
 
 
 def test_extract_url():
-    """extract_urlのテスト"""
     case_list = [
         Case(
             argument=None,
@@ -89,9 +84,6 @@ def test_extract_url():
 
 
 def test_redirect_url():
-    """
-    redirect_urlのテスト
-    """
     case_list = [
         Case(
             argument=None,
@@ -126,9 +118,6 @@ def test_redirect_url():
 
 
 def test_canonicalize_url():
-    """
-    canonicalize_urlのテスト
-    """
     case_list = [
         Case(
             argument=None,
@@ -152,7 +141,6 @@ def test_canonicalize_url():
 
 
 def test_remove_tracking_url():
-    """test_remove_tracking_urlのテスト"""
     case_list = [
         Case(
             argument=None,
@@ -209,9 +197,6 @@ def test_remove_tracking_url():
 
 
 def test_all():
-    """
-    全体テスト
-    """
     case_list = [
         Case(
             argument=None,

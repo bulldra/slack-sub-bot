@@ -1,5 +1,3 @@
-"""ランダムに選択したエントリを組み合わせて文章を生成する"""
-
 import random
 from typing import Any
 
@@ -11,14 +9,12 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 
-import google_trends_utils
-from agent_gpt import AgentGPT
+import utils.google_trends_utils as google_trends_utils
+from agent.agent_gpt import AgentGPT
 from function.generative_synonyms import GenerativeSynonyms
 
 
 class AgentIdea(AgentGPT):
-    """ランダムに選択したエントリを組み合わせて文章を生成する"""
-
     def build_prompt(
         self, chat_history: list[dict[str, Any]]
     ) -> list[
@@ -56,7 +52,6 @@ class AgentIdea(AgentGPT):
         return super().build_prompt(prompt_messages)
 
     def extract_messages(self, query, num) -> []:
-        """Slackから関連するメッセージを抽出"""
         serarch_result = self._slack_behalf_user.search_messages(
             query=query,
             count=50,
@@ -94,7 +89,6 @@ class AgentIdea(AgentGPT):
             yield result_messages
 
     def extract_thread_message(self, channel, timestamp) -> []:
-        """スレッド取得"""
         history: dict = self._slack.conversations_replies(
             channel=channel, ts=timestamp, limit=1
         )
@@ -110,7 +104,6 @@ class AgentIdea(AgentGPT):
         return result_messages
 
     def extract_news(self, keyword: str, num) -> []:
-        """ニュースを抽出"""
         matches: [] = google_trends_utils.get_keyword_news(keyword, num)
         for entry in matches:
             title: str = entry.get("title", "")

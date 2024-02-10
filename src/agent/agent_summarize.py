@@ -1,5 +1,3 @@
-"""AgentSummarize"""
-
 from typing import Any
 
 from openai.types.chat import (
@@ -10,28 +8,18 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 
-import scraping_utils
-import slack_link_utils
-import slack_mrkdwn_utils
-from agent_gpt import AgentGPT
+import utils.scraping_utils as scraping_utils
+import utils.slack_link_utils as slack_link_utils
+import utils.slack_mrkdwn_utils as slack_mrkdwn_utils
+from agent.agent_gpt import AgentGPT
 
 
 class AgentSummarize(AgentGPT):
-    """URLから本文を抜き出して要約する"""
-
-    def learn_context_memory(self) -> None:
-        """コンテキストメモリの初期化"""
-        super().learn_context_memory()
-        url: str = slack_link_utils.extract_and_remove_tracking_url(
-            self._chat_history[-1]["content"]
-        )
-        self._logger.debug("scraping url=%s", url)
-        if not scraping_utils.is_allow_scraping(url):
-            raise ValueError("scraping is not allowed")
-        site: scraping_utils.Site = scraping_utils.scraping(url)
-        if site is None:
-            raise ValueError("scraping failed")
-        self._context["site"] = site
+    def __init__(
+        self, context: dict[str, Any], chat_history: list[dict[str, str]]
+    ) -> None:
+        super().__init__(context, chat_history)
+        self._site: scraping_utils.Site | None = None
 
     def build_prompt(
         self, chat_history: list[dict[str, Any]]
@@ -42,11 +30,16 @@ class AgentSummarize(AgentGPT):
         | ChatCompletionToolMessageParam
         | ChatCompletionFunctionMessageParam
     ]:
-        """OpenAI APIを使って要約するためのpromptを生成する"""
-
-        site: scraping_utils.Site = self._context.get("site")  # type: ignore
+        url: str = slack_link_utils.extract_and_remove_tracking_url(
+            chat_history[-1]["content"]
+        )
+        self._logger.debug("scraping url=%s", url)
+        if not scraping_utils.is_allow_scraping(url):
+            raise ValueError("scraping is not allowed")
+        site: scraping_utils.Site = scraping_utils.scraping(url)
         if site is None:
-            raise ValueError("site is empty")
+            raise ValueError("scraping failed")
+        self._site = site
 
         with open("./conf/summarize_prompt.toml", "r", encoding="utf-8") as file:
             prompt: str = file.read()
@@ -57,8 +50,7 @@ class AgentSummarize(AgentGPT):
         return super().build_prompt([{"role": "user", "content": prompt}])
 
     def build_message_blocks(self, content: str) -> list:
-        """レスポンスからブロックを作成する"""
-        site: scraping_utils.Site = self._context.get("site")  # type: ignore
+        site: scraping_utils.Site = self._site
         if site is None:
             raise ValueError("site is empty")
 

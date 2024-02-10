@@ -1,5 +1,3 @@
-""" 回答内容をもとに次のアクション選択肢を生成する """
-
 import json
 
 from openai.types.chat import (
@@ -15,10 +13,8 @@ from function.generative_function import GenerativeFunction
 
 
 class GenerativeSynonyms(GenerativeFunction):
-    """回答内容をもとにシノニムを生成する"""
-
     def generate(self, content: str) -> list[dict[str, str]]:
-        """回答内容をもとにシノニムを生成する"""
+        prompt: str = "上記文章から検索キーワードにすべき類義語を複数挙げてください。"
         prompt_messages: list[
             ChatCompletionSystemMessageParam
             | ChatCompletionUserMessageParam
@@ -29,12 +25,28 @@ class GenerativeSynonyms(GenerativeFunction):
             ChatCompletionAssistantMessageParam(role="assistant", content=content),
             ChatCompletionUserMessageParam(
                 role="user",
-                content="上記文章から検索キーワードを複数生成してください。",
+                content=prompt,
             ),
         ]
 
-        with open("./conf/generative_synonyms.json", "r", encoding="utf-8") as file:
-            function_def: dict = json.load(file)
+        function_def: dict = {
+            "type": "function",
+            "function": {
+                "name": "generate_synonyms",
+                "description": prompt,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "synonyms": {
+                            "type": "array",
+                            "description": "生成された類義語のリスト",
+                            "items": {"type": "string", "description": "類義語の値"},
+                        }
+                    },
+                    "required": ["synonyms"],
+                },
+            },
+        }
 
         function: Function | None = self.function_call(function_def, prompt_messages)
         if function is not None and function.arguments is not None:

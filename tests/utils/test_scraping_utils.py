@@ -1,9 +1,6 @@
-"""
-slack_link_utils.pyのテスト
-"""
 import collections
 
-import scraping_utils
+import utils.scraping_utils as scraping_utils
 
 Case = collections.namedtuple("Case", ("argument", "expected"))
 

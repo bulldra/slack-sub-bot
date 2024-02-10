@@ -1,5 +1,4 @@
-"""google trends utilsのテスト"""
-import google_trends_utils
+import utils.google_trends_utils as google_trends_utils
 
 
 def test_get_news():

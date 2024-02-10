@@ -1,6 +1,3 @@
-"""
-agent_smmarize.pyのテスト
-"""
 import json
 import os
 
@@ -9,15 +6,13 @@ import pytest
 with open("secrets.json", "r", encoding="utf-8") as f:
     os.environ["SECRETS"] = json.dumps(json.load(f))
 
-import agent_gpt
+from agent.agent_gpt import AgentGPT
 
 
 def test_completion(pytestconfig: pytest.Config):
-    """.env"""
     os.chdir(pytestconfig.getini("pythonpath")[0])
     text = [{"role": "user", "content": "コンサルタントの役割は？"}]
-    agt = agent_gpt.AgentGPT({}, text)
-    agt.learn_context_memory()
+    agt = AgentGPT({}, text)
     prompt = agt.build_prompt(text)
     print(prompt)
     for content in agt.completion_stream(prompt):

@@ -10,11 +10,11 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 
-import agent_gpt
-import slack_link_utils
+import utils.slack_link_utils as slack_link_utils
+from agent.agent_gpt import AgentGPT
 
 
-class AgentVision(agent_gpt.AgentGPT):
+class AgentVision(AgentGPT):
     """
     This is a agent that uses the GPT-4 Vision model to answer questions about image.
     """

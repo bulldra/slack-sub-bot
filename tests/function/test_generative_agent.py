@@ -5,9 +5,9 @@ import os
 
 import pytest
 
-import agent_gpt
-import agent_idea
-import agent_image
+from agent.agent_gpt import AgentGPT
+from agent.agent_idea import AgentIdea
+from agent.agent_image import AgentImage
 from function.generative_agent import GenerativeAgent
 
 with open("secrets.json", "r", encoding="utf-8") as f:
@@ -21,10 +21,10 @@ def test(pytestconfig: pytest.Config):
     generator = GenerativeAgent()
 
     result = generator.generate(None, "ビールに関するアイディア")
-    assert result == agent_idea.AgentIdea
+    assert result == AgentIdea
 
     result = generator.generate(None, "ビールについての絵を生成")
-    assert result == agent_image.AgentImage
+    assert result == AgentImage
 
     result = generator.generate(None, "ビールについて教えて")
-    assert result == agent_gpt.AgentGPT
+    assert result == AgentGPT

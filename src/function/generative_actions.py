@@ -1,5 +1,3 @@
-""" 回答内容をもとに次のアクション選択肢を生成する """
-
 import json
 
 from openai.types.chat import (
@@ -15,10 +13,11 @@ from function.generative_function import GenerativeFunction
 
 
 class GenerativeActions(GenerativeFunction):
-    """回答内容をもとに次のアクション選択肢を生成する"""
 
     def execute(self, content: str) -> list[dict[str, str]]:
-        """回答内容をもとに次のアクション選択肢を生成する"""
+        prompt: str = (
+            "回答された内容をもとに次のアクションとなる選択肢とプロンプトを生成する。解像度を高めたり、反論したり、異なる視点を提示する"
+        )
         prompt_messages: list[
             ChatCompletionSystemMessageParam
             | ChatCompletionUserMessageParam
@@ -29,12 +28,41 @@ class GenerativeActions(GenerativeFunction):
             ChatCompletionAssistantMessageParam(role="assistant", content=content),
             ChatCompletionUserMessageParam(
                 role="user",
-                content="以上までの回答に対して、次に取るべきアクションとそれを実行するプロンプトを生成してください。",
+                content=prompt,
             ),
         ]
 
-        with open("./conf/generative_actions.json", "r", encoding="utf-8") as file:
-            function_def: dict = json.load(file)
+        function_def: dict = {
+            "type": "function",
+            "function": {
+                "name": "generate_actions",
+                "description": prompt,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "actions": {
+                            "type": "array",
+                            "description": "生成された複数アクションのリスト",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "action_label": {
+                                        "type": "string",
+                                        "description": "生成されたアクションのボタン表記。簡潔で短い日本語文言にする",
+                                    },
+                                    "action_prompt": {
+                                        "type": "string",
+                                        "description": "生成されたアクションの実行方法をChatGPTに問いかける\
+ためのプロンプトをステップ・バイ・ステップで生成",
+                                    },
+                                },
+                            },
+                        }
+                    },
+                    "required": ["actions"],
+                },
+            },
+        }
 
         actions: list[dict[str, str]] = [
             {

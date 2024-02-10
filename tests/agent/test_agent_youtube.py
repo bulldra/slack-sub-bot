@@ -1,13 +1,14 @@
 """
 agent_smmarize.pyのテスト
 """
+
 import collections
 import json
 import os
 
 import pytest
 
-from agent_youtube import AgentYoutube
+from agent.agent_youtube import AgentYoutube
 
 with open("secrets.json", "r", encoding="utf-8") as f:
     os.environ["SECRETS"] = json.dumps(json.load(f))
@@ -26,7 +27,6 @@ def test_youtube(pytestconfig: pytest.Config):
         }
     ]
     agent = AgentYoutube({}, messages)
-    agent.learn_context_memory()
     prompt = agent.build_prompt(messages)
     print(prompt)
     print(agent.completion(prompt))
