@@ -20,17 +20,11 @@ def main(cloud_event: CloudEvent):
 
     event: str = base64.b64decode(cloud_event.data["message"]["data"]).decode()
     topics_message: dict[str, Any] = json.loads(event)
-    logger.debug(topics_message)
-
+    logger.debug("start process topics=%s", topics_message)
     context: dict[str, Any] = topics_message["context"]
-    if context is None:
-        raise ValueError("context is empty")
-
     chat_history: list[dict[str, str]] = topics_message["chat_history"]
-    if chat_history is None or len(chat_history) == 0:
-        raise ValueError("chat_history is empty")
-
     agt: agent.Agent = GenerativeAgent().generate(
         context.get("command"), chat_history[-1]["content"]
     )
     agt(context, chat_history).execute()
+    logger.debug("end process agent=%s", agt.__class__.__name__)
