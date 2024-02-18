@@ -73,10 +73,6 @@ class GenerativeActions(GenerativeFunction):
                 "action_label": "PREP形式",
                 "action_prompt": "Point, Reason, Example, Pointに分けて文章を生成してください。",
             },
-            {
-                "action_label": "DESC形式",
-                "action_prompt": "Describe, Explain, Specify, Chooseに分けて文章を生成してください。",
-            },
         ]
 
         function: Function | None = self.function_call(function_def, prompt_messages)

@@ -25,6 +25,31 @@ class GenerativeFunction:
         self._logger: logging.Logger = logging.getLogger(__name__)
         self._logger.setLevel(logging.DEBUG)
 
+    def build_prompt(
+        self, chat_history: list[dict[str, str]]
+    ) -> list[
+        ChatCompletionSystemMessageParam
+        | ChatCompletionUserMessageParam
+        | ChatCompletionAssistantMessageParam
+        | ChatCompletionToolMessageParam
+        | ChatCompletionFunctionMessageParam
+    ]:
+        if len(chat_history) >= 2:
+            chat_history = chat_history[-2:]
+        messages: list[
+            ChatCompletionSystemMessageParam
+            | ChatCompletionUserMessageParam
+            | ChatCompletionAssistantMessageParam
+            | ChatCompletionToolMessageParam
+            | ChatCompletionFunctionMessageParam
+        ] = [
+            ChatCompletionAssistantMessageParam(
+                role="assistant", content=x.get("content", "")
+            )
+            for x in chat_history
+        ]
+        return messages
+
     def function_call(
         self,
         function_def: dict,

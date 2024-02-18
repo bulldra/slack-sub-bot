@@ -13,21 +13,18 @@ from function.generative_function import GenerativeFunction
 
 
 class GenerativeSynonyms(GenerativeFunction):
-    def generate(self, content: str) -> list[dict[str, str]]:
-        prompt: str = "上記文章から検索キーワードにすべき類義語を複数挙げてください。"
+    def generate(self, chat_history: list[str, str]) -> list[dict[str, str]]:
+        prompt: str = "上記文章から検類義語を複数挙げてください。"
         prompt_messages: list[
             ChatCompletionSystemMessageParam
             | ChatCompletionUserMessageParam
             | ChatCompletionAssistantMessageParam
             | ChatCompletionToolMessageParam
             | ChatCompletionFunctionMessageParam
-        ] = [
-            ChatCompletionAssistantMessageParam(role="assistant", content=content),
-            ChatCompletionUserMessageParam(
-                role="user",
-                content=prompt,
-            ),
-        ]
+        ] = self.build_prompt(chat_history)
+        prompt_messages.append(
+            ChatCompletionUserMessageParam(role="user", content=prompt),
+        )
 
         function_def: dict = {
             "type": "function",

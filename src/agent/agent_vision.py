@@ -1,5 +1,3 @@
-"""This is a agent that uses the GPT-4 Vision model to answer questions about images."""
-
 from typing import Any
 
 from openai.types.chat import (

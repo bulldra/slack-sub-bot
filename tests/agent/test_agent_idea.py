@@ -1,6 +1,3 @@
-"""
-agent_smmarize.pyのテスト
-"""
 import collections
 import json
 import os
@@ -16,7 +13,6 @@ Case = collections.namedtuple("Case", ("argument", "expected"))
 
 
 def test_idea_none(pytestconfig: pytest.Config):
-    """スクレイピングのテスト"""
     os.chdir(pytestconfig.getini("pythonpath")[0])
     messages = [{"role": "user", "content": ""}]
     agent = AgentIdea({}, messages)
@@ -25,7 +21,6 @@ def test_idea_none(pytestconfig: pytest.Config):
 
 
 def test_idea_question(pytestconfig: pytest.Config):
-    """スクレイピングのテスト"""
     os.chdir(pytestconfig.getini("pythonpath")[0])
     messages = [{"role": "user", "content": "生成AI"}]
     agent = AgentIdea({}, messages)
@@ -33,10 +28,20 @@ def test_idea_question(pytestconfig: pytest.Config):
     print(prompt)
 
 
-def test_idea_degin(pytestconfig: pytest.Config):
-    """スクレイピングのテスト"""
+def test_idea_unknown(pytestconfig: pytest.Config):
     os.chdir(pytestconfig.getini("pythonpath")[0])
     messages = [{"role": "user", "content": "ずんどこベロンチョ"}]
+    agent = AgentIdea({}, messages)
+    prompt = agent.build_prompt(messages)
+    print(prompt)
+
+
+def test_idea_multi_turn(pytestconfig: pytest.Config):
+    os.chdir(pytestconfig.getini("pythonpath")[0])
+    messages = [
+        {"role": "user", "content": "生産性を上げる"},
+        {"role": "user", "content": "アイディアを出して"},
+    ]
     agent = AgentIdea({}, messages)
     prompt = agent.build_prompt(messages)
     print(prompt)

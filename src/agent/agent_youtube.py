@@ -1,5 +1,3 @@
-""" YouTubeの文字起こしを取得する """
-
 import urllib
 from typing import Any
 from urllib.parse import urlparse

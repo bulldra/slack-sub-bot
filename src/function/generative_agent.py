@@ -39,7 +39,7 @@ class GenerativeAgent(GenerativeFunction):
             "/delete": AgentDelete,
         }
 
-        # 有効なコマンドが設定されていない場合はルールベースでのcommand設定
+        # ルールベースでのcommand設定
         if (
             command is None or command not in command_dict
         ) and slack_link_utils.is_only_url(arg):
@@ -53,7 +53,7 @@ class GenerativeAgent(GenerativeFunction):
             else:
                 command = "/delete"
 
-        # 有効なコマンドが設定されていない場合はLLMでのcommand設定
+        # LLMでのcommand設定
         if command is None or command not in command_dict:
             messages: list[
                 ChatCompletionSystemMessageParam

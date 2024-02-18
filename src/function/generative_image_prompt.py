@@ -14,26 +14,17 @@ from function.generative_function import GenerativeFunction
 
 class GenerativeImagePrompt(GenerativeFunction):
     def generate(self, chat_history: list[str, str]) -> str:
-        last: str = chat_history[-1].get("content", "")
-        if len(chat_history) >= 2:
-            chat_history = chat_history[-2:]
-            last: str = chat_history[-2].get("content", "")
         prompt: str = (
             "上記文章に適したビジネス風の挿絵を生成するためのプロンプトを生成してください。"
         )
-        messages: list[
+        prompt_messages: list[
             ChatCompletionSystemMessageParam
             | ChatCompletionUserMessageParam
             | ChatCompletionAssistantMessageParam
             | ChatCompletionToolMessageParam
             | ChatCompletionFunctionMessageParam
-        ] = [
-            ChatCompletionAssistantMessageParam(
-                role="assistant", content=x.get("content", "")
-            )
-            for x in chat_history
-        ]
-        messages.append(
+        ] = self.build_prompt(chat_history)
+        prompt_messages.append(
             ChatCompletionUserMessageParam(role="user", content=prompt),
         )
 
@@ -55,9 +46,9 @@ class GenerativeImagePrompt(GenerativeFunction):
             },
         }
 
-        function: Function | None = self.function_call(function_def, messages)
+        function: Function | None = self.function_call(function_def, prompt_messages)
         if function is not None and function.arguments is not None:
             args: dict = json.loads(function.arguments)
             if args.get("prompt") is not None:
                 return str(args["prompt"])
-        return last
+        return chat_history[-1]["content"]
