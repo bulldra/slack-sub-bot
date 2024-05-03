@@ -22,7 +22,7 @@ class AgentGPT(AgentSlack):
         self, context: dict[str, Any], chat_history: list[dict[str, str]]
     ) -> None:
         super().__init__(context, chat_history)
-        self._openai_model: str = "gpt-4-0125-preview"
+        self._openai_model: str = "gpt-4-turbo-2024-04-09"
         self._openai_temperature: float = 0.0
         self._output_max_token: int = 3000
         self._max_token: int = 128000 // 2 - self._output_max_token

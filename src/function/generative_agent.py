@@ -15,7 +15,6 @@ from agent.agent import Agent
 from agent.agent_gpt import AgentGPT
 from agent.agent_idea import AgentIdea
 from agent.agent_image import AgentImage
-from agent.agent_research import AgentResearch
 from agent.agent_slack import AgentDelete
 from agent.agent_summarize import AgentSummarize
 from agent.agent_vision import AgentVision
@@ -35,7 +34,6 @@ class GenerativeAgent(GenerativeFunction):
             "/youtube": AgentYoutube,
             "/idea": AgentIdea,
             "/image": AgentImage,
-            "/research": AgentResearch,
             "/delete": AgentDelete,
         }
 
@@ -73,15 +71,14 @@ class GenerativeAgent(GenerativeFunction):
                 "type": "function",
                 "function": {
                     "name": "generate_agent",
-                    "description": "画像生成なら /image, アイデア出しなら /idea, 検索依頼なら /resea\
-rch。それ以外なら /gpt を指定",
+                    "description": "画像生成なら /image, アイデア出しなら /idea。それ以外なら /gpt を指定",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "agent": {
                                 "type": "string",
                                 "description": "生成されたエージェント名",
-                                "enum": ["/gpt", "/image", "/idea", "/research"],
+                                "enum": ["/gpt", "/image", "/idea"],
                             }
                         },
                         "required": ["agent"],
