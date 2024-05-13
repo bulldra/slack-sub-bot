@@ -23,10 +23,7 @@ from function.generative_function import GenerativeFunction
 
 
 class GenerativeAgent(GenerativeFunction):
-    """AgentFactory"""
-
     def generate(self, command: None | str, arg: str) -> Agent:
-        """AgentFactory"""
         command_dict: dict[str, type[Agent]] = {
             "/gpt": AgentGPT,
             "/summazise": AgentSummarize,

@@ -14,7 +14,6 @@ from function.generative_function import GenerativeFunction
 
 class GenerativeSynonyms(GenerativeFunction):
     def generate(self, chat_history: list[str, str]) -> list[dict[str, str]]:
-        prompt: str = "上記文章から検類義語を複数挙げてください。"
         prompt_messages: list[
             ChatCompletionSystemMessageParam
             | ChatCompletionUserMessageParam
@@ -22,10 +21,11 @@ class GenerativeSynonyms(GenerativeFunction):
             | ChatCompletionToolMessageParam
             | ChatCompletionFunctionMessageParam
         ] = self.build_prompt(chat_history)
-        prompt_messages.append(
-            ChatCompletionUserMessageParam(role="user", content=prompt),
-        )
 
+        if prompt_messages is None or len(prompt_messages) == 0:
+            return []
+
+        prompt: str = "これまでの会話から検索用のキーワードを複数挙げる"
         function_def: dict = {
             "type": "function",
             "function": {
@@ -36,7 +36,7 @@ class GenerativeSynonyms(GenerativeFunction):
                     "properties": {
                         "synonyms": {
                             "type": "array",
-                            "description": "生成された類義語のリスト",
+                            "description": "生成された検索用類義語のリスト",
                             "items": {"type": "string", "description": "類義語の値"},
                         }
                     },
