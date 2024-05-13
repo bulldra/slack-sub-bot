@@ -9,9 +9,6 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 
-import utils.duckduckgo_utils as duckduckgo_utils
-import utils.google_trends_utils as google_trends_utils
-import utils.slack_link_utils as slack_link_utils
 from agent.agent_gpt import AgentGPT
 from function.generative_synonyms import GenerativeSynonyms
 
@@ -26,22 +23,15 @@ class AgentIdea(AgentGPT):
         | ChatCompletionToolMessageParam
         | ChatCompletionFunctionMessageParam
     ]:
-        prompt_messages: [dict[str, str]] = []
-
         keywords: [str] = GenerativeSynonyms().generate(chat_history)
         if keywords is None or len(keywords) == 0:
-            keywords = [google_trends_utils.get_ramdom_trend_word()]
+            return super().build_prompt(chat_history)
+
         keyword_query: str = " OR ".join(keywords)
         query: str = f"{keyword_query} is:thread in:<#{self._share_channel}>"
+        prompt_messages: [dict[str, str]] = []
         for message in self.extract_messages(query, 3):
             prompt_messages.append(message)
-
-        for site in duckduckgo_utils.scraping(query, 4 - len(prompt_messages)):
-            content: str = slack_link_utils.build_link(site.url, site.title)
-            content += "\n" + site.content
-            prompt_messages.append({"role": "assistant", "content": content})
-
-        prompt_messages.extend(chat_history)
 
         with open("./conf/idea_prompt.toml", "r", encoding="utf-8") as file:
             prompt = file.read()
