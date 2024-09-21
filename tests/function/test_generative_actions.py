@@ -1,0 +1,19 @@
+"""generative_actions.pyのテスト"""
+import json
+import os
+
+import pytest
+
+from function.generative_actions import GenerativeActions
+
+with open("secrets.json", "r", encoding="utf-8") as f:
+    os.environ["SECRETS"] = json.dumps(json.load(f))
+
+
+def test(pytestconfig: pytest.Config):
+    """test"""
+
+    os.chdir(pytestconfig.getini("pythonpath")[0])
+    next_action_generator = GenerativeActions()
+    result = next_action_generator.execute("""「ペイン・ストーム」と「ソルジャム」の違い""")
+    print(result)

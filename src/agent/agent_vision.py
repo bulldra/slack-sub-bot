@@ -1,4 +1,3 @@
-"""This is a agent that uses the GPT-4 Vision model to answer questions about images."""
 from typing import Any
 
 from openai.types.chat import (
@@ -9,11 +8,11 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 
-import agent_gpt
-import slack_link_utils
+import utils.slack_link_utils as slack_link_utils
+from agent.agent_gpt import AgentGPT
 
 
-class AgentVision(agent_gpt.AgentGPT):
+class AgentVision(AgentGPT):
     """
     This is a agent that uses the GPT-4 Vision model to answer questions about image.
     """
@@ -36,7 +35,7 @@ class AgentVision(agent_gpt.AgentGPT):
         | ChatCompletionFunctionMessageParam
     ]:
         url: str = slack_link_utils.extract_and_remove_tracking_url(
-            self._chat_history[-1]["content"]
+            chat_history[-1]["content"]
         )
 
         prompt_messages: list[
