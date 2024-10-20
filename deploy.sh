@@ -1,9 +1,12 @@
 source ./.env
 
+poetry update
+poetry export -f requirements.txt -o src/requirements.txt --without-hashes
+gcloud components update
 gcloud functions deploy ${FUNCTION_NAME} \
 	--gen2 \
 	--region=asia-northeast1 \
-	--runtime=python311 \
+	--runtime=python312 \
 	--trigger-topic=${TRIGGER_TOPIC} \
 	--timeout=120s \
 	--min-instances=0 \
