@@ -61,7 +61,6 @@ class GenerativeFunction:
             | ChatCompletionFunctionMessageParam
         ],
     ) -> Function | None:
-        """function_call を実行する"""
         tools: list[ChatCompletionToolParam] = [
             ChatCompletionToolParam(
                 type=function_def["type"], function=function_def["function"]
@@ -80,7 +79,6 @@ class GenerativeFunction:
             0
         ].message.tool_calls
 
-        # 呼び出された function_call が1つだけかつ定義通りの名前だった場合のみ返す
         if not (function_calls is None or len(function_calls) != 1):
             self._logger.debug("function_calls=%s", function_calls)
             if function_calls[0].function.name == function_def["function"]["name"]:
