@@ -20,6 +20,9 @@ class AgentSummarize(AgentGPT):
     ) -> None:
         super().__init__(context, chat_history)
         self._site: scraping_utils.Site | None = None
+        self._openai_model: str = "gpt-4o-mini"
+        self._output_max_token: int = 3000
+        self._max_token: int = 32000 // 2 - self._output_max_token
 
     def build_prompt(
         self, chat_history: list[dict[str, Any]]
@@ -54,18 +57,21 @@ class AgentSummarize(AgentGPT):
         if site is None:
             raise ValueError("site is empty")
 
-        title_link: str = slack_link_utils.build_link(site.url, site.title)
-        mrkdwn: str = slack_mrkdwn_utils.convert_mrkdwn(content)
-
         blocks: list[dict] = [
             {
                 "type": "section",
-                "text": {"type": "mrkdwn", "text": title_link},
+                "text": {
+                    "type": "mrkdwn",
+                    "text": slack_link_utils.build_link(site.url, site.title),
+                },
             },
             {"type": "divider"},
             {
                 "type": "section",
-                "text": {"type": "mrkdwn", "text": mrkdwn},
+                "text": {
+                    "type": "mrkdwn",
+                    "text": slack_mrkdwn_utils.convert_mrkdwn(content),
+                },
             },
         ]
         return blocks

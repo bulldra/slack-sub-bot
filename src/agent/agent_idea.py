@@ -14,6 +14,7 @@ from function.generative_synonyms import GenerativeSynonyms
 
 
 class AgentIdea(AgentGPT):
+
     def build_prompt(
         self, chat_history: list[dict[str, Any]]
     ) -> list[
@@ -30,7 +31,7 @@ class AgentIdea(AgentGPT):
         keyword_query: str = " OR ".join(keywords)
         query: str = f"{keyword_query} is:thread in:<#{self._share_channel}>"
         prompt_messages: [dict[str, str]] = []
-        for message in self.extract_messages(query, 3):
+        for message in self.extract_messages(query, 5):
             prompt_messages.append(message)
 
         with open("./conf/idea_prompt.toml", "r", encoding="utf-8") as file:

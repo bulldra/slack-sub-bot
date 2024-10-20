@@ -27,4 +27,4 @@ def main(cloud_event: CloudEvent):
         context.get("command"), chat_history[-1]["content"]
     )
     agt(context, chat_history).execute()
-    logger.debug("end process agent=%s", agt.__class__.__name__)
+    logger.debug("end process agent=%s", agt.__qualname__)

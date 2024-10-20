@@ -28,6 +28,15 @@ def test_idea_question(pytestconfig: pytest.Config):
     print(prompt)
 
 
+def test_idea_question_execute(pytestconfig: pytest.Config):
+    os.chdir(pytestconfig.getini("pythonpath")[0])
+    messages = [{"role": "user", "content": "生成AIについてアイディアを出して"}]
+    agent = AgentIdea({}, messages)
+    prompt = agent.build_prompt(messages)
+    content = agent.completion(prompt)
+    print(content)
+
+
 def test_idea_unknown(pytestconfig: pytest.Config):
     os.chdir(pytestconfig.getini("pythonpath")[0])
     messages = [
