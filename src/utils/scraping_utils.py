@@ -1,24 +1,23 @@
-"""スクレイピング関連のユーティリティ"""
 import os
 import re
+import tempfile
 import urllib
 from collections import namedtuple
 
+import pypdf
 import requests
 from bs4 import BeautifulSoup
 
-Site = namedtuple("Site", ("url", "title", "heading", "content"))
+Site = namedtuple("Site", ("url", "title", "content"))
 
 
 def is_allow_scraping(url: str) -> bool:
-    """スクレイピングできるかの判定"""
     blacklist_domain: list[str] = [
         "speakerdeck.com",
         "twitter.com",
         "open.spotify.com",
     ]
     black_list_ext: list[str] = [
-        ".pdf",
         ".zip",
     ]
     urlobj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
@@ -32,7 +31,6 @@ def is_allow_scraping(url: str) -> bool:
 
 
 def is_image_url(url: str) -> bool:
-    """画像URLかどうかの判定"""
     image_ext: list[str] = [
         ".jpg",
         ".png",
@@ -43,8 +41,15 @@ def is_image_url(url: str) -> bool:
     return os.path.splitext(urlobj.path)[1] in image_ext
 
 
+def is_pdf_url(url: str) -> bool:
+    pdf_ext: list[str] = [
+        ".pdf",
+    ]
+    urlobj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
+    return os.path.splitext(urlobj.path)[1] in pdf_ext
+
+
 def is_youtube_url(url: str) -> bool:
-    """YouTubeのリンクかどうかの判定"""
     youtube_url_list: list[str] = [
         "youtu.be",
         "www.youtube.com",
@@ -55,7 +60,6 @@ def is_youtube_url(url: str) -> bool:
 
 
 def scraping_raw(url: str) -> str:
-    """スクレイピングの実施"""
     headers: dict[str, str] = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6\
 ) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36",
@@ -68,8 +72,22 @@ def scraping_raw(url: str) -> str:
     return res.content
 
 
-def scraping(url: str) -> Site:
-    """スクレイピングの実施"""
+def scraping_pdf(url: str) -> Site:
+    with tempfile.NamedTemporaryFile(mode="wb+", delete=True) as t:
+        t.write(scraping_raw(url))
+        t.seek(0)
+        pdf = pypdf.PdfReader(t)
+        content: str = "\n\n".join(
+            [page.extract_text() for page in pdf.pages if page.extract_text()]
+        )
+        if pdf.metadata is not None:
+            title = pdf.metadata.get("title", url)
+        else:
+            title = url
+        return Site(url, title, content)
+
+
+def scraping_web(url: str) -> Site:
     content: str = scraping_raw(url)
     soup = BeautifulSoup(content, "html.parser")
     title = url
@@ -110,18 +128,11 @@ def scraping(url: str) -> Site:
     ):
         cr_tag.insert_after("\n")
 
-    heading: list[str] = []
-    for cr_tag in soup(
-        [
-            "h1",
-            "h2",
-            "h3",
-            "h4",
-            "h5",
-            "h6",
-        ]
-    ):
-        heading.append(cr_tag.get_text().strip())
-
     content: str = re.sub(r"[\n\s]+", "\n", soup.get_text())
-    return Site(url, title, heading, content)
+    return Site(url, title, content)
+
+
+def scraping(url: str) -> Site:
+    if is_pdf_url(url):
+        return scraping_pdf(url)
+    return scraping_web(url)

@@ -46,7 +46,6 @@ class AgentGPT(AgentSlack):
                     self.update_message(self.build_message_blocks(content))
             else:
                 content = self.completion(prompt_messages)
-
             blocks: list = self.build_message_blocks(content)
             self._logger.debug("content=%s", content)
 
@@ -82,18 +81,16 @@ class AgentGPT(AgentSlack):
         | ChatCompletionToolMessageParam
         | ChatCompletionFunctionMessageParam
     ]:
-        with open("./conf/assistant.toml", "r", encoding="utf-8") as file:
-            system_prompt: str = file.read()
-
         prompt_messages: list[
             ChatCompletionSystemMessageParam
             | ChatCompletionUserMessageParam
             | ChatCompletionAssistantMessageParam
             | ChatCompletionToolMessageParam
             | ChatCompletionFunctionMessageParam
-        ] = [ChatCompletionSystemMessageParam(role="system", content=system_prompt)]
+        ] = []
+        token_model: str = self._openai_model
         openai_encoding: tiktoken.core.Encoding = tiktoken.encoding_for_model(
-            self._openai_model
+            token_model
         )
         for chat in chat_history:
             current_content = chat["content"]
@@ -105,16 +102,19 @@ class AgentGPT(AgentSlack):
                         "".join([str(p.get("content")) for p in prompt_messages])
                     )
                 )
-
                 if current_count + prompt_count > self._max_token:
                     if len(prompt_messages) >= 2:
                         del prompt_messages[1]
                     else:
                         if isinstance(current_content, str):
-                            current_content = current_content[:-1]
-                            current_content = re.sub(
-                                "\n[^\n]+?$", "\n", current_content
-                            )
+                            tmp: str = ""
+                            for r in current_content.split("\n"):
+                                if len(tmp) + len(r) > self._max_token // 2:
+                                    if len(tmp) > self._max_token // 2:
+                                        tmp = tmp[: self._max_token // 2]
+                                    current_content = tmp
+                                    break
+                                tmp += r + "\n"
                         else:
                             raise ValueError("current_content is not str and too long")
                 else:
@@ -150,13 +150,20 @@ class AgentGPT(AgentSlack):
             | ChatCompletionFunctionMessageParam
         ],
     ) -> str:
-        response = self._openai_client.chat.completions.create(
-            messages=prompt_messages,
-            model=self._openai_model,
-            temperature=self._openai_temperature,
-            stream=False,
-            max_tokens=self._output_max_token,
-        )
+        if self._openai_model in ["o1-preview", "o1-mini"]:
+            response = self._openai_client.chat.completions.create(
+                messages=prompt_messages,
+                model=self._openai_model,
+                stream=False,
+            )
+        else:
+            response = self._openai_client.chat.completions.create(
+                messages=prompt_messages,
+                model=self._openai_model,
+                temperature=self._openai_temperature,
+                stream=False,
+                max_tokens=self._output_max_token,
+            )
         return str(response.choices[0].message.content)
 
     def completion_stream(
@@ -190,7 +197,6 @@ class AgentGPT(AgentSlack):
             if add_content:
                 response_text += add_content
                 if len(response_text) >= border:
-                    # 追加で表示されるコンテンツが複数行の場合は最終行の表示を留保する
                     tokens: list[str] = re.split("\n", response_text[len(prev_text) :])
                     if len(tokens) >= 2:
                         res: str = prev_text + "\n".join(tokens[:-1])

@@ -1,7 +1,3 @@
-"""
-agent_smmarize.pyのテスト
-"""
-
 import collections
 import json
 import os

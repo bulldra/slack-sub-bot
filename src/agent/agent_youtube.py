@@ -16,6 +16,12 @@ from agent.agent_gpt import AgentGPT
 
 
 class AgentYoutube(AgentGPT):
+    def __init__(
+        self, context: dict[str, Any], chat_history: list[dict[str, str]]
+    ) -> None:
+        super().__init__(context, chat_history)
+        self._openai_model: str = "gpt-4o-mini"
+
     def build_prompt(
         self, chat_history: list[dict[str, Any]]
     ) -> list[

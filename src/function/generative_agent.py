@@ -12,6 +12,7 @@ from openai.types.chat.chat_completion_message_tool_call import Function
 import utils.scraping_utils as scraping_utils
 import utils.slack_link_utils as slack_link_utils
 from agent.agent import Agent
+from agent.agent_code import AgentCode
 from agent.agent_gpt import AgentGPT
 from agent.agent_idea import AgentIdea
 from agent.agent_image import AgentImage
@@ -31,65 +32,59 @@ class GenerativeAgent(GenerativeFunction):
             "/youtube": AgentYoutube,
             "/idea": AgentIdea,
             "/image": AgentImage,
+            "/code": AgentCode,
             "/delete": AgentDelete,
         }
+        if command is not None and command in command_dict:
+            return command_dict[command]
 
-        # ルールベースでのcommand設定
-        if (
-            command is None or command not in command_dict
-        ) and slack_link_utils.is_only_url(arg):
+        if slack_link_utils.is_only_url(arg):
             url: str = slack_link_utils.extract_and_remove_tracking_url(arg)
-            if scraping_utils.is_youtube_url(url):
-                command = "/youtube"
-            elif scraping_utils.is_image_url(url):
+            if scraping_utils.is_image_url(url):
                 command = "/vision"
             elif scraping_utils.is_allow_scraping(url):
                 command = "/summazise"
             else:
                 command = "/delete"
+            return command_dict[command]
 
-        # LLMでのcommand設定
-        if command is None or command not in command_dict:
-            messages: list[
-                ChatCompletionSystemMessageParam
-                | ChatCompletionUserMessageParam
-                | ChatCompletionAssistantMessageParam
-                | ChatCompletionToolMessageParam
-                | ChatCompletionFunctionMessageParam
-            ] = [
-                ChatCompletionAssistantMessageParam(role="assistant", content=arg),
-                ChatCompletionUserMessageParam(
-                    role="user",
-                    content="上記の会話を実行するのに適したエージェントを選択してください。",
-                ),
-            ]
+        messages: list[
+            ChatCompletionSystemMessageParam
+            | ChatCompletionUserMessageParam
+            | ChatCompletionAssistantMessageParam
+            | ChatCompletionToolMessageParam
+            | ChatCompletionFunctionMessageParam
+        ] = [
+            ChatCompletionAssistantMessageParam(role="assistant", content=arg),
+            ChatCompletionUserMessageParam(
+                role="user",
+                content="上記の会話を実行するのに適したエージェントを選択してください。",
+            ),
+        ]
 
-            function_def: dict = {
-                "type": "function",
-                "function": {
-                    "name": "generate_agent",
-                    "description": "画像生成なら /image, アイデア出しなら /idea。それ以外なら /gpt を指定",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "agent": {
-                                "type": "string",
-                                "description": "生成されたエージェント名",
-                                "enum": ["/gpt", "/image", "/idea"],
-                            }
-                        },
-                        "required": ["agent"],
+        function_def: dict = {
+            "type": "function",
+            "function": {
+                "name": "generate_agent",
+                "description": "画像生成なら /image, アイデア出しなら /idea,コード生成を依頼されたなら /code,\
+それ以外なら /gpt をエージェントとして指定する",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "agent": {
+                            "type": "string",
+                            "description": "生成されたエージェント名",
+                            "enum": ["/gpt", "/image", "/idea", "/code"],
+                        }
                     },
+                    "required": ["agent"],
                 },
-            }
-            function: Function | None = self.function_call(function_def, messages)
-            if function is not None and function.arguments is not None:
-                args: dict = json.loads(function.arguments)
-                if args.get("agent") is not None:
-                    command = args["agent"]
+            },
+        }
+        function: Function | None = self.function_call(function_def, messages)
+        if function is not None and function.arguments is not None:
+            args: dict = json.loads(function.arguments)
+            if args.get("agent") is not None and args["agent"] in command_dict:
+                return command_dict[args["agent"]]
 
-        # まだ有効なコマンドが設定されていない場合はデフォルトのコマンドを設定
-        if command not in command_dict:
-            command = "/gpt"
-
-        return command_dict[command]
+        return command_dict["/gpt"]
