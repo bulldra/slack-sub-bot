@@ -70,8 +70,12 @@ class GenerativeActions(GenerativeFunction):
                 "action_prompt": "絵にして。",
             },
             {
-                "action_label": "PREP形式",
-                "action_prompt": "Point, Reason, Example, Pointに分けて文章を生成してください。",
+                "action_label": "コード生成",
+                "action_prompt": "要件を実現するためのスクリプトコードを生成して。",
+            },
+            {
+                "action_label": "mermaid記法",
+                "action_prompt": "処理内容のシーケンス図をmermaid記法で出力して。",
             },
         ]
 
