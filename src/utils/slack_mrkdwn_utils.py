@@ -8,12 +8,10 @@ def build_and_convert_mrkdwn_blocks(text: str) -> list:
 
 
 def build_text_blocks(mrkdwn_text: str) -> list:
-    return [
-        {
-            "type": "section",
-            "text": {"type": "mrkdwn", "text": mrkdwn_text[:3000]},
-        }
-    ]
+    blocks: list = []
+    for text in [mrkdwn_text[i : i + 3000] for i in range(0, len(mrkdwn_text), 3000)]:
+        blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": text}})
+    return blocks
 
 
 def convert_mrkdwn(markdown_text: str) -> str:
