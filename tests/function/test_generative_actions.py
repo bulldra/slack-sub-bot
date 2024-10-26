@@ -1,4 +1,5 @@
 """generative_actions.pyのテスト"""
+
 import json
 import os
 
@@ -11,9 +12,9 @@ with open("secrets.json", "r", encoding="utf-8") as f:
 
 
 def test(pytestconfig: pytest.Config):
-    """test"""
-
     os.chdir(pytestconfig.getini("pythonpath")[0])
     next_action_generator = GenerativeActions()
-    result = next_action_generator.execute("""「ペイン・ストーム」と「ソルジャム」の違い""")
+    result = next_action_generator.execute(
+        """「ペイン・ストーム」と「ソルジャム」の違い"""
+    )
     print(result)

@@ -70,12 +70,16 @@ class GenerativeActions(GenerativeFunction):
                 "action_prompt": "絵にして。",
             },
             {
-                "action_label": "コード生成",
-                "action_prompt": "要件を実現するためのスクリプトコードを生成して。",
+                "action_label": "音声",
+                "action_prompt": "これまでの会話からラジオ風に音声化して",
             },
             {
-                "action_label": "mermaid記法",
-                "action_prompt": "処理内容のシーケンス図をmermaid記法で出力して。",
+                "action_label": "コード生成",
+                "action_prompt": "これまでの内容から要件を実現するためのスクリプトコードを生成して。",
+            },
+            {
+                "action_label": "アイデア",
+                "action_prompt": "これまでの内容から連想するアイデアを出して。",
             },
         ]
 

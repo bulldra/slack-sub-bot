@@ -30,6 +30,31 @@ def is_allow_scraping(url: str) -> bool:
     )
 
 
+def is_code_url(url: str) -> bool:
+    ext: list[str] = [
+        ".py",
+        ".c",
+        ".cpp",
+        ".java",
+        ".cs",
+        ".rb",
+        ".sh",
+        ".pl",
+        ".go",
+        ".js",
+        ".ts",
+        ".css",
+        ".xml",
+        ".json",
+        ".yaml",
+        ".toml",
+        ".md",
+        ".rst",
+    ]
+    urlobj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
+    return os.path.splitext(urlobj.path)[1] in ext
+
+
 def is_image_url(url: str) -> bool:
     image_ext: list[str] = [
         ".jpg",

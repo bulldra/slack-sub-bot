@@ -23,5 +23,7 @@ class AgentCode(AgentGPT):
     ]:
         with open("./conf/code_prompt.toml", "r", encoding="utf-8") as file:
             prompt: str = file.read()
-        prompt = prompt.replace("${content}", chat_history[-1]["content"])
+        content: str = "\n\n".join([x["content"] for x in chat_history])
+        prompt = prompt.replace("${content}", content)
+        self._logger.debug("prompt=%s", prompt)
         return super().build_prompt([{"role": "user", "content": prompt}])
