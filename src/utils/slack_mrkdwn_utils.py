@@ -20,15 +20,14 @@ def convert_mrkdwn(markdown_text: str) -> str:
     mrkdwn_text: str = markdown_text + "\n"
 
     code_blocks: list = re.findall(
-        r"\n[^`]```[^\n]*([^`].+?[^`])\n```[^`]", mrkdwn_text, flags=re.DOTALL
+        r"[^`]*```[^\n]*([^`].+?[^`])\n```[^`]", mrkdwn_text, flags=re.DOTALL
     )
     mrkdwn_text = re.sub(
-        r"(\n[^`])```[^`].+?[^`]\n```([^`])",
+        r"([^`]*)```[^`].+?[^`]\n```([^`])",
         rf"\1{replacement}\2",
         mrkdwn_text,
         flags=re.DOTALL,
     )
-    print(mrkdwn_text)
     mrkdwn_text = re.sub(r"([^`]*)`(.+?)`([^`]*)", r"\1 `\2` \3", mrkdwn_text)
 
     mrkdwn_text = re.sub(

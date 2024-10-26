@@ -1,3 +1,8 @@
+```python
+# main.py
+import json
+from datetime import datetime
+```
 # Marddown 文章を Slack mrkdwn 記法に変換する
 
 ## できること
@@ -93,3 +98,4 @@ def convert_code_blocks(md_text: str) -> str:
 ```
 
 1. **Slack APIトークンの取得**: Slackのワークスペースでアプリを作成し、必要なスコープ（`files:write`、`chat:write`など）を持つOAuthトークンを取得します。
+
