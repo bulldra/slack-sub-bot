@@ -2,12 +2,10 @@ import json
 import logging
 import os
 import re
-import time
 import uuid
 from typing import Any
 
 import openai
-import requests
 import slack_sdk
 import tiktoken
 from openai.types.chat import (
@@ -18,7 +16,6 @@ from openai.types.chat import (
     ChatCompletionToolMessageParam,
     ChatCompletionUserMessageParam,
 )
-from slack_sdk.web.slack_response import SlackResponse
 
 import utils.slack_mrkdwn_utils as slack_mrkdwn_utils
 from agent.agent import Agent
@@ -43,6 +40,7 @@ class AgentGPT(Agent):
         self._proceesing_message: str = str(context.get("processing_message"))
         self._channel = str(context.get("channel"))
         self._ts = str(context.get("ts"))
+        self._thread_ts = str(context.get("thread_ts"))
         self._chat_history: list[dict[str, str]] = chat_history
         self._openai_model: str = "gpt-4o"
         self._openai_temperature: float = 0.0
@@ -248,14 +246,17 @@ class AgentGPT(Agent):
 
         self._slack.chat_postMessage(
             channel=self._channel,
-            ts=self._ts,
+            thread_ts=self._thread_ts,
             text=text,
             blocks=blocks,
         )
 
     def post_single_message(self, content: str) -> None:
-        blocks: list = self.build_message_blocks(content)
-        self.post_message(blocks)
+        self._slack.chat_postMessage(
+            channel=self._channel,
+            thread_ts=self._thread_ts,
+            text=content,
+        )
 
     def update_message(self, blocks: list) -> None:
         text: str = (
@@ -282,36 +283,6 @@ class AgentGPT(Agent):
             channel=self._channel,
             ts=self._ts,
         )
-
-    def update_image(self, title: str, image_url: str) -> None:
-        self._slack.chat_update(
-            channel=self._channel,
-            ts=self._ts,
-            blocks=[
-                {
-                    "type": "image",
-                    "title": {
-                        "type": "plain_text",
-                        "text": title,
-                    },
-                    "slack_file": {
-                        "url": image_url,
-                    },
-                    "alt_text": title,
-                },
-            ],
-            text=title,
-        )
-
-    def upload_image(self, image_url: str) -> str:
-        file = requests.get(image_url, timeout=10).content
-        res: SlackResponse = self._slack.files_upload_v2(
-            channel=self._image_channel,
-            file=file,
-            filename=image_url.split("/")[-1],
-        )
-        time.sleep(10)
-        return res["file"]["permalink"]
 
     def error(self, err: Exception) -> None:
         self._logger.error(err)
