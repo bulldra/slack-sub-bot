@@ -29,7 +29,7 @@ def convert_mrkdwn(markdown_text: str) -> str:
         flags=re.DOTALL,
     )
     print(mrkdwn_text)
-    mrkdwn_text = re.sub(r"([^`])`(.+?)`([^`])", r"\1 `\2` \3", mrkdwn_text)
+    mrkdwn_text = re.sub(r"([^`]*)`(.+?)`([^`]*)", r"\1 `\2` \3", mrkdwn_text)
 
     mrkdwn_text = re.sub(
         r"^\s*[\*\+-]\s+(.+?)\n", r"• \1\n", mrkdwn_text, flags=re.MULTILINE
