@@ -9,6 +9,12 @@ def test_build_and_convert_mrkdwn_blocks():
     print(slack_mrkdwn_utils.build_and_convert_mrkdwn_blocks(arg))
 
 
+def test_build_and_convert_mrkdwn_code_blocks():
+    with open("tests/utils/test_slack_mrkdwn_utils.md", "r", encoding="utf-8") as file:
+        arg = file.read()
+        print(slack_mrkdwn_utils.build_and_convert_mrkdwn_blocks(arg))
+
+
 def test_mrkdwn():
     with open("tests/utils/test_slack_mrkdwn_utils.md", "r", encoding="utf-8") as file:
         arg = file.read()
