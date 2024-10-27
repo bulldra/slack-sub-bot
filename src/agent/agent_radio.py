@@ -28,7 +28,7 @@ class AgentRadio(AgentGPT):
     ]:
         query: str = self.build_slack_qurey()
         for message in slack_search_utils.search_messages(
-            self._slack_behalf_user, query, 10
+            self._slack_behalf_user, query, 5
         ):
             chat_history.append({"role": "assistant", "content": message})
         with open("./conf/radio_prompt.toml", "r", encoding="utf-8") as file:
@@ -39,7 +39,8 @@ class AgentRadio(AgentGPT):
     def execute(self) -> None:
         prompt: str = self.completion(self.build_prompt(self._chat_history))
         prompt = (
-            "渡された台本に従って、ラジオ番組を作成してください。\n" + prompt.strip()
+            "以下の台本をそのまま読み上げてラジオ番組を生成してください。\n\n"
+            + prompt.strip()
         )
         self._logger.debug("audio_prompt=%s", prompt)
         response = self._openai_client.chat.completions.create(
@@ -69,7 +70,7 @@ class AgentRadio(AgentGPT):
             )
 
     def build_slack_qurey(self) -> str:
-        yesterday = datetime.now() - timedelta(days=1)
+        yesterday = datetime.now() - timedelta(days=7)
         datestr = yesterday.strftime("%Y-%m-%d")
-        query: str = f"is:thread in:<#{self._share_channel}> on:{datestr}"
+        query: str = f"is:thread in:<#{self._share_channel}> after:{datestr}"
         return query

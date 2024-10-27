@@ -1,20 +1,27 @@
 import random
 
+from slack_sdk.errors import SlackApiError
 
-def search_messages(slack_cli, query, num) -> dict[str, str] | None:
-    serarch_result = slack_cli.search_messages(
-        query=query,
-        count=100,
-    )
-    matches = serarch_result["messages"]["matches"]
-    selected = matches
-    if len(matches) > num:
-        selected = random.sample(matches, num)
 
+def search_messages(slack_cli, query, num) -> list[str] | None:
+    search_results = []
+    for i in range(1, 10):
+        try:
+            response = slack_cli.search_messages(query=query, page=i)
+            messages = response["messages"]["matches"]
+            search_results.extend(messages)
+            page_count = response["messages"]["pagination"].get("page_count", 1)
+            if i >= page_count:
+                break
+        except SlackApiError as e:
+            yield e.response["error"]
+    selected = search_results
+    if len(search_results) > num:
+        selected = random.sample(search_results, num)
     for message in selected:
-        timestamp: str = message["ts"]
+        ts: str = message["ts"]
         channel: str = message["channel"]["id"]
-        thread = search_thread_messages(slack_cli, channel, timestamp)
+        thread = search_thread_messages(slack_cli, channel, ts)
         if thread is not None:
             for content in thread:
                 yield content
