@@ -44,7 +44,7 @@ class AgentGPT(Agent):
         self._chat_history: list[dict[str, str]] = chat_history
         self._openai_model: str = "gpt-4o"
         self._openai_temperature: float = 0.0
-        self._output_max_token: int = 3000
+        self._output_max_token: int = 16384
         self._max_token: int = 128000 // 2 - self._output_max_token
         self._openai_stream = True
         self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
@@ -243,20 +243,32 @@ class AgentGPT(Agent):
             .encode("utf-8")[:3000]
             .decode("utf-8", errors="ignore")
         )
-
-        self._slack.chat_postMessage(
-            channel=self._channel,
-            thread_ts=self._thread_ts,
-            text=text,
-            blocks=blocks,
-        )
+        if self._thread_ts is not None:
+            self._slack.chat_postMessage(
+                channel=self._channel,
+                thread_ts=self._thread_ts,
+                text=text,
+                blocks=blocks,
+            )
+        else:
+            self._slack.chat_postMessage(
+                channel=self._channel,
+                text=text,
+                blocks=blocks,
+            )
 
     def post_single_message(self, content: str) -> None:
-        self._slack.chat_postMessage(
-            channel=self._channel,
-            thread_ts=self._thread_ts,
-            text=content,
-        )
+        if self._thread_ts is not None:
+            self._slack.chat_postMessage(
+                channel=self._channel,
+                thread_ts=self._thread_ts,
+                text=content,
+            )
+        else:
+            self._slack.chat_postMessage(
+                channel=self._channel,
+                text=content,
+            )
 
     def update_message(self, blocks: list) -> None:
         text: str = (
