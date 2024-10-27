@@ -33,6 +33,7 @@ class AgentRadio(AgentGPT):
             chat_history.append({"role": "assistant", "content": message})
         with open("./conf/radio_prompt.toml", "r", encoding="utf-8") as file:
             prompt = file.read()
+            prompt = prompt.replace("${date}", datetime.now().strftime("%Y年%m月%d日"))
             chat_history.append({"role": "user", "content": prompt.strip()})
         return super().build_prompt(chat_history)
 
@@ -62,7 +63,7 @@ class AgentRadio(AgentGPT):
             self._slack.files_upload_v2(
                 channel=self._image_channel,
                 file=f.read(),
-                filename="audio.mp3",
+                filename=f"daily_news_{datetime.now().strftime("%Y-%m-%d")}.mp3",
             )
             self._slack.chat_postMessage(
                 channel=self._image_channel,
