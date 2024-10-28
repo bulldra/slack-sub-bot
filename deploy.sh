@@ -2,8 +2,8 @@ source ./.env
 
 poetry update
 poetry export -f requirements.txt -o src/requirements.txt --without-hashes
-gcloud components update
-gcloud functions deploy ${FUNCTION_NAME} \
+gcloud -q components update
+gcloud -q functions deploy ${FUNCTION_NAME} \
 	--gen2 \
 	--region=asia-northeast1 \
 	--runtime=python312 \
