@@ -21,6 +21,10 @@ def url_list(query: str, num: int = 10) -> [str]:
 def scraping(query: str, num: int = 10) -> [scraping_utils.Site]:
     sites: [scraping_utils.Site] = []
     for url in url_list(query, num):
-        if scraping_utils.is_allow_scraping(url):
-            sites.append(scraping_utils.scraping(url))
+        try:
+            if scraping_utils.is_allow_scraping(url):
+                sites.append(scraping_utils.scraping(url))
+        except ValueError as e:
+            e.args = (f"ReadTimeout: {url}",)
+            continue
     return sites
