@@ -32,7 +32,6 @@ class AgentResearch(AgentGPT):
         | ChatCompletionFunctionMessageParam
     ]:
         keywords: [str] = GenerativeSynonyms().generate(chat_history)
-        print(keywords)
         if keywords is None or len(keywords) == 0:
             return super().build_prompt(chat_history)
         keyword_query: str = " OR ".join(keywords)
@@ -40,7 +39,7 @@ class AgentResearch(AgentGPT):
         prompt_messages: [dict[str, str]] = []
         for site in sites:
             prompt_messages.append(
-                {"role": "assistant", "content": f"{site.title} {site.content}"}
+                {"role": "assistant", "content": f"##{site.title}\n\n{site.content}"}
             )
 
         with open("./conf/idea_prompt.toml", "r", encoding="utf-8") as file:
