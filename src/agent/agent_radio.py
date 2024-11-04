@@ -16,7 +16,6 @@ from agent.agent_gpt import AgentGPT
 
 
 class AgentRadio(AgentGPT):
-
     def build_prompt(
         self, chat_history: list[dict[str, Any]]
     ) -> list[
@@ -39,6 +38,8 @@ class AgentRadio(AgentGPT):
 
     def execute(self) -> None:
         prompt: str = self.completion(self.build_prompt(self._chat_history))
+        if prompt is None or len(prompt) < 100:
+            raise ValueError(f"Prompt is too short: {prompt}")
         prompt = (
             "以下の台本をそのまま読み上げてラジオ番組を生成してください。\n\n"
             + prompt.strip()
@@ -56,7 +57,6 @@ class AgentRadio(AgentGPT):
         if not response.choices[0].message.audio:
             self.error("No audio data found in response")
         data = response.choices[0].message.audio.data
-        transcript: str = response.choices[0].message.audio.transcript
         with tempfile.NamedTemporaryFile(mode="wb+", delete=True) as f:
             f.write(base64.b64decode(data))
             f.seek(0)
@@ -67,7 +67,7 @@ class AgentRadio(AgentGPT):
             )
             self._slack.chat_postMessage(
                 channel=self._image_channel,
-                text=str(transcript),
+                text=str(prompt),
             )
 
     def build_slack_qurey(self) -> str:
