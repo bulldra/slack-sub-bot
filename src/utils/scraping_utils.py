@@ -1,12 +1,17 @@
+import json
 import os
 import re
 import tempfile
 import urllib
+import uuid
 from collections import namedtuple
 
+import openai
+import pydub
 import pypdf
 import requests
 from bs4 import BeautifulSoup
+from pytubefix import YouTube
 
 Site = namedtuple("Site", ("url", "title", "content"))
 
@@ -110,6 +115,32 @@ def scraping_pdf(url: str) -> Site:
         else:
             title = url
         return Site(url, title, content)
+
+
+def transcribe_youtube(url) -> str:
+    if not is_youtube_url(url):
+        return None
+    secrets: dict = json.loads(str(os.getenv("SECRETS")))
+    openai_client = openai.OpenAI(api_key=secrets.get("OPENAI_API_KEY"))
+    chunk_duration = 300 * 1000
+    youtube_stream = YouTube(url).streams.get_audio_only()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        audio_path: str = f"{temp_dir}/{youtube_stream.default_filename}"
+        youtube_stream.download(output_path=temp_dir)
+        audio_segment = pydub.AudioSegment.from_file(audio_path, "m4a")
+        text: str = ""
+        for chunk in [
+            audio_segment[i : i + chunk_duration]
+            for i in range(0, len(audio_segment), chunk_duration)
+        ]:
+            chunk_path = f"{temp_dir}/{str(uuid.uuid4())}.mp3"
+            chunk.export(chunk_path, format="mp3")
+            with open(chunk_path, "rb") as f:
+                transcribe = openai_client.audio.transcriptions.create(
+                    model="whisper-1", file=f
+                )
+                text += transcribe.text
+        return text
 
 
 def scraping_web(url: str) -> Site:
