@@ -43,7 +43,19 @@ def is_only_url(text: str) -> bool:
         return False
 
 
+def can_parse_url(url):
+    try:
+        result = urllib.parse.urlparse(url)
+        return all([result.scheme, result.netloc])
+    except ValueError:
+        return False
+    except TypeError:
+        return False
+
+
 def parse_url(url: str) -> str:
+    if not can_parse_url(url):
+        return url
     url_obj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
     path: str = urllib.parse.quote(url_obj.path, safe="=&%/")
     if url_obj.query is not None and url_obj.query != "":
@@ -58,7 +70,10 @@ def extract_url(text: str) -> str:
     links: list[str] = re.findall(_URL_PATTERN, text or "")
     if len(links) == 0:
         raise ValueError("URLが見つかりませんでした。")
-    return parse_url(links[0])
+    for link in links:
+        if can_parse_url(link):
+            return link
+    raise ValueError("URLが見つかりませんでした。")
 
 
 def redirect_url(url: str) -> str:
@@ -79,8 +94,8 @@ def redirect_url(url: str) -> str:
             query = re.sub(";", "", query)
             query_dict: dict = urllib.parse.parse_qs(query)
             if redirect.param in query_dict:
-                canonical_url = query_dict[redirect.param][0]
-                break
+                if can_parse_url(query_dict[redirect.param][0]):
+                    return query_dict[redirect.param][0]
     return canonical_url
 
 

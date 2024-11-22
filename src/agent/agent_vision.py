@@ -13,10 +13,6 @@ from agent.agent_gpt import AgentGPT
 
 
 class AgentVision(AgentGPT):
-    """
-    This is a agent that uses the GPT-4 Vision model to answer questions about image.
-    """
-
     def __init__(
         self, context: dict[str, Any], chat_history: list[dict[str, str]]
     ) -> None:

@@ -1,6 +1,6 @@
 import base64
 import tempfile
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 from openai.types.chat import (
@@ -25,7 +25,7 @@ class AgentRadio(AgentGPT):
         | ChatCompletionToolMessageParam
         | ChatCompletionFunctionMessageParam
     ]:
-        query: str = self.build_slack_qurey()
+        query: str = slack_search_utils.build_past_query(self._share_channel, 7)
         for message in slack_search_utils.search_messages(
             self._slack_behalf_user, query, 5
         ):
@@ -69,9 +69,3 @@ class AgentRadio(AgentGPT):
                 channel=self._image_channel,
                 text=str(prompt),
             )
-
-    def build_slack_qurey(self) -> str:
-        yesterday = datetime.now() - timedelta(days=7)
-        datestr = yesterday.strftime("%Y-%m-%d")
-        query: str = f"is:thread in:<#{self._share_channel}> after:{datestr}"
-        return query
