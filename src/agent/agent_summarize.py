@@ -21,8 +21,7 @@ class AgentSummarize(AgentGPT):
         super().__init__(context, chat_history)
         self._site: scraping_utils.Site | None = None
         self._openai_model: str = "gpt-4o-mini"
-        self._output_max_token: int = 3000
-        self._max_token: int = 32000 // 2 - self._output_max_token
+        self._openai_stream: bool = False
 
     def build_prompt(
         self, chat_history: list[dict[str, Any]]
@@ -47,8 +46,13 @@ class AgentSummarize(AgentGPT):
         with open("./conf/summarize_prompt.toml", "r", encoding="utf-8") as file:
             prompt: str = file.read()
 
-        prompt = prompt.replace("${title}", site.title)
-        prompt = prompt.replace("${content}", site.content)
+        replace_dict: dict[str, str] = {
+            "url": site.url,
+            "title": site.title,
+            "content": site.content,
+        }
+        for key, value in replace_dict.items():
+            prompt = prompt.replace(f"${{{key}}}", value)
 
         return super().build_prompt([{"role": "user", "content": prompt}])
 
