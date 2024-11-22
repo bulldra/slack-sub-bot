@@ -2,6 +2,8 @@ source ./.env
 
 poetry update
 poetry export -f requirements.txt -o src/requirements.txt --without-hashes
+
+CLOUDSDK_PYTHON=/opt/homebrew/bin/python3.11
 gcloud -q components update
 gcloud -q functions deploy ${FUNCTION_NAME} \
 	--gen2 \
