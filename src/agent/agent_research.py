@@ -42,7 +42,7 @@ class AgentResearch(AgentGPT):
                 {"role": "assistant", "content": f"##{site.title}\n\n{site.content}"}
             )
 
-        with open("./conf/idea_prompt.toml", "r", encoding="utf-8") as file:
+        with open("./conf/research_prompt.toml", "r", encoding="utf-8") as file:
             prompt = file.read()
             prompt = prompt.replace("${keyword}", keywords[0])
             prompt_messages.append({"role": "user", "content": prompt.strip()})

@@ -98,4 +98,8 @@ def convert_code_blocks(md_text: str) -> str:
 ```
 
 1. **Slack APIトークンの取得**: Slackのワークスペースでアプリを作成し、必要なスコープ（`files:write`、`chat:write`など）を持つOAuthトークンを取得します。
+`chat:a`
+
+AIの進化は素晴らしいが、人間の独自性を失わないようにすることが大切だと感じた。新たな可能性を見出すために、AIを道具として活用していきたい。 `https://www.lifehacker.jp/article/2411_book_to_read_weekend_81/`
+
 

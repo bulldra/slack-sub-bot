@@ -109,6 +109,8 @@ class AgentGPT(Agent):
             | ChatCompletionFunctionMessageParam
         ] = []
         token_model: str = self._openai_model
+        if self._openai_model in ["o1-preview", "o1-mini"]:
+            token_model = "gpt-4o"
         openai_encoding: tiktoken.core.Encoding = tiktoken.encoding_for_model(
             token_model
         )
@@ -199,15 +201,19 @@ class AgentGPT(Agent):
         chunk_size: int = self._output_max_token // 15
         border_lambda: int = chunk_size // 5
 
-        stream: openai.Stream[ChatCompletionChunk] = (
-            self._openai_client.chat.completions.create(
-                messages=prompt_messages,
-                model=self._openai_model,
-                temperature=self._openai_temperature,
-                stream=True,
-                max_tokens=self._output_max_token,
+        if self._openai_model in ["o1-preview", "o1-mini"]:
+            response: str = self.completion(prompt_messages)
+            return response
+        else:
+            stream: openai.Stream[ChatCompletionChunk] = (
+                self._openai_client.chat.completions.create(
+                    messages=prompt_messages,
+                    model=self._openai_model,
+                    temperature=self._openai_temperature,
+                    stream=True,
+                    max_tokens=self._output_max_token,
+                )
             )
-        )
 
         response_text: str = ""
         prev_text: str = ""

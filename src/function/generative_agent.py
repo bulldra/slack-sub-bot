@@ -51,8 +51,7 @@ class GenerativeAgent(GenerativeFunction):
             elif scraping_utils.is_code_url(url):
                 command = "/code_read"
             elif scraping_utils.is_youtube_url(url):
-                command = "/delete"
-                # 実行させない
+                command = "/youtube"
             elif scraping_utils.is_allow_scraping(url):
                 command = "/summazise"
             else:
@@ -79,6 +78,7 @@ class GenerativeAgent(GenerativeFunction):
                 "name": "generate_agent",
                 "description": "画像生成なら /image, \
 音声化なら /audio, \
+ブログ記事作成やアイディア出しを依頼されたなら /idea, \
 リサーチや検索や調査を依頼されたなら /research, \
 コード生成を依頼されたなら /code, \
 それ以外なら /gpt をエージェントとして指定する",
