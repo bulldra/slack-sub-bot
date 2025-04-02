@@ -1,4 +1,5 @@
 import random
+from datetime import datetime, timedelta
 
 from slack_sdk.errors import SlackApiError
 
@@ -25,6 +26,11 @@ def search_messages(slack_cli, query, num) -> list[str] | None:
         if thread is not None:
             for content in thread:
                 yield content
+
+
+def build_past_query(channel_id, days) -> str:
+    datestr = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+    return f"is:thread in:<#{channel_id}> after:{datestr}"
 
 
 def search_thread_messages(slack_cli, channel, timestamp) -> dict | None:

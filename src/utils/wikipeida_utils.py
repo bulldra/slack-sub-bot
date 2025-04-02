@@ -1,15 +1,12 @@
-"""wikiの記事を取得する"""
 import requests
 
 
 def get_random_page() -> dict[str, int | str]:
-    """ランダムなWikipedia記事を取得する"""
     result: dict[str, int | str] = get_random_index()
     return get_page(result["id"])
 
 
 def get_random_index() -> dict[str, int | str]:
-    """ランダムなWikipedia記事を取得する"""
     url = "https://ja.wikipedia.org/w/api.php"
     params = {
         "action": "query",
@@ -24,7 +21,6 @@ def get_random_index() -> dict[str, int | str]:
 
 
 def get_page(pageid) -> dict[str, int | str]:
-    """Wikipedia記事を取得する"""
     url = "https://ja.wikipedia.org/w/api.php"
     params = {
         "action": "query",
