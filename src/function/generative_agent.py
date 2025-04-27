@@ -12,17 +12,11 @@ from openai.types.chat.chat_completion_message_tool_call import Function
 import utils.scraping_utils as scraping_utils
 import utils.slack_link_utils as slack_link_utils
 from agent.agent import Agent
-from agent.agent_audio import AgentAudio
-from agent.agent_code import AgentCode
-from agent.agent_code_read import AgentCodeRead
 from agent.agent_delete import AgentDelete
 from agent.agent_gpt import AgentGPT
 from agent.agent_idea import AgentIdea
-from agent.agent_image import AgentImage
-from agent.agent_research import AgentResearch
+from agent.agent_slack_mail import AgentSlackMail
 from agent.agent_summarize import AgentSummarize
-from agent.agent_vision import AgentVision
-from agent.agent_youtube import AgentYoutube
 from function.generative_function import GenerativeFunction
 
 
@@ -31,14 +25,8 @@ class GenerativeAgent(GenerativeFunction):
         command_dict: dict[str, type[Agent]] = {
             "/gpt": AgentGPT,
             "/summazise": AgentSummarize,
-            "/vision": AgentVision,
-            "/audio": AgentAudio,
-            "/youtube": AgentYoutube,
             "/idea": AgentIdea,
-            "/research": AgentResearch,
-            "/image": AgentImage,
-            "/code": AgentCode,
-            "/code_read": AgentCodeRead,
+            "/mail": AgentSlackMail,
             "/delete": AgentDelete,
         }
         if command is not None and command in command_dict:
@@ -46,14 +34,7 @@ class GenerativeAgent(GenerativeFunction):
 
         if slack_link_utils.is_only_url(arg):
             url: str = slack_link_utils.extract_and_remove_tracking_url(arg)
-            if scraping_utils.is_image_url(url):
-                command = "/vision"
-            elif scraping_utils.is_code_url(url):
-                command = "/code_read"
-            elif scraping_utils.is_youtube_url(url):
-                command = "/delete"
-                # 実行させない
-            elif scraping_utils.is_allow_scraping(url):
+            if scraping_utils.is_allow_scraping(url):
                 command = "/summazise"
             else:
                 command = "/delete"
@@ -77,10 +58,7 @@ class GenerativeAgent(GenerativeFunction):
             "type": "function",
             "function": {
                 "name": "generate_agent",
-                "description": "画像生成なら /image, \
-音声化なら /audio, \
-リサーチや検索や調査を依頼されたなら /research, \
-コード生成を依頼されたなら /code, \
+                "description": "ブログ記事作成やアイディア出しを依頼されたなら /idea, \
 それ以外なら /gpt をエージェントとして指定する",
                 "parameters": {
                     "type": "object",
@@ -90,11 +68,7 @@ class GenerativeAgent(GenerativeFunction):
                             "description": "生成されたエージェント名",
                             "enum": [
                                 "/gpt",
-                                "/image",
                                 "/idea",
-                                "/code",
-                                "/audio",
-                                "/research",
                             ],
                         }
                     },

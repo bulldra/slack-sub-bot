@@ -1,5 +1,3 @@
-"""generative_actions.pyのテスト"""
-
 import json
 import os
 

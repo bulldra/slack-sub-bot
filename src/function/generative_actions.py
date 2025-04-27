@@ -66,20 +66,8 @@ class GenerativeActions(GenerativeFunction):
 
         actions: list[dict[str, str]] = [
             {
-                "action_label": "挿絵",
-                "action_prompt": "絵にして。",
-            },
-            {
-                "action_label": "音声",
-                "action_prompt": "これまでの会話からラジオ風に音声化して",
-            },
-            {
-                "action_label": "コード生成",
-                "action_prompt": "これまでの内容から要件を実現するためのスクリプトコードを生成して。",
-            },
-            {
-                "action_label": "アイデア",
-                "action_prompt": "これまでの内容から連想するアイデアを出して。",
+                "action_label": "水平思考",
+                "action_prompt": "これまでの内容から関連する記事をレコメンドして考察。",
             },
         ]
 
