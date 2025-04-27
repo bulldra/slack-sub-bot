@@ -48,12 +48,20 @@ def convert_mrkdwn(markdown_text: str) -> str:
     )
 
     placeholders = []
-    for i, pattern in enumerate([r"\[[^\]]*\]\([^\)]+\)", r"[^`]`([^`\n]+?)`"]):
-        codes = re.findall(pattern, mrkdwn_text)
+    for i, pattern in enumerate(
+        [
+            [r"\[[^\]]*?\]\([^\)]+?\)", ""],
+            [r"`[^`]+?`", " "],
+            [r"https?://[a-zA-Z0-9_/:%#\$&;\?\(\)~\.=\+\-]+[^\s\|\>]+", ""],
+        ]
+    ):
+        pattern_str = pattern[0]
+        padding = pattern[1]
+        codes = re.findall(pattern_str, mrkdwn_text)
         for j, code in enumerate(codes):
             placeholder = f"!!!CODE-{i}-{j}!!!"
             mrkdwn_text = mrkdwn_text.replace(code, placeholder)
-            placeholders.append((placeholder, code))
+            placeholders.append((placeholder, f"{padding}{code}{padding}"))
 
     mrkdwn_text = re.sub(
         r"^(\s*)[\*\+-]\s+(.+?)$", r"\1• \2", mrkdwn_text, flags=re.MULTILINE
