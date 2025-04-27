@@ -1,29 +1,31 @@
-[tool.poetry]
-name = "slack-sub-bot"
+[project]
+name = "main"
 version = "0.1.0"
 description = ""
-authors = ["bulldra <bulldra@gmail.com>"]
+authors = [{ name = "bulldra", email = "bulldra@gmail.com" }]
 readme = "README.md"
-
-[tool.poetry.dependencies]
-python = "^3.12"
-beautifulsoup4 = "^4.12.0"
-functions-framework = "^3.4.0"
-google-cloud-logging = "^3.11.3"
-google-cloud = "^0.34.0"
-openai = "^1.29.0"
-openai-agents = "0.0.2"
-requests = "^2.31.0"
-slack-sdk = "^3.27.1"
-tiktoken = "^0.7.0"
-types-requests = "^2.31.0"
-types-beautifulsoup4 = "^4.12.0"
-pytest = "^8.2.0"
-feedparser = "^6.0.11"
-pypdf = "^4.2.0"
-duckduckgo-search = "^6.0.0"
-pytubefix = "^8.4.0"
-pydub = "^0.25.1"
+license = "MIT"
+requires-python = "==3.12.0"
+dependencies = [
+    "beautifulsoup4==4.12.0",
+    "functions-framework==3.4.0",
+    "google-cloud-logging==3.11.3",
+    "google-cloud==0.34.0",
+    "requests==2.31.0",
+    "slack-sdk==3.27.1",
+    "tiktoken==0.9.0",
+    "types-requests==2.31.0",
+    "types-beautifulsoup4==4.12.0",
+    "pytest==8.2.0",
+    "feedparser==6.0.11",
+    "pypdf==4.2.0",
+    "pytubefix==8.4.0",
+    "pydub==0.25.1",
+    "pydantic>=2.10.0",
+    "openai==1.74.0",
+    "openai-agents>=0.0.11",
+    "google-api-python-client>=2.167.0",
+]
 
 [build-system]
 requires = ["poetry-core"]
