@@ -35,14 +35,16 @@ class AgentGPT(Agent):
         )
         self._share_channel: str = self._secrets.get("SHARE_CHANNEL_ID")
         self._image_channel: str = self._secrets.get("IMAGE_CHANNEL_ID")
+        self._youtube_api_key: str = self._secrets.get("YOUTUBE_API_KEY")
         self._logger: logging.Logger = logging.getLogger(__name__)
         self._logger.setLevel(logging.DEBUG)
         self._proceesing_message: str = str(context.get("processing_message"))
         self._channel = str(context.get("channel"))
         self._ts = str(context.get("ts"))
         self._thread_ts = str(context.get("thread_ts"))
+        self._context: dict[str, Any] = context
         self._chat_history: list[dict[str, str]] = chat_history
-        self._openai_model: str = "gpt-4o"
+        self._openai_model: str = "gpt-4.1-mini"
         self._openai_temperature: float = 0.0
         self._output_max_token: int = 16384
         self._max_token: int = 128000 // 2 - self._output_max_token
@@ -68,6 +70,7 @@ class AgentGPT(Agent):
                 content = self.completion(prompt_messages)
             blocks: list = self.build_message_blocks(content)
             self._logger.debug("content=%s", content)
+            self._chat_history.append({"role": "assistant", "content": content})
 
             action_generator = GenerativeActions()
             actions: list[dict[str, str]] = action_generator.execute(content)
@@ -91,6 +94,12 @@ class AgentGPT(Agent):
         except Exception as err:
             self.error(err)
             raise err
+        self.next_execute(self._context, self._chat_history)
+
+    def next_execute(
+        self, context: dict[str, Any], chat_history: list[dict[str, str]]
+    ) -> None:
+        pass
 
     def build_prompt(
         self, chat_history: list[dict[str, Any]]
@@ -108,11 +117,10 @@ class AgentGPT(Agent):
             | ChatCompletionToolMessageParam
             | ChatCompletionFunctionMessageParam
         ] = []
-        token_model: str = self._openai_model
-        if self._openai_model in ["o1-preview", "o1-mini"]:
-            token_model = "gpt-4o"
         openai_encoding: tiktoken.core.Encoding = tiktoken.encoding_for_model(
-            token_model
+            self._openai_model
+            if self._openai_model in tiktoken.list_encoding_names()
+            else "gpt-4o"
         )
         for chat in chat_history:
             current_content = chat["content"]
@@ -250,31 +258,35 @@ class AgentGPT(Agent):
             .decode("utf-8", errors="ignore")
         )
         if self._thread_ts is not None:
-            self._slack.chat_postMessage(
+            res = self._slack.chat_postMessage(
                 channel=self._channel,
                 thread_ts=self._thread_ts,
                 text=text,
                 blocks=blocks,
             )
+            return res
         else:
-            self._slack.chat_postMessage(
+            res = self._slack.chat_postMessage(
                 channel=self._channel,
                 text=text,
                 blocks=blocks,
             )
+            return res
 
     def post_single_message(self, content: str) -> None:
         if self._thread_ts is not None:
-            self._slack.chat_postMessage(
+            res = self._slack.chat_postMessage(
                 channel=self._channel,
                 thread_ts=self._thread_ts,
                 text=content,
             )
+            return res
         else:
-            self._slack.chat_postMessage(
+            res = self._slack.chat_postMessage(
                 channel=self._channel,
                 text=content,
             )
+            return res
 
     def update_message(self, blocks: list) -> None:
         text: str = (

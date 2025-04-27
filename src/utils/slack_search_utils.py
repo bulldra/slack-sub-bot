@@ -63,6 +63,11 @@ def search_thread_messages(slack_cli, channel, timestamp) -> Generator[str, None
         yield reply_message.get("text")
 
 
-def build_past_query(channel_id, days) -> str:
+def build_past_query(channel_id, days=90, keyword=None) -> str:
+    if channel_id is None:
+        raise ValueError("channel_id is None")
     datestr = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
-    return f"is:thread in:<#{channel_id}> after:{datestr}"
+    if keyword and keyword != "":
+        return f"is:thread in:<#{channel_id}> after:{datestr} {keyword}"
+    else:
+        return f"is:thread in:<#{channel_id}> after:{datestr}"

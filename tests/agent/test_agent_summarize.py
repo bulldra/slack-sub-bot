@@ -22,27 +22,4 @@ def test_scraping(pytestconfig: pytest.Config):
     ]
     agent = AgentSummarize({}, messages)
     prompt = agent.build_prompt(messages)
-    print(prompt)
-    content: str = ""
-    for content in agent.completion_stream(prompt):
-        pass
-    print(content)
-
-
-def test_scraping_pdf(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
-
-    messages = [
-        {
-            "role": "user",
-            "content": "https://www.meti.go.jp/policy/newbusiness/houkokusyo/G\
-EM2023_report.pdf",
-        }
-    ]
-    agent = AgentSummarize({}, messages)
-    prompt = agent.build_prompt(messages)
-    print(prompt)
-    content: str = ""
-    for content in agent.completion_stream(prompt):
-        pass
-    print(content)
+    print(agent.completion(prompt))

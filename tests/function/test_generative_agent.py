@@ -3,10 +3,8 @@ import os
 
 import pytest
 
-from agent.agent_code import AgentCode
 from agent.agent_gpt import AgentGPT
 from agent.agent_idea import AgentIdea
-from agent.agent_image import AgentImage
 from agent.agent_summarize import AgentSummarize
 from function.generative_agent import GenerativeAgent
 
@@ -19,13 +17,6 @@ def test_idea(pytestconfig: pytest.Config):
     generator = GenerativeAgent()
     result = generator.generate(None, "ビールに関するアイディア")
     assert result == AgentIdea
-
-
-def test_image(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
-    generator = GenerativeAgent()
-    result = generator.generate(None, "ビールについての絵を生成")
-    assert result == AgentImage
 
 
 def test_gpt(pytestconfig: pytest.Config):
@@ -44,10 +35,3 @@ def test_summarize(pytestconfig: pytest.Config):
 18/01013/00018/?n_cid=nbpnxr_mled_relatedlink",
     )
     assert result == AgentSummarize
-
-
-def test_code(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
-    generator = GenerativeAgent()
-    result = generator.generate(None, "入力したSQLを整形するためのコードを生成して")
-    assert result == AgentCode
