@@ -112,8 +112,7 @@ def scraping_pdf(url: str) -> Site:
         return Site(url, title, content)
 
 
-def scraping_web(url: str) -> Site:
-    content: str = scraping_raw(url)
+def scraping_text(url: str, content: str) -> Site:
     soup = BeautifulSoup(content, "html.parser")
     title = url
     if soup.title is not None and soup.title.string is not None:
@@ -155,6 +154,11 @@ def scraping_web(url: str) -> Site:
 
     content: str = re.sub(r"[\n\s]+", "\n", soup.get_text())
     return Site(url, title, content)
+
+
+def scraping_web(url: str) -> Site:
+    content: str = scraping_raw(url)
+    return scraping_text(url, content)
 
 
 def scraping(url: str) -> Site:
