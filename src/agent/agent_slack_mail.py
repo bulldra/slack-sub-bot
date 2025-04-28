@@ -10,6 +10,7 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 
+import utils.scraping_utils as scraping_utils
 from agent.agent_gpt import AgentGPT
 
 Mail = namedtuple("Mail", ("from_name", "subject", "content"))
@@ -35,10 +36,17 @@ class AgentSlackMail(AgentGPT):
         with open("./conf/slack_mail_prompt.toml", "r", encoding="utf-8") as file:
             prompt: str = file.read()
         mail = json.loads(chat_history[0]["content"])
+
+        mail_content = mail.get("plain_text", "")
+        if len(mail_content) < len(mail.get("preview", "")):
+            mail_content = mail.get("preview", "")
+        site: scraping_utils.Site = scraping_utils.scraping_text(
+            mail.get("url_private_download", ""), mail_content
+        )
         self._mail = Mail(
             from_name=str(mail.get("from", [{}])[0].get("original", "None")),
             subject=str(mail.get("subject", "")),
-            content=str(mail.get("plain_text", "")),
+            content=site.content,
         )
         prompt = prompt.replace("${content}", self._mail.content)
         chat_history = [{"role": "user", "content": prompt.strip()}]
