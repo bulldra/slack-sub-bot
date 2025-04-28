@@ -20,6 +20,7 @@ class AgentSummarize(AgentGPT):
     ) -> None:
         super().__init__(context, chat_history)
         self._site: scraping_utils.Site | None = None
+        self._openai_stream = False
 
     def build_prompt(
         self, chat_history: list[dict[str, Any]]

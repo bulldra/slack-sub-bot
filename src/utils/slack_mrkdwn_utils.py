@@ -14,14 +14,16 @@ def build_text_blocks(mrkdwn_text: str) -> list:
         while start < len(mrkdwn):
             end = start
             count = 0
-            while end < len(mrkdwn) and count < length_limit:
-                count += 1
-                end += 1
+            iterations = min(len(mrkdwn) - end, length_limit - count)
+            count += iterations
+            end += iterations
             last_lt = mrkdwn.rfind("<", start, end)
             last_gt = mrkdwn.rfind(">", start, end)
             if last_lt != -1 and (last_gt == -1 or last_lt > last_gt):
                 end = last_lt
-
+                m = re.search(r"[\t ]*•[\t ]*$", mrkdwn[start:end])
+                if m and start < end - len(m.group(0)):
+                    end -= len(m.group(0))
             text = mrkdwn[start:end]
             start = end
 
@@ -48,12 +50,20 @@ def convert_mrkdwn(markdown_text: str) -> str:
     )
 
     placeholders = []
-    for i, pattern in enumerate([r"\[[^\]]*\]\([^\)]+\)", r"[^`]`([^`\n]+?)`"]):
-        codes = re.findall(pattern, mrkdwn_text)
+    for i, pattern in enumerate(
+        [
+            [r"\[[^\]]*?\]\([^\)]+?\)", ""],
+            [r"`[^`]+?`", " "],
+            [r"https?://[a-zA-Z0-9_/:%#\$&;\?\(\)~\.=\+\-]+[^\s\|\>]+", ""],
+        ]
+    ):
+        pattern_str = pattern[0]
+        padding = pattern[1]
+        codes = re.findall(pattern_str, mrkdwn_text)
         for j, code in enumerate(codes):
             placeholder = f"!!!CODE-{i}-{j}!!!"
             mrkdwn_text = mrkdwn_text.replace(code, placeholder)
-            placeholders.append((placeholder, code))
+            placeholders.append((placeholder, f"{padding}{code}{padding}"))
 
     mrkdwn_text = re.sub(
         r"^(\s*)[\*\+-]\s+(.+?)$", r"\1• \2", mrkdwn_text, flags=re.MULTILINE
@@ -65,10 +75,11 @@ def convert_mrkdwn(markdown_text: str) -> str:
     mrkdwn_text = re.sub(r"([^\s])\*(.+?)\*([^\s])", r"\1 *\2* \3", mrkdwn_text)
     mrkdwn_text = re.sub(r"~~(.+?)~~", r" ~\1~ ", mrkdwn_text)
     mrkdwn_text = re.sub(
-        r"^#{1,6}\s*(.+?)\n", r"*\1*\n", mrkdwn_text, flags=re.MULTILINE
+        r"^(#{1,6})\s*(.+?)$",
+        r"*\1 \2*\n",
+        mrkdwn_text,
+        flags=re.MULTILINE,
     )
-    mrkdwn_text = re.sub(r"\n#{1,6}\s*(.+?)$", r"\n*\1*", mrkdwn_text)
-
     for placeholder, code in placeholders:
         mrkdwn_text = mrkdwn_text.replace(placeholder, code)
     mrkdwn_text = re.sub(r"!?\[\]\((.+?)\)", r"<\1>", mrkdwn_text)
