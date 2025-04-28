@@ -25,10 +25,11 @@ class TestBuildTextBlocks(unittest.TestCase):
             if "<" in block_text:
                 self.assertTrue(">" in block_text)
 
-    def test_convert_and_check_markdown_file(self):
+    def test_build_and_convert_mrkdwn_blocks(self):
         with open("tests/utils/test_slack_mrkdwn_utils.md", "r", encoding="utf-8") as f:
             md_text = f.read()
-        print(slack_mrkdwn_utils.convert_mrkdwn(md_text))
+        blocks = slack_mrkdwn_utils.build_and_convert_mrkdwn_blocks(md_text)
+        print(blocks)
 
 
 if __name__ == "__main__":
