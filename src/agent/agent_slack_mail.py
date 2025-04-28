@@ -10,7 +10,6 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 
-import utils.slack_mrkdwn_utils as slack_mrkdwn_utils
 from agent.agent_gpt import AgentGPT
 
 Mail = namedtuple("Mail", ("from_name", "subject", "content"))
@@ -62,6 +61,6 @@ class AgentSlackMail(AgentGPT):
                 },
             },
             {"type": "divider"},
+            {"type": "markdown", "text": content},
         ]
-        blocks.extend(slack_mrkdwn_utils.build_and_convert_mrkdwn_blocks(content))
         return blocks

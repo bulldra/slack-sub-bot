@@ -10,7 +10,6 @@ from openai.types.chat import (
 
 import utils.scraping_utils as scraping_utils
 import utils.slack_link_utils as slack_link_utils
-import utils.slack_mrkdwn_utils as slack_mrkdwn_utils
 from agent.agent_gpt import AgentGPT
 
 
@@ -69,6 +68,6 @@ class AgentSummarize(AgentGPT):
                 },
             },
             {"type": "divider"},
+            {"type": "markdown", "text": content},
         ]
-        blocks.extend(slack_mrkdwn_utils.build_and_convert_mrkdwn_blocks(content))
         return blocks

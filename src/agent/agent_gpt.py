@@ -17,7 +17,6 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 
-import utils.slack_mrkdwn_utils as slack_mrkdwn_utils
 from agent.agent import Agent
 from function.generative_actions import GenerativeActions
 
@@ -46,7 +45,7 @@ class AgentGPT(Agent):
         self._chat_history: list[dict[str, str]] = chat_history
         self._openai_model: str = "gpt-4.1-mini"
         self._openai_temperature: float = 0.0
-        self._output_max_token: int = 16384
+        self._output_max_token: int = 12000
         self._max_token: int = 128000 // 2 - self._output_max_token
         self._openai_stream = True
         self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
@@ -243,55 +242,31 @@ class AgentGPT(Agent):
 
     def tik_process(self) -> None:
         self._proceesing_message += "."
-        blocks: list = slack_mrkdwn_utils.build_text_blocks(self._proceesing_message)
+        blocks: list = [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": self._proceesing_message,
+                },
+            },
+        ]
         self.update_message(blocks)
 
     def build_message_blocks(self, content: str) -> list:
-        return slack_mrkdwn_utils.build_and_convert_mrkdwn_blocks(content)
-
-    def post_message(self, blocks: list) -> None:
-        text: str = (
-            "\n".join(
-                [f"{b['text']['text']}" for b in blocks if b["type"] == "section"]
-            )
-            .encode("utf-8")[:3000]
-            .decode("utf-8", errors="ignore")
-        )
-        if self._thread_ts is not None:
-            res = self._slack.chat_postMessage(
-                channel=self._channel,
-                thread_ts=self._thread_ts,
-                text=text,
-                blocks=blocks,
-            )
-            return res
-        else:
-            res = self._slack.chat_postMessage(
-                channel=self._channel,
-                text=text,
-                blocks=blocks,
-            )
-            return res
-
-    def post_single_message(self, content: str) -> None:
-        if self._thread_ts is not None:
-            res = self._slack.chat_postMessage(
-                channel=self._channel,
-                thread_ts=self._thread_ts,
-                text=content,
-            )
-            return res
-        else:
-            res = self._slack.chat_postMessage(
-                channel=self._channel,
-                text=content,
-            )
-            return res
+        blocks: list[dict] = [
+            {"type": "markdown", "text": content},
+        ]
+        return blocks
 
     def update_message(self, blocks: list) -> None:
         text: str = (
             "\n".join(
-                [f"{b['text']['text']}" for b in blocks if b["type"] == "section"]
+                [
+                    str(b["text"])
+                    for b in blocks
+                    if b["type"] == "section" or b["type"] == "markdown"
+                ]
             )
             .encode("utf-8")[:3000]
             .decode("utf-8", errors="ignore")
@@ -303,10 +278,6 @@ class AgentGPT(Agent):
             text=text,
             unfurl_links=True,
         )
-
-    def update_single_message(self, content: str) -> None:
-        blocks: list = self.build_message_blocks(content)
-        self.update_message(blocks)
 
     def delete_message(self) -> None:
         self._slack.chat_delete(
