@@ -1,7 +1,9 @@
+import html
 import json
 from collections import namedtuple
 from typing import Any
 
+import requests
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
     ChatCompletionFunctionMessageParam,
@@ -10,7 +12,6 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 
-import utils.scraping_utils as scraping_utils
 from agent.agent_gpt import AgentGPT
 
 Mail = namedtuple("Mail", ("from_name", "subject", "content"))
@@ -37,16 +38,25 @@ class AgentSlackMail(AgentGPT):
             prompt: str = file.read()
         mail = json.loads(chat_history[0]["content"])
 
-        mail_content = mail.get("plain_text", "")
-        if len(mail_content) < len(mail.get("preview", "")):
-            mail_content = mail.get("preview", "")
-        site: scraping_utils.Site = scraping_utils.scraping_text(
-            mail.get("url_private_download", ""), mail_content
-        )
+        mail_content: str = mail.get("plain_text", "")
+        mail_url: str = mail.get("url_private_download")
+
+        if mail_url and self._slack.token:
+            self._logger.debug("Download Mail URL: %s", mail_url)
+            res = requests.get(
+                mail_url,
+                headers={"Authorization": f"Bearer {self._slack.token}"},
+                timeout=(3.0, 8.0),
+            )
+            if res.status_code == 200:
+                mail_content = res.content.decode("utf-8", errors="replace")
+                mail_content = html.unescape(mail_content)
+
+        self._logger.debug("Mail content: %s", mail_content)
         self._mail = Mail(
             from_name=str(mail.get("from", [{}])[0].get("original", "None")),
             subject=str(mail.get("subject", "")),
-            content=site.content,
+            content=mail_content,
         )
         prompt = prompt.replace("${content}", self._mail.content)
         chat_history = [{"role": "user", "content": prompt.strip()}]
