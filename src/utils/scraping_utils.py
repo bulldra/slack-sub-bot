@@ -2,13 +2,17 @@ import os
 import re
 import tempfile
 import urllib
-from collections import namedtuple
+from typing import NamedTuple
 
 import pypdf
 import requests
 from bs4 import BeautifulSoup
 
-Site = namedtuple("Site", ("url", "title", "content"))
+
+class Site(NamedTuple):
+    url: str = ""
+    title: str = ""
+    content: str = None
 
 
 def is_allow_scraping(url: str) -> bool:
@@ -90,10 +94,7 @@ def scraping_raw(url: str) -> str:
 ) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36",
     }
     res = requests.get(url, timeout=(3.0, 8.0), headers=headers)
-    if res.status_code != 200:
-        raise ValueError(
-            f"status code is not 200. status code:{res.status_code} url:{url}"
-        )
+    res.raise_for_status()
     return res.content
 
 
@@ -112,9 +113,9 @@ def scraping_pdf(url: str) -> Site:
         return Site(url, title, content)
 
 
-def scraping_text(url: str, content: str) -> Site:
+def scraping_text(content: str) -> (str, str):
     soup = BeautifulSoup(content, "html.parser")
-    title = url
+    title: str = ""
     if soup.title is not None and soup.title.string is not None:
         title = re.sub(r"\n", " ", soup.title.string.strip())
 
@@ -128,7 +129,6 @@ def scraping_text(url: str, content: str) -> Site:
             "iframe",
             "form",
             "button",
-            # "link" 閉じ忘れが多いため除外
         ]
     ):
         script.decompose()
@@ -152,13 +152,25 @@ def scraping_text(url: str, content: str) -> Site:
     ):
         cr_tag.insert_after("\n")
 
-    content: str = re.sub(r"[\n\s]+", "\n", soup.get_text())
-    return Site(url, title, content)
+    for tag in soup.find_all():
+        if tag.name == "a":
+            href: str = tag.get("href", "")
+            tag.attrs = {}
+            tag.attrs["href"] = href
+        else:
+            tag.unwrap()
+
+    content: str = str(soup)
+    content = re.sub(r"\n\s*\n", "\n", content)
+    content = re.sub(r"[ \t]+", " ", content)
+    content = content.strip()
+    return title, content
 
 
 def scraping_web(url: str) -> Site:
     content: str = scraping_raw(url)
-    return scraping_text(url, content)
+    title, content = scraping_text(content)
+    return Site(url, title, content)
 
 
 def scraping(url: str) -> Site:

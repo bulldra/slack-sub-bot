@@ -12,6 +12,7 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 
+import utils.scraping_utils as scraping_utils
 from agent.agent_gpt import AgentGPT
 
 Mail = namedtuple("Mail", ("from_name", "subject", "content"))
@@ -34,10 +35,7 @@ class AgentSlackMail(AgentGPT):
         | ChatCompletionToolMessageParam
         | ChatCompletionFunctionMessageParam
     ]:
-        with open("./conf/slack_mail_prompt.toml", "r", encoding="utf-8") as file:
-            prompt: str = file.read()
         mail = json.loads(chat_history[0]["content"])
-
         mail_content: str = mail.get("plain_text", "")
         mail_url: str = mail.get("url_private_download")
 
@@ -51,16 +49,24 @@ class AgentSlackMail(AgentGPT):
             if res.status_code == 200:
                 mail_content = res.content.decode("utf-8", errors="replace")
                 mail_content = html.unescape(mail_content)
-
+                subject, content = scraping_utils.Site = scraping_utils.scraping_text(
+                    mail_content
+                )
+                mail_content = content
+        subject = mail.get("subject", "")
         self._logger.debug("Mail content: %s", mail_content)
         self._mail = Mail(
             from_name=str(mail.get("from", [{}])[0].get("original", "None")),
-            subject=str(mail.get("subject", "")),
+            subject=str(subject),
             content=mail_content,
         )
-        prompt = prompt.replace("${content}", self._mail.content)
-        chat_history = [{"role": "user", "content": prompt.strip()}]
-        return super().build_prompt(chat_history)
+
+        with open("./conf/slack_mail_prompt.toml", "r", encoding="utf-8") as file:
+            prompt: str = file.read()
+            prompt = prompt.replace("${subject}", self._mail.subject)
+            prompt = prompt.replace("${content}", self._mail.content)
+            chat_history = [{"role": "user", "content": prompt.strip()}]
+            return super().build_prompt(chat_history)
 
     def build_message_blocks(self, content: str) -> list:
         blocks: list[dict] = [
