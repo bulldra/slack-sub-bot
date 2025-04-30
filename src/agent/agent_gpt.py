@@ -45,7 +45,7 @@ class AgentGPT(Agent):
         self._chat_history: list[dict[str, str]] = chat_history
         self._openai_model: str = "gpt-4.1-mini"
         self._openai_temperature: float = 0.0
-        self._output_max_token: int = 6000
+        self._output_max_token: int = 8000
         self._max_token: int = 128000 // 2 - self._output_max_token
         self._openai_stream = True
         self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))

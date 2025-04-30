@@ -2,7 +2,7 @@ import os
 import re
 import tempfile
 import urllib
-from typing import NamedTuple
+from typing import NamedTuple, Tuple
 
 import pypdf
 import requests
@@ -113,7 +113,7 @@ def scraping_pdf(url: str) -> Site:
         return Site(url, title, content)
 
 
-def scraping_text(content: str) -> (str, str):
+def scraping_text(content: str) -> Tuple[str, str]:
     soup = BeautifulSoup(content, "html.parser")
     title: str = ""
     if soup.title is not None and soup.title.string is not None:
