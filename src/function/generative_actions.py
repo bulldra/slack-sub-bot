@@ -9,10 +9,10 @@ from openai.types.chat import (
 )
 from openai.types.chat.chat_completion_message_tool_call import Function
 
-from function.generative_function import GenerativeFunction
+from function.generative_base import GenerativeBase
 
 
-class GenerativeActions(GenerativeFunction):
+class GenerativeActions(GenerativeBase):
 
     def execute(self, content: str) -> list[dict[str, str]]:
         prompt: str = (
@@ -32,35 +32,33 @@ class GenerativeActions(GenerativeFunction):
             ),
         ]
 
-        function_def: dict = {
+        tool: dict = {
             "type": "function",
-            "function": {
-                "name": "generate_actions",
-                "description": prompt,
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "actions": {
-                            "type": "array",
-                            "description": "生成された複数アクションのリスト",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "action_label": {
-                                        "type": "string",
-                                        "description": "生成されたアクションのボタン表記。簡潔で短い日本語文言にする",
-                                    },
-                                    "action_prompt": {
-                                        "type": "string",
-                                        "description": "生成されたアクションの実行方法をChatGPTに問いかける\
+            "name": "generate_actions",
+            "description": prompt,
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "actions": {
+                        "type": "array",
+                        "description": "生成された複数アクションのリスト",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "action_label": {
+                                    "type": "string",
+                                    "description": "生成されたアクションのボタン表記。簡潔で短い日本語文言にする",
+                                },
+                                "action_prompt": {
+                                    "type": "string",
+                                    "description": "生成されたアクションの実行方法をChatGPTに問いかける\
 ためのプロンプトをステップ・バイ・ステップで生成",
-                                    },
                                 },
                             },
-                        }
-                    },
-                    "required": ["actions"],
+                        },
+                    }
                 },
+                "required": ["actions"],
             },
         }
 
@@ -71,7 +69,7 @@ class GenerativeActions(GenerativeFunction):
             },
         ]
 
-        function: Function | None = self.function_call(function_def, prompt_messages)
+        function: Function | None = self.function_single_call(tool, prompt_messages)
         if function is not None and function.arguments is not None:
             args: dict = json.loads(function.arguments)
             if args.get("actions") is not None:

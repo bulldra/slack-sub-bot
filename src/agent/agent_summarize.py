@@ -18,8 +18,9 @@ class AgentSummarize(AgentGPT):
         self, context: dict[str, Any], chat_history: list[dict[str, str]]
     ) -> None:
         super().__init__(context, chat_history)
-        self._site: scraping_utils.Site | None = None
+        self._openai_model: str = "gpt-4.1-mini"
         self._openai_stream = False
+        self._site: scraping_utils.Site | None = None
 
     def build_prompt(
         self, chat_history: list[dict[str, Any]]

@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from typing import List
 
 import openai
 from openai.types.chat import (
@@ -9,13 +10,12 @@ from openai.types.chat import (
     ChatCompletionMessage,
     ChatCompletionSystemMessageParam,
     ChatCompletionToolMessageParam,
-    ChatCompletionToolParam,
     ChatCompletionUserMessageParam,
 )
 from openai.types.chat.chat_completion_message_tool_call import Function
 
 
-class GenerativeFunction:
+class GenerativeBase:
 
     def __init__(self) -> None:
         self._secrets: dict = json.loads(str(os.getenv("SECRETS")))
@@ -36,7 +36,7 @@ class GenerativeFunction:
     ]:
         if len(chat_history) >= 2:
             chat_history = chat_history[-2:]
-        messages: list[
+        messages: List[
             ChatCompletionSystemMessageParam
             | ChatCompletionUserMessageParam
             | ChatCompletionAssistantMessageParam
@@ -50,9 +50,9 @@ class GenerativeFunction:
         ]
         return messages
 
-    def function_call(
+    def function_single_call(
         self,
-        function_def: dict,
+        tool: dict,
         messages: list[
             ChatCompletionSystemMessageParam
             | ChatCompletionUserMessageParam
@@ -61,26 +61,35 @@ class GenerativeFunction:
             | ChatCompletionFunctionMessageParam
         ],
     ) -> Function | None:
-        tools: list[ChatCompletionToolParam] = [
-            ChatCompletionToolParam(
-                type=function_def["type"], function=function_def["function"]
-            )
-        ]
+        function_calls = self.function_call([tool], messages)
+        print(function_calls)
+        if not (function_calls is None):
+            for function_call in function_calls:
+                if (
+                    function_call.type == "function_call"
+                    and function_call.name == tool["name"]
+                ):
+                    return function_call
+        return None
 
-        response = self._openai_client.chat.completions.create(
+    def function_call(
+        self,
+        tools: List[dict],
+        messages: List[
+            ChatCompletionSystemMessageParam
+            | ChatCompletionUserMessageParam
+            | ChatCompletionAssistantMessageParam
+            | ChatCompletionToolMessageParam
+            | ChatCompletionFunctionMessageParam
+        ],
+    ) -> List[Function] | None:
+        response = self._openai_client.responses.create(
             model=self._openai_model,
-            messages=messages,
+            input=messages,
             temperature=self._openai_temperature,
             tools=tools,
-            tool_choice="auto",
+            tool_choice="required",
         )
-
-        function_calls: [ChatCompletionMessage.tool_calls] = response.choices[
-            0
-        ].message.tool_calls
-
-        if not (function_calls is None or len(function_calls) != 1):
-            self._logger.debug("function_calls=%s", function_calls)
-            if function_calls[0].function.name == function_def["function"]["name"]:
-                return function_calls[0].function
-        return None
+        function_calls: [ChatCompletionMessage.tool_calls] = response.output
+        self._logger.debug("function_calls=%s", function_calls)
+        return function_calls

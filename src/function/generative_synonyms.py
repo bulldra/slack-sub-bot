@@ -9,10 +9,10 @@ from openai.types.chat import (
 )
 from openai.types.chat.chat_completion_message_tool_call import Function
 
-from function.generative_function import GenerativeFunction
+from function.generative_base import GenerativeBase
 
 
-class GenerativeSynonyms(GenerativeFunction):
+class GenerativeSynonyms(GenerativeBase):
     def generate(self, chat_history: list[str, str]) -> list[dict[str, str]]:
         prompt_messages: list[
             ChatCompletionSystemMessageParam
@@ -25,27 +25,27 @@ class GenerativeSynonyms(GenerativeFunction):
         if prompt_messages is None or len(prompt_messages) == 0:
             return []
 
-        prompt: str = "これまでの会話から検索用のキーワードを複数挙げる"
-        function_def: dict = {
+        tool: dict = {
             "type": "function",
-            "function": {
-                "name": "generate_synonyms",
-                "description": prompt,
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "synonyms": {
-                            "type": "array",
-                            "description": "生成された検索用類義語のリスト",
-                            "items": {"type": "string", "description": "類義語の値"},
-                        }
-                    },
-                    "required": ["synonyms"],
+            "name": "generate_synonyms",
+            "description": "これまでの会話から検索用のキーワードを複数挙げる",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "synonyms": {
+                        "type": "array",
+                        "description": "生成された検索用キーワードリスト",
+                        "items": {
+                            "type": "string",
+                            "description": "検索用キーワード、スペース区切りはしないで1単語を指定",
+                        },
+                    }
                 },
+                "required": ["synonyms"],
             },
         }
 
-        function: Function | None = self.function_call(function_def, prompt_messages)
+        function: Function | None = self.function_single_call(tool, prompt_messages)
         if function is not None and function.arguments is not None:
             args: dict = json.loads(function.arguments)
             if args.get("synonyms") is not None:
