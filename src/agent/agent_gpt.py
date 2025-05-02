@@ -45,7 +45,7 @@ class AgentGPT(Agent):
         self._chat_history: list[dict[str, str]] = chat_history
         self._openai_model: str = "gpt-4.1-mini"
         self._openai_temperature: float = 0.0
-        self._output_max_token: int = 8000
+        self._output_max_token: int = 30000
         self._max_token: int = 128000 // 2 - self._output_max_token
         self._openai_stream = True
         self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
@@ -121,9 +121,16 @@ class AgentGPT(Agent):
             if self._openai_model in tiktoken.list_encoding_names()
             else "gpt-4o"
         )
+        with open("./conf/system_prompt.yml", "r", encoding="utf-8") as file:
+            system_prompt = file.read()
+            prompt_messages.append(
+                ChatCompletionSystemMessageParam(
+                    role="system",
+                    content=system_prompt,
+                )
+            )
         for chat in chat_history:
             current_content = chat["content"]
-
             while True:
                 current_count: int = len(openai_encoding.encode(str(current_content)))
                 prompt_count: int = len(
@@ -167,6 +174,7 @@ class AgentGPT(Agent):
         )
         self._logger.debug("prompt %s", prompt_messages)
         self._logger.debug("prompt token count %s", last_prompt_count)
+
         return prompt_messages
 
     def completion(
