@@ -1,4 +1,4 @@
-""" シノニムを探す """
+"""シノニムを探す"""
 
 import json
 import os
