@@ -17,10 +17,10 @@ from agent.agent_gpt import AgentGPT
 from agent.agent_idea import AgentIdea
 from agent.agent_slack_mail import AgentSlackMail
 from agent.agent_summarize import AgentSummarize
-from function.generative_function import GenerativeFunction
+from function.generative_base import GenerativeBase
 
 
-class GenerativeAgent(GenerativeFunction):
+class GenerativeAgent(GenerativeBase):
     def generate(self, command: None | str, arg: str) -> Agent:
         command_dict: dict[str, type[Agent]] = {
             "/gpt": AgentGPT,
@@ -54,29 +54,27 @@ class GenerativeAgent(GenerativeFunction):
             ),
         ]
 
-        function_def: dict = {
+        tool: dict = {
             "type": "function",
-            "function": {
-                "name": "generate_agent",
-                "description": "ブログ記事作成やアイディア出しを依頼されたなら /idea, \
+            "name": "generate_agent",
+            "description": "ブログ記事作成やアイディア出しを依頼されたなら /idea, \
 それ以外なら /gpt をエージェントとして指定する",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "agent": {
-                            "type": "string",
-                            "description": "生成されたエージェント名",
-                            "enum": [
-                                "/gpt",
-                                "/idea",
-                            ],
-                        }
-                    },
-                    "required": ["agent"],
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "agent": {
+                        "type": "string",
+                        "description": "生成されたエージェント名",
+                        "enum": [
+                            "/gpt",
+                            "/idea",
+                        ],
+                    }
                 },
+                "required": ["agent"],
             },
         }
-        function: Function | None = self.function_call(function_def, messages)
+        function: Function | None = self.function_single_call(tool, messages)
         if function is not None and function.arguments is not None:
             args: dict = json.loads(function.arguments)
             if args.get("agent") is not None and args["agent"] in command_dict:
