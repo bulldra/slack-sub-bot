@@ -24,6 +24,7 @@ class AgentSlackMail(AgentGPT):
     ) -> None:
         super().__init__(context, chat_history)
         self._openai_stream = False
+        self._openai_model: str = "gpt-4.1-mini"
         self._mail: Mail | None = None
 
     def build_prompt(
@@ -85,6 +86,12 @@ class AgentSlackMail(AgentGPT):
                 },
             },
             {"type": "divider"},
-            {"type": "markdown", "text": content},
         ]
+        current_content: str = ""
+        for line in content.splitlines():
+            if len(current_content) + len(line) > 11900:
+                blocks.append({"type": "markdown", "text": current_content})
+                current_content = ""
+            current_content += line + "\n"
+        blocks.append({"type": "markdown", "text": current_content})
         return blocks
