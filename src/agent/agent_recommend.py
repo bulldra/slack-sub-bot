@@ -54,7 +54,7 @@ class AgentRecommend(AgentGPT):
         if len(recommend_messages) > 3:
             recommend_messages = random.sample(recommend_messages, 3)
         if len(recommend_messages) >= 1:
-            with open("./conf/recommend_prompt.yml", "r", encoding="utf-8") as file:
+            with open("./conf/recommend_prompt.yaml", "r", encoding="utf-8") as file:
                 prompt = file.read()
                 prompt = prompt.replace(
                     "${recommend_messages}", "\n\n".join(recommend_messages)

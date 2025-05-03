@@ -75,7 +75,7 @@ class AgentGPT(Agent):
             self._chat_history.append(Chat(role="assistant", content=content))
 
             action_generator = GenerativeActions()
-            actions: List[dict[str, str]] = action_generator.execute(content)
+            actions: List[dict[str, str]] = action_generator.generate(content)
             self._logger.debug("actions=%s", actions)
             elements: List[dict[str, Any]] = [
                 {
@@ -300,7 +300,7 @@ class AgentGPT(Agent):
         raise err
 
     def _build_system_prompt(self) -> str:
-        with open("./conf/system_prompt.yml", "r", encoding="utf-8") as file:
+        with open("./conf/system_prompt.yaml", "r", encoding="utf-8") as file:
             system_prompt = file.read()
 
             weather: dict = utils.weather.Weather().get()

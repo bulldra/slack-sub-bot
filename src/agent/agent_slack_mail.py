@@ -65,7 +65,7 @@ class AgentSlackMail(AgentGPT):
             content=mail_content,
         )
 
-        with open("./conf/slack_mail_prompt.toml", "r", encoding="utf-8") as file:
+        with open("./conf/slack_mail_prompt.yaml", "r", encoding="utf-8") as file:
             prompt: str = file.read()
             prompt = prompt.replace("${subject}", self._mail.subject)
             prompt = prompt.replace("${content}", self._mail.content)

@@ -40,7 +40,7 @@ class AgentSummarize(AgentGPT):
         self._site = scraping_utils.scraping(url)
         if self._site is None:
             raise ValueError("scraping failed")
-        with open("./conf/summarize_prompt.toml", "r", encoding="utf-8") as file:
+        with open("./conf/summarize_prompt.yaml", "r", encoding="utf-8") as file:
             prompt: str = file.read()
             replace_dict: dict[str, str] = {
                 "url": self._site.url,

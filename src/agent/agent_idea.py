@@ -55,7 +55,7 @@ class AgentIdea(AgentGPT):
                 )
             )
         if len(related_messages) >= 1:
-            with open("./conf/idea_prompt.toml", "r", encoding="utf-8") as file:
+            with open("./conf/idea_prompt.yaml", "r", encoding="utf-8") as file:
                 prompt = file.read()
                 if keywords and len(keywords) >= 1:
                     keywords_str = ", ".join(keywords)

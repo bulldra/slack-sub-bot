@@ -1,4 +1,5 @@
 import json
+from typing import List
 
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
@@ -14,7 +15,7 @@ from function.generative_base import GenerativeBase
 
 class GenerativeActions(GenerativeBase):
 
-    def execute(self, content: str) -> list[dict[str, str]]:
+    def generate(self, content: str) -> List[dict[str, str]]:
         prompt: str = (
             "回答された内容をもとに次のアクションとなる選択肢とプロンプトを生成する。解像度を高めたり、反論したり、異なる視点を提示する"
         )

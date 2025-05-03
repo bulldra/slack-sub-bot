@@ -26,8 +26,8 @@ class GenerativeBase:
         self._logger.setLevel(logging.DEBUG)
 
     def build_prompt(
-        self, chat_history: list[dict[str, str]]
-    ) -> list[
+        self, chat_history: List[dict[str, str]]
+    ) -> List[
         ChatCompletionSystemMessageParam
         | ChatCompletionUserMessageParam
         | ChatCompletionAssistantMessageParam
