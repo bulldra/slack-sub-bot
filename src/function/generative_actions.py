@@ -64,8 +64,8 @@ class GenerativeActions(GenerativeBase):
 
         actions: list[dict[str, str]] = [
             {
-                "action_label": "水平思考",
-                "action_prompt": "これまでの内容から関連する記事をレコメンドして考察。",
+                "action_label": "アイディア",
+                "action_prompt": "アイディアを対話",
             },
         ]
 

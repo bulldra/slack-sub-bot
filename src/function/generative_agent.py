@@ -59,8 +59,9 @@ class GenerativeAgent(GenerativeBase):
         tool: dict = {
             "type": "function",
             "name": "generate_agent",
-            "description": "ブログ記事作成やアイディア出しを依頼されたなら /idea, \
-それ以外なら /gpt をエージェントとして指定する",
+            "description": "アイディア出しを依頼されたなら /idea, "
+            "おすすめ記事を依頼されたら /recommend"
+            "それ以外なら /gpt をエージェントとして指定する",
             "parameters": {
                 "type": "object",
                 "properties": {

@@ -28,20 +28,20 @@ class GenerativeSynonyms(GenerativeBase):
         tool: dict = {
             "type": "function",
             "name": "generate_synonyms",
-            "description": "これまでの会話から検索用のキーワードを複数挙げる",
+            "description": "これまでの会話から検索するためのキーワードを複数挙げる。直近の会話内容から優先的に選択して、"
+            "関係のない文言を無理に生成しようとしないでください",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "synonyms": {
                         "type": "array",
-                        "description": "生成された検索用キーワードリスト",
+                        "description": "生成された検索用キーワードリスト、検索結果の優先順位のため特殊性が高い言葉から列挙して",
                         "items": {
                             "type": "string",
                             "description": "検索用キーワード、スペース区切りはしないで1単語を指定",
                         },
                     }
                 },
-                "required": ["synonyms"],
             },
         }
 
