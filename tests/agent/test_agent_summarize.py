@@ -4,6 +4,7 @@ import os
 
 import pytest
 
+from agent.agent import Chat
 from agent.agent_summarize import AgentSummarize
 
 with open("secrets.json", "r", encoding="utf-8") as f:
@@ -15,10 +16,10 @@ Case = collections.namedtuple("Case", ("argument", "expected"))
 def test_scraping(pytestconfig: pytest.Config):
     os.chdir(pytestconfig.getini("pythonpath")[0])
     messages = [
-        {
-            "role": "user",
-            "content": "https://xtrend.nikkei.com/atcl/contents/18/00915/00002/",
-        }
+        Chat(
+            role="user",
+            content="https://www.du-soleil.com/entry/gentle-internet-is-a-translation",
+        )
     ]
     agent = AgentSummarize({}, messages)
     prompt = agent.build_prompt(messages)

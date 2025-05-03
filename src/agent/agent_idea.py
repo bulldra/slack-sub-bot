@@ -9,22 +9,21 @@ from openai.types.chat import (
 )
 
 import utils.slack_search_utils as slack_search_utils
+from agent.agent import Chat
 from agent.agent_gpt import AgentGPT
 from function.generative_synonyms import GenerativeSynonyms
 
 
 class AgentIdea(AgentGPT):
 
-    def __init__(
-        self, context: dict[str, Any], chat_history: List[dict[str, str]]
-    ) -> None:
+    def __init__(self, context: dict[str, Any], chat_history: List[Chat]) -> None:
         super().__init__(context, chat_history)
         self._openai_stream = True
         self._openai_model: str = "gpt-4.1-mini"
         self._keywords: list[str] = []
 
     def build_prompt(
-        self, chat_history: List[dict[str, Any]]
+        self, chat_history: List[Chat]
     ) -> list[
         ChatCompletionSystemMessageParam
         | ChatCompletionUserMessageParam
@@ -61,7 +60,7 @@ class AgentIdea(AgentGPT):
                 if keywords and len(keywords) >= 1:
                     keywords_str = ", ".join(keywords)
                     chat_history.append(
-                        {"role": "assistant", "content": keywords_str},
+                        Chat(role="assistant", content=keywords_str),
                     )
                     prompt = prompt.replace("${keywords}", keywords_str)
                 else:
@@ -69,7 +68,7 @@ class AgentIdea(AgentGPT):
                 prompt = prompt.replace(
                     "${related_messages}", "\n\n".join(related_messages)
                 )
-                chat_history.append({"role": "assistant", "content": prompt.strip()})
+                chat_history.append(Chat(role="assistant", content=prompt.strip()))
         return super().build_prompt(chat_history)
 
     def build_message_blocks(self, content: str) -> List[dict]:

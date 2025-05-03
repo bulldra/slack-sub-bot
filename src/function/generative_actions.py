@@ -65,7 +65,7 @@ class GenerativeActions(GenerativeBase):
         actions: list[dict[str, str]] = [
             {
                 "action_label": "アイディア",
-                "action_prompt": "アイディアを対話",
+                "action_prompt": "アイディアを出して",
             },
         ]
 

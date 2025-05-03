@@ -10,17 +10,17 @@ from openai.types.chat import (
 )
 
 import utils.slack_search_utils as slack_search_utils
+from agent.agent import Chat
 from agent.agent_gpt import AgentGPT
 
 
 class AgentRecommend(AgentGPT):
 
-    def __init__(
-        self, context: dict[str, Any], chat_history: List[dict[str, str]]
-    ) -> None:
+    def __init__(self, context: dict[str, Any], chat_history: List[Chat]) -> None:
         super().__init__(context, chat_history)
         self._openai_stream = True
         self._openai_model: str = "gpt-4.1-mini"
+        self._openai_temperature: float = 0.5
         self._keywords: List[str] = []
 
     def build_random_date_range_query(self, retry_count):
@@ -32,7 +32,7 @@ class AgentRecommend(AgentGPT):
         return query
 
     def build_prompt(
-        self, chat_history: List[dict[str, Any]]
+        self, chat_history: List[Chat]
     ) -> List[
         ChatCompletionSystemMessageParam
         | ChatCompletionUserMessageParam
@@ -59,5 +59,5 @@ class AgentRecommend(AgentGPT):
                 prompt = prompt.replace(
                     "${recommend_messages}", "\n\n".join(recommend_messages)
                 )
-                chat_history.append({"role": "user", "content": prompt.strip()})
+                chat_history.append(Chat(role="user", content=prompt.strip()))
         return super().build_prompt(chat_history)

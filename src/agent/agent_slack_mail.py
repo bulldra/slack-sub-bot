@@ -12,6 +12,7 @@ from openai.types.chat import (
 )
 
 import utils.scraping_utils as scraping_utils
+from agent.agent import Chat
 from agent.agent_gpt import AgentGPT
 
 
@@ -23,9 +24,7 @@ class Mail(NamedTuple):
 
 class AgentSlackMail(AgentGPT):
 
-    def __init__(
-        self, context: dict[str, Any], chat_history: List[dict[str, str]]
-    ) -> None:
+    def __init__(self, context: dict[str, Any], chat_history: List[Chat]) -> None:
         super().__init__(context, chat_history)
         self._openai_stream = False
         self._openai_model: str = "gpt-4.1-mini"
@@ -70,7 +69,7 @@ class AgentSlackMail(AgentGPT):
             prompt: str = file.read()
             prompt = prompt.replace("${subject}", self._mail.subject)
             prompt = prompt.replace("${content}", self._mail.content)
-            chat_history = [{"role": "user", "content": prompt.strip()}]
+            chat_history = [Chat(role="user", content=prompt.strip())]
             return super().build_prompt(chat_history)
 
     def build_message_blocks(self, content: str) -> List[dict]:

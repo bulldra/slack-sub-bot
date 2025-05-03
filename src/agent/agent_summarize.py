@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, List
 
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
@@ -10,21 +10,21 @@ from openai.types.chat import (
 
 import utils.scraping_utils as scraping_utils
 import utils.slack_link_utils as slack_link_utils
+from agent.agent import Chat
 from agent.agent_gpt import AgentGPT
 
 
 class AgentSummarize(AgentGPT):
-    def __init__(
-        self, context: dict[str, Any], chat_history: list[dict[str, str]]
-    ) -> None:
+
+    def __init__(self, context: dict[str, Any], chat_history: List[Chat]) -> None:
         super().__init__(context, chat_history)
         self._openai_model: str = "gpt-4.1-mini"
         self._openai_stream = False
-        self._site: scraping_utils.Site | None = None
+        self._site: scraping_utils.SiteInfo | None = None
 
     def build_prompt(
-        self, chat_history: list[dict[str, Any]]
-    ) -> list[
+        self, chat_history: List[Chat]
+    ) -> List[
         ChatCompletionSystemMessageParam
         | ChatCompletionUserMessageParam
         | ChatCompletionAssistantMessageParam
@@ -32,7 +32,7 @@ class AgentSummarize(AgentGPT):
         | ChatCompletionFunctionMessageParam
     ]:
         url: str = slack_link_utils.extract_and_remove_tracking_url(
-            chat_history[-1]["content"]
+            chat_history[-1].get("content")
         )
         self._logger.debug("scraping url=%s", url)
         if not scraping_utils.is_allow_scraping(url):
@@ -49,7 +49,7 @@ class AgentSummarize(AgentGPT):
             }
             for key, value in replace_dict.items():
                 prompt = prompt.replace(f"${{{key}}}", value)
-            return super().build_prompt([{"role": "user", "content": prompt}])
+            return super().build_prompt([Chat(role="user", content=prompt)])
 
     def build_message_blocks(self, content: str) -> list:
         if self._site is None:

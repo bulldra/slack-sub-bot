@@ -49,6 +49,7 @@ google-api-core==2.24.2
     #   google-cloud-appengine-logging
     #   google-cloud-core
     #   google-cloud-logging
+    #   google-cloud-storage
 google-api-python-client==2.167.0
     # via main (pyproject.toml)
 google-auth==2.38.0
@@ -59,6 +60,7 @@ google-auth==2.38.0
     #   google-cloud-appengine-logging
     #   google-cloud-core
     #   google-cloud-logging
+    #   google-cloud-storage
 google-auth-httplib2==0.2.0
     # via google-api-python-client
 google-cloud==0.34.0
@@ -68,9 +70,19 @@ google-cloud-appengine-logging==1.6.1
 google-cloud-audit-log==0.3.2
     # via google-cloud-logging
 google-cloud-core==2.4.3
-    # via google-cloud-logging
+    # via
+    #   google-cloud-logging
+    #   google-cloud-storage
 google-cloud-logging==3.11.3
     # via main (pyproject.toml)
+google-cloud-storage==3.1.0
+    # via main (pyproject.toml)
+google-crc32c==1.7.1
+    # via
+    #   google-cloud-storage
+    #   google-resumable-media
+google-resumable-media==2.7.2
+    # via google-cloud-storage
 googleapis-common-protos==1.69.2
     # via
     #   google-api-core
@@ -192,6 +204,7 @@ requests==2.31.0
     # via
     #   main (pyproject.toml)
     #   google-api-core
+    #   google-cloud-storage
     #   openai-agents
     #   tiktoken
 rsa==4.9

@@ -38,4 +38,11 @@ output_rules:
         marker: '-'
         blank_lines_between_items: true
         numbered_lists_allowed: false
-tone: “簡潔でわかりやすく。それでいて新しい発見を促す”
+tone: '簡潔でわかりやすく。それでいて新しい発見を促す。季節や天気の話をする。'
+real_envirment:
+    now_date_time: '${DATE_TIME}'
+    weather:
+        report_date_time: '${WEATHER_REPORT_DATETIME}'
+        report_text: |
+            '${WEATHER_REPORT_TEXT}'
+    location: '東京'

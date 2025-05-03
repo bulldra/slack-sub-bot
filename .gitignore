@@ -3,6 +3,7 @@ secrets.json
 .DS_Store
 src/requirements.txt
 uv.lock
+src/conf/gcs_bucket.json
 
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python

@@ -9,7 +9,7 @@ import requests
 from bs4 import BeautifulSoup
 
 
-class Site(NamedTuple):
+class SiteInfo(NamedTuple):
     url: str = ""
     title: str = ""
     content: str = None
@@ -98,7 +98,7 @@ def scraping_raw(url: str) -> str:
     return res.text
 
 
-def scraping_pdf(url: str) -> Site:
+def scraping_pdf(url: str) -> SiteInfo:
     with tempfile.NamedTemporaryFile(mode="wb+", delete=True) as t:
         t.write(scraping_raw(url))
         t.seek(0)
@@ -109,7 +109,7 @@ def scraping_pdf(url: str) -> Site:
         title = url
         if pdf.metadata is not None:
             title = pdf.metadata.get("title", url)
-        return Site(url=url, title=title, content=content)
+        return SiteInfo(url=url, title=title, content=content)
 
 
 def scraping_text(content: str) -> Tuple[str, str]:
@@ -166,13 +166,13 @@ def scraping_text(content: str) -> Tuple[str, str]:
     return title, content
 
 
-def scraping_web(url: str) -> Site:
+def scraping_web(url: str) -> SiteInfo:
     content: str = scraping_raw(url)
     title, content = scraping_text(content)
-    return Site(url=url, title=title or url, content=content)
+    return SiteInfo(url=url, title=title or url, content=content)
 
 
-def scraping(url: str) -> Site:
+def scraping(url: str) -> SiteInfo:
     if is_pdf_url(url):
         return scraping_pdf(url)
     return scraping_web(url)
