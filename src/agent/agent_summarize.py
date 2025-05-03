@@ -37,27 +37,22 @@ class AgentSummarize(AgentGPT):
         self._logger.debug("scraping url=%s", url)
         if not scraping_utils.is_allow_scraping(url):
             raise ValueError("scraping is not allowed")
-        site: scraping_utils.Site = scraping_utils.scraping(url)
-        if site is None:
+        self._site = scraping_utils.scraping(url)
+        if self._site is None:
             raise ValueError("scraping failed")
-        self._site = site
-
         with open("./conf/summarize_prompt.toml", "r", encoding="utf-8") as file:
             prompt: str = file.read()
-
-        replace_dict: dict[str, str] = {
-            "url": site.url,
-            "title": site.title,
-            "content": site.content,
-        }
-        for key, value in replace_dict.items():
-            prompt = prompt.replace(f"${{{key}}}", value)
-
-        return super().build_prompt([{"role": "user", "content": prompt}])
+            replace_dict: dict[str, str] = {
+                "url": self._site.url,
+                "title": self._site.title,
+                "content": self._site.content,
+            }
+            for key, value in replace_dict.items():
+                prompt = prompt.replace(f"${{{key}}}", value)
+            return super().build_prompt([{"role": "user", "content": prompt}])
 
     def build_message_blocks(self, content: str) -> list:
-        site: scraping_utils.Site = self._site
-        if site is None:
+        if self._site is None:
             raise ValueError("site is empty")
 
         blocks: list[dict] = [
@@ -65,7 +60,9 @@ class AgentSummarize(AgentGPT):
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": slack_link_utils.build_link(site.url, site.title),
+                    "text": slack_link_utils.build_link(
+                        self._site.url, self._site.title
+                    ),
                 },
             },
             {"type": "divider"},

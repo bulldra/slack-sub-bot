@@ -95,7 +95,7 @@ def scraping_raw(url: str) -> str:
     }
     res = requests.get(url, timeout=(3.0, 8.0), headers=headers)
     res.raise_for_status()
-    return res.content
+    return res.text
 
 
 def scraping_pdf(url: str) -> Site:

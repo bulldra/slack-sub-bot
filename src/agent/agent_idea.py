@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, List
 
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
@@ -14,15 +14,17 @@ from function.generative_synonyms import GenerativeSynonyms
 
 
 class AgentIdea(AgentGPT):
+
     def __init__(
-        self, context: dict[str, Any], chat_history: list[dict[str, str]]
+        self, context: dict[str, Any], chat_history: List[dict[str, str]]
     ) -> None:
         super().__init__(context, chat_history)
         self._openai_stream = True
         self._openai_model: str = "gpt-4.1-mini"
+        self._keywords: list[str] = []
 
     def build_prompt(
-        self, chat_history: list[dict[str, Any]]
+        self, chat_history: List[dict[str, Any]]
     ) -> list[
         ChatCompletionSystemMessageParam
         | ChatCompletionUserMessageParam
@@ -34,6 +36,7 @@ class AgentIdea(AgentGPT):
         related_messages = set()
         max_messages = 20
         if keywords:
+            self._keywords = keywords
             for keyword in keywords:
                 query = slack_search_utils.build_past_query(
                     channel_id=self._share_channel, keyword=keyword
@@ -57,6 +60,22 @@ class AgentIdea(AgentGPT):
         with open("./conf/idea_prompt.toml", "r", encoding="utf-8") as file:
             prompt = file.read()
             prompt = prompt.replace("${keywords}", ", ".join(keywords))
-            prompt = prompt.replace("${related_messages}", "\n".join(related_messages))
+            prompt = prompt.replace(
+                "${related_messages}", "\n\n".join(related_messages)
+            )
             chat_history.append({"role": "user", "content": prompt.strip()})
         return super().build_prompt(chat_history)
+
+    def build_message_blocks(self, content: str) -> List[dict]:
+        blocks: List[dict] = [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"調査キーワード: *{", ".join(self._keywords)}*",
+                },
+            },
+            {"type": "divider"},
+            {"type": "markdown", "text": content},
+        ]
+        return blocks

@@ -1,7 +1,6 @@
 import html
 import json
-from collections import namedtuple
-from typing import Any
+from typing import Any, List, NamedTuple
 
 import requests
 from openai.types.chat import (
@@ -15,12 +14,17 @@ from openai.types.chat import (
 import utils.scraping_utils as scraping_utils
 from agent.agent_gpt import AgentGPT
 
-Mail = namedtuple("Mail", ("from_name", "subject", "content"))
+
+class Mail(NamedTuple):
+    from_name: str
+    subject: str
+    content: str
 
 
 class AgentSlackMail(AgentGPT):
+
     def __init__(
-        self, context: dict[str, Any], chat_history: list[dict[str, str]]
+        self, context: dict[str, Any], chat_history: List[dict[str, str]]
     ) -> None:
         super().__init__(context, chat_history)
         self._openai_stream = False
@@ -28,8 +32,8 @@ class AgentSlackMail(AgentGPT):
         self._mail: Mail | None = None
 
     def build_prompt(
-        self, chat_history: list[dict[str, Any]]
-    ) -> list[
+        self, chat_history: List[dict[str, Any]]
+    ) -> List[
         ChatCompletionSystemMessageParam
         | ChatCompletionUserMessageParam
         | ChatCompletionAssistantMessageParam
@@ -69,7 +73,7 @@ class AgentSlackMail(AgentGPT):
             chat_history = [{"role": "user", "content": prompt.strip()}]
             return super().build_prompt(chat_history)
 
-    def build_message_blocks(self, content: str) -> list:
+    def build_message_blocks(self, content: str) -> List[dict]:
         blocks: list[dict] = [
             {
                 "type": "section",

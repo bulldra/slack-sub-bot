@@ -62,8 +62,7 @@ class GenerativeBase:
         ],
     ) -> Function | None:
         function_calls = self.function_call([tool], messages)
-        print(function_calls)
-        if not (function_calls is None):
+        if function_calls is not None:
             for function_call in function_calls:
                 if (
                     function_call.type == "function_call"

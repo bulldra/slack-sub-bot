@@ -127,3 +127,10 @@ def test_is_youtube_url():
 assert '{actual}' == '{case.expected}'"""
         )
         assert actual == case.expected
+
+
+def test_is_code_url():
+    site = scraping_utils.scraping(
+        "https://www.du-soleil.com/entry/gentle-internet-is-a-translation"
+    )
+    print(site)
