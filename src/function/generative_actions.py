@@ -3,9 +3,7 @@ from typing import List
 
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
-    ChatCompletionFunctionMessageParam,
-    ChatCompletionSystemMessageParam,
-    ChatCompletionToolMessageParam,
+    ChatCompletionMessageParam,
     ChatCompletionUserMessageParam,
 )
 from openai.types.chat.chat_completion_message_tool_call import Function
@@ -19,13 +17,7 @@ class GenerativeActions(GenerativeBase):
         prompt: str = (
             "回答された内容をもとに次のアクションとなる選択肢とプロンプトを生成する。解像度を高めたり、反論したり、異なる視点を提示する"
         )
-        prompt_messages: list[
-            ChatCompletionSystemMessageParam
-            | ChatCompletionUserMessageParam
-            | ChatCompletionAssistantMessageParam
-            | ChatCompletionToolMessageParam
-            | ChatCompletionFunctionMessageParam
-        ] = [
+        prompt_messages: List[ChatCompletionMessageParam] = [
             ChatCompletionAssistantMessageParam(role="assistant", content=content),
             ChatCompletionUserMessageParam(
                 role="user",

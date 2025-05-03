@@ -1,12 +1,7 @@
+from string import Template
 from typing import Any, List
 
-from openai.types.chat import (
-    ChatCompletionAssistantMessageParam,
-    ChatCompletionFunctionMessageParam,
-    ChatCompletionSystemMessageParam,
-    ChatCompletionToolMessageParam,
-    ChatCompletionUserMessageParam,
-)
+from openai.types.chat import ChatCompletionMessageParam
 
 import utils.slack_search_utils as slack_search_utils
 from agent.agent import Chat
@@ -20,17 +15,11 @@ class AgentIdea(AgentGPT):
         super().__init__(context, chat_history)
         self._openai_stream = True
         self._openai_model: str = "gpt-4.1-mini"
-        self._keywords: list[str] = []
+        self._keywords: List[str] = []
 
     def build_prompt(
         self, chat_history: List[Chat]
-    ) -> list[
-        ChatCompletionSystemMessageParam
-        | ChatCompletionUserMessageParam
-        | ChatCompletionAssistantMessageParam
-        | ChatCompletionToolMessageParam
-        | ChatCompletionFunctionMessageParam
-    ]:
+    ) -> List[ChatCompletionMessageParam]:
         keywords = GenerativeSynonyms().generate(chat_history)
         related_messages = set()
         max_messages = 20
@@ -55,19 +44,19 @@ class AgentIdea(AgentGPT):
                 )
             )
         if len(related_messages) >= 1:
+
             with open("./conf/idea_prompt.yaml", "r", encoding="utf-8") as file:
-                prompt = file.read()
+                template = Template(file.read())
+                replace_map = {
+                    "keywords": ", ".join(keywords) if keywords else "なし",
+                    "related_messages": "\n\n".join(related_messages),
+                }
+                prompt = template.substitute(replace_map)
                 if keywords and len(keywords) >= 1:
                     keywords_str = ", ".join(keywords)
                     chat_history.append(
                         Chat(role="assistant", content=keywords_str),
                     )
-                    prompt = prompt.replace("${keywords}", keywords_str)
-                else:
-                    prompt = prompt.replace("${keywords}", "なし")
-                prompt = prompt.replace(
-                    "${related_messages}", "\n\n".join(related_messages)
-                )
                 chat_history.append(Chat(role="assistant", content=prompt.strip()))
         return super().build_prompt(chat_history)
 

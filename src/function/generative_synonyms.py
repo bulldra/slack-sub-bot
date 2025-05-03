@@ -1,13 +1,7 @@
 import json
 from typing import List
 
-from openai.types.chat import (
-    ChatCompletionAssistantMessageParam,
-    ChatCompletionFunctionMessageParam,
-    ChatCompletionSystemMessageParam,
-    ChatCompletionToolMessageParam,
-    ChatCompletionUserMessageParam,
-)
+from openai.types.chat import ChatCompletionMessageParam
 from openai.types.chat.chat_completion_message_tool_call import Function
 
 from function.generative_base import GenerativeBase
@@ -15,13 +9,9 @@ from function.generative_base import GenerativeBase
 
 class GenerativeSynonyms(GenerativeBase):
     def generate(self, chat_history: List[dict[str, str]]) -> List[dict[str, str]]:
-        prompt_messages: list[
-            ChatCompletionSystemMessageParam
-            | ChatCompletionUserMessageParam
-            | ChatCompletionAssistantMessageParam
-            | ChatCompletionToolMessageParam
-            | ChatCompletionFunctionMessageParam
-        ] = self.build_prompt(chat_history)
+        prompt_messages: list[ChatCompletionMessageParam] = self.build_prompt(
+            chat_history
+        )
 
         if prompt_messages is None or len(prompt_messages) == 0:
             return []

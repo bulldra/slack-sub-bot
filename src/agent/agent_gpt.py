@@ -4,6 +4,7 @@ import os
 import re
 import uuid
 from datetime import datetime, timedelta, timezone
+from string import Template
 from typing import Any, List
 
 import openai
@@ -13,6 +14,7 @@ from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
     ChatCompletionChunk,
     ChatCompletionFunctionMessageParam,
+    ChatCompletionMessageParam,
     ChatCompletionSystemMessageParam,
     ChatCompletionToolMessageParam,
     ChatCompletionUserMessageParam,
@@ -26,7 +28,10 @@ from function.generative_actions import GenerativeActions
 class AgentGPT(Agent):
 
     def __init__(self, context: dict[str, Any], chat_history: List[Chat]) -> None:
-        self._secrets: dict = json.loads(str(os.getenv("SECRETS")))
+        secrets: str = str(os.getenv("SECRETS"))
+        if not secrets:
+            raise ValueError("einvirament not define.")
+        self._secrets: dict = json.loads(secrets)
         self._slack: slack_sdk.WebClient = slack_sdk.WebClient(
             token=self._secrets.get("SLACK_BOT_TOKEN")
         )
@@ -38,7 +43,7 @@ class AgentGPT(Agent):
         self._youtube_api_key: str = self._secrets.get("YOUTUBE_API_KEY")
         self._logger: logging.Logger = logging.getLogger(__name__)
         self._logger.setLevel(logging.DEBUG)
-        self._proceesing_message: str = str(context.get("processing_message"))
+        self._processing_message: str = str(context.get("processing_message"))
         self._channel = str(context.get("channel"))
         self._ts = str(context.get("ts"))
         self._thread_ts = str(context.get("thread_ts"))
@@ -56,13 +61,9 @@ class AgentGPT(Agent):
     def execute(self) -> None:
         try:
             self.tik_process()
-            prompt_messages: List[
-                ChatCompletionSystemMessageParam
-                | ChatCompletionUserMessageParam
-                | ChatCompletionAssistantMessageParam
-                | ChatCompletionToolMessageParam
-                | ChatCompletionFunctionMessageParam
-            ] = self.build_prompt(self._chat_history)
+            prompt_messages: List[ChatCompletionMessageParam] = self.build_prompt(
+                self._chat_history
+            )
             self.tik_process()
             content: str = ""
             if self._openai_stream:
@@ -99,20 +100,8 @@ class AgentGPT(Agent):
 
     def build_prompt(
         self, chat_history: List[Chat]
-    ) -> List[
-        ChatCompletionSystemMessageParam
-        | ChatCompletionUserMessageParam
-        | ChatCompletionAssistantMessageParam
-        | ChatCompletionToolMessageParam
-        | ChatCompletionFunctionMessageParam
-    ]:
-        prompt_messages: List[
-            ChatCompletionSystemMessageParam
-            | ChatCompletionUserMessageParam
-            | ChatCompletionAssistantMessageParam
-            | ChatCompletionToolMessageParam
-            | ChatCompletionFunctionMessageParam
-        ] = []
+    ) -> List[ChatCompletionMessageParam]:
+        prompt_messages: List[ChatCompletionMessageParam] = []
         openai_encoding: tiktoken.core.Encoding = tiktoken.encoding_for_model(
             self._openai_model
             if self._openai_model in tiktoken.list_encoding_names()
@@ -177,13 +166,7 @@ class AgentGPT(Agent):
 
     def completion(
         self,
-        prompt_messages: [
-            ChatCompletionSystemMessageParam
-            | ChatCompletionUserMessageParam
-            | ChatCompletionAssistantMessageParam
-            | ChatCompletionToolMessageParam
-            | ChatCompletionFunctionMessageParam
-        ],
+        prompt_messages: [ChatCompletionMessageParam],
     ) -> str:
         response = self._openai_client.chat.completions.create(
             messages=prompt_messages,
@@ -229,7 +212,7 @@ class AgentGPT(Agent):
             if add_content:
                 response_text += add_content
                 if len(response_text) >= border:
-                    tokens: list[str] = re.split("\n", response_text[len(prev_text) :])
+                    tokens: List[str] = re.split("\n", response_text[len(prev_text) :])
                     if len(tokens) >= 2:
                         res: str = prev_text + "\n".join(tokens[:-1])
                         border += chunk_size
@@ -240,13 +223,13 @@ class AgentGPT(Agent):
         yield response_text
 
     def tik_process(self) -> None:
-        self._proceesing_message += "."
+        self._processing_message += "."
         blocks: list = [
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": self._proceesing_message,
+                    "text": self._processing_message,
                 },
             },
         ]
@@ -297,20 +280,20 @@ class AgentGPT(Agent):
             },
         ]
         self.update_message(blocks)
-        raise err
 
     def _build_system_prompt(self) -> str:
         with open("./conf/system_prompt.yaml", "r", encoding="utf-8") as file:
             system_prompt = file.read()
 
-            weather: dict = utils.weather.Weather().get()
-            weather_report_datetime = weather.get("reportDatetime")
-            weather_report_text = weather.get("text")
-            replace_map = {
-                "WEATHER_REPORT_DATETIME": weather_report_datetime,
-                "WEATHER_REPORT_TEXT": weather_report_text,
-                "DATE_TIME": datetime.now(timezone(timedelta(hours=9))).isoformat(),
-            }
-            for key, value in replace_map.items():
-                system_prompt = system_prompt.replace(f"${{{key}}}", value)
-            return system_prompt
+        weather: dict = utils.weather.Weather().get()
+        weather_report_datetime = weather.get("reportDatetime")
+        weather_report_text = weather.get("text")
+
+        replace_map = {
+            "WEATHER_REPORT_DATETIME": weather_report_datetime,
+            "WEATHER_REPORT_TEXT": weather_report_text,
+            "DATE_TIME": datetime.now(timezone(timedelta(hours=9))).isoformat(),
+        }
+        template = Template(system_prompt)
+        system_prompt = template.substitute(replace_map)
+        return system_prompt

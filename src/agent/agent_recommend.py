@@ -1,13 +1,8 @@
 import random
+from string import Template
 from typing import Any, List
 
-from openai.types.chat import (
-    ChatCompletionAssistantMessageParam,
-    ChatCompletionFunctionMessageParam,
-    ChatCompletionSystemMessageParam,
-    ChatCompletionToolMessageParam,
-    ChatCompletionUserMessageParam,
-)
+from openai.types.chat import ChatCompletionMessageParam
 
 import utils.slack_search_utils as slack_search_utils
 from agent.agent import Chat
@@ -33,13 +28,7 @@ class AgentRecommend(AgentGPT):
 
     def build_prompt(
         self, chat_history: List[Chat]
-    ) -> List[
-        ChatCompletionSystemMessageParam
-        | ChatCompletionUserMessageParam
-        | ChatCompletionAssistantMessageParam
-        | ChatCompletionToolMessageParam
-        | ChatCompletionFunctionMessageParam
-    ]:
+    ) -> List[ChatCompletionMessageParam]:
         recommend_messages: List[str] = []
         for i in range(0, 8):
             query: str = self.build_random_date_range_query(i)
@@ -55,9 +44,9 @@ class AgentRecommend(AgentGPT):
             recommend_messages = random.sample(recommend_messages, 3)
         if len(recommend_messages) >= 1:
             with open("./conf/recommend_prompt.yaml", "r", encoding="utf-8") as file:
-                prompt = file.read()
-                prompt = prompt.replace(
-                    "${recommend_messages}", "\n\n".join(recommend_messages)
+                prompt_template = Template(file.read())
+                prompt = prompt_template.substitute(
+                    recommend_messages="\n\n".join(recommend_messages)
                 )
                 chat_history.append(Chat(role="user", content=prompt.strip()))
         return super().build_prompt(chat_history)

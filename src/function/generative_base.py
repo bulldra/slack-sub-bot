@@ -4,14 +4,7 @@ import os
 from typing import List
 
 import openai
-from openai.types.chat import (
-    ChatCompletionAssistantMessageParam,
-    ChatCompletionFunctionMessageParam,
-    ChatCompletionMessage,
-    ChatCompletionSystemMessageParam,
-    ChatCompletionToolMessageParam,
-    ChatCompletionUserMessageParam,
-)
+from openai.types.chat import ChatCompletionAssistantMessageParam, ChatCompletionMessage
 from openai.types.chat.chat_completion_message_tool_call import Function
 
 
@@ -27,22 +20,10 @@ class GenerativeBase:
 
     def build_prompt(
         self, chat_history: List[dict[str, str]]
-    ) -> List[
-        ChatCompletionSystemMessageParam
-        | ChatCompletionUserMessageParam
-        | ChatCompletionAssistantMessageParam
-        | ChatCompletionToolMessageParam
-        | ChatCompletionFunctionMessageParam
-    ]:
+    ) -> List[ChatCompletionMessage]:
         if len(chat_history) >= 2:
             chat_history = chat_history[-2:]
-        messages: List[
-            ChatCompletionSystemMessageParam
-            | ChatCompletionUserMessageParam
-            | ChatCompletionAssistantMessageParam
-            | ChatCompletionToolMessageParam
-            | ChatCompletionFunctionMessageParam
-        ] = [
+        messages: List[ChatCompletionMessage] = [
             ChatCompletionAssistantMessageParam(
                 role="assistant", content=x.get("content", "")
             )
@@ -51,15 +32,7 @@ class GenerativeBase:
         return messages
 
     def function_single_call(
-        self,
-        tool: dict,
-        messages: list[
-            ChatCompletionSystemMessageParam
-            | ChatCompletionUserMessageParam
-            | ChatCompletionAssistantMessageParam
-            | ChatCompletionToolMessageParam
-            | ChatCompletionFunctionMessageParam
-        ],
+        self, tool: dict, messages: List[ChatCompletionMessage]
     ) -> Function | None:
         function_calls = self.function_call([tool], messages)
         if function_calls is not None:
@@ -72,15 +45,7 @@ class GenerativeBase:
         return None
 
     def function_call(
-        self,
-        tools: List[dict],
-        messages: List[
-            ChatCompletionSystemMessageParam
-            | ChatCompletionUserMessageParam
-            | ChatCompletionAssistantMessageParam
-            | ChatCompletionToolMessageParam
-            | ChatCompletionFunctionMessageParam
-        ],
+        self, tools: List[dict], messages: List[ChatCompletionMessage]
     ) -> List[Function] | None:
         response = self._openai_client.responses.create(
             model=self._openai_model,

@@ -1,12 +1,7 @@
+from string import Template
 from typing import Any, List
 
-from openai.types.chat import (
-    ChatCompletionAssistantMessageParam,
-    ChatCompletionFunctionMessageParam,
-    ChatCompletionSystemMessageParam,
-    ChatCompletionToolMessageParam,
-    ChatCompletionUserMessageParam,
-)
+from openai.types.chat import ChatCompletionMessageParam
 
 import utils.scraping_utils as scraping_utils
 import utils.slack_link_utils as slack_link_utils
@@ -24,13 +19,7 @@ class AgentSummarize(AgentGPT):
 
     def build_prompt(
         self, chat_history: List[Chat]
-    ) -> List[
-        ChatCompletionSystemMessageParam
-        | ChatCompletionUserMessageParam
-        | ChatCompletionAssistantMessageParam
-        | ChatCompletionToolMessageParam
-        | ChatCompletionFunctionMessageParam
-    ]:
+    ) -> List[ChatCompletionMessageParam]:
         url: str = slack_link_utils.extract_and_remove_tracking_url(
             chat_history[-1].get("content")
         )
@@ -41,21 +30,20 @@ class AgentSummarize(AgentGPT):
         if self._site is None:
             raise ValueError("scraping failed")
         with open("./conf/summarize_prompt.yaml", "r", encoding="utf-8") as file:
-            prompt: str = file.read()
+            prompt_template = Template(file.read())
             replace_dict: dict[str, str] = {
                 "url": self._site.url,
                 "title": self._site.title,
                 "content": self._site.content,
             }
-            for key, value in replace_dict.items():
-                prompt = prompt.replace(f"${{{key}}}", value)
+            prompt = prompt_template.substitute(replace_dict)
             return super().build_prompt([Chat(role="user", content=prompt)])
 
     def build_message_blocks(self, content: str) -> list:
         if self._site is None:
             raise ValueError("site is empty")
 
-        blocks: list[dict] = [
+        blocks: List[dict] = [
             {
                 "type": "section",
                 "text": {

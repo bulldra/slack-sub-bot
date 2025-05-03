@@ -1,15 +1,10 @@
 import html
 import json
+from string import Template
 from typing import Any, List, NamedTuple
 
 import requests
-from openai.types.chat import (
-    ChatCompletionAssistantMessageParam,
-    ChatCompletionFunctionMessageParam,
-    ChatCompletionSystemMessageParam,
-    ChatCompletionToolMessageParam,
-    ChatCompletionUserMessageParam,
-)
+from openai.types.chat import ChatCompletionMessageParam
 
 import utils.scraping_utils as scraping_utils
 from agent.agent import Chat
@@ -32,13 +27,7 @@ class AgentSlackMail(AgentGPT):
 
     def build_prompt(
         self, chat_history: List[dict[str, Any]]
-    ) -> List[
-        ChatCompletionSystemMessageParam
-        | ChatCompletionUserMessageParam
-        | ChatCompletionAssistantMessageParam
-        | ChatCompletionToolMessageParam
-        | ChatCompletionFunctionMessageParam
-    ]:
+    ) -> List[ChatCompletionMessageParam]:
         mail = json.loads(chat_history[0]["content"])
         mail_content: str = mail.get("plain_text", "")
         mail_url: str = mail.get("url_private_download")
@@ -57,6 +46,7 @@ class AgentSlackMail(AgentGPT):
                     mail_content
                 )
                 mail_content = content
+
         subject = mail.get("subject", "")
         self._logger.debug("Mail content: %s", mail_content)
         self._mail = Mail(
@@ -66,14 +56,16 @@ class AgentSlackMail(AgentGPT):
         )
 
         with open("./conf/slack_mail_prompt.yaml", "r", encoding="utf-8") as file:
-            prompt: str = file.read()
-            prompt = prompt.replace("${subject}", self._mail.subject)
-            prompt = prompt.replace("${content}", self._mail.content)
+            prompt_template = Template(file.read())
+            prompt = prompt_template.substitute(
+                subject=self._mail.subject,
+                content=self._mail.content,
+            )
             chat_history = [Chat(role="user", content=prompt.strip())]
             return super().build_prompt(chat_history)
 
     def build_message_blocks(self, content: str) -> List[dict]:
-        blocks: list[dict] = [
+        blocks: List[dict] = [
             {
                 "type": "section",
                 "text": {
