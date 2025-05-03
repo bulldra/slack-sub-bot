@@ -1,32 +1,31 @@
-import math
 from datetime import datetime, timedelta
 from typing import Generator, List
 
 from slack_sdk.errors import SlackApiError
 
+PAGE_COUNT = 100
 
-def search_messages(slack_cli, query, num) -> List[str]:
-    search_results = []
 
+def search_messages(slack_cli, query, num=10) -> List[str]:
     if not query or not num:
         return
-
-    page: int = math.ceil(num / 10) + 1
+    search_results = []
+    page: int = int(num / PAGE_COUNT) + 2
     for i in range(1, page):
         try:
-            response = slack_cli.search_messages(query=query, page=i)
+            response = slack_cli.search_messages(query=query, page=i, count=PAGE_COUNT)
             if not response.get("ok"):
                 break
             search_results.extend(response.get("messages", {}).get("matches", []))
             pagination = response.get("messages", {}).get("pagination", {})
             page_count = pagination.get("page_count", 1)
-            if i >= page_count:
+            if i >= page_count or len(search_results) >= num:
                 break
         except SlackApiError as e:
             raise e
 
     if not search_results:
-        return
+        return []
 
     selected = search_results
     if len(search_results) > num:
