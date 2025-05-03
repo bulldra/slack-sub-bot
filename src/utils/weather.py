@@ -28,6 +28,9 @@ class Weather:
             if response.status_code == 200:
                 content = response.text
                 gcs.parsist(content)
+            elif gcs.is_exists():
+                content = gcs.download_as_string()
+
         if not content:
             return None
         json_data = json.loads(content)
