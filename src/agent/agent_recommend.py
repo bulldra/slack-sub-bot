@@ -23,6 +23,14 @@ class AgentRecommend(AgentGPT):
         self._openai_model: str = "gpt-4.1-mini"
         self._keywords: List[str] = []
 
+    def build_random_date_range_query(self, retry_count):
+        before_days = random.randint(0, int(365 / (2**retry_count)))
+        after_days = before_days + 7 * (2**retry_count)
+        query: str = slack_search_utils.build_past_query(
+            self._share_channel, after_days=after_days, before_days=before_days
+        )
+        return query
+
     def build_prompt(
         self, chat_history: List[dict[str, Any]]
     ) -> List[
@@ -32,28 +40,24 @@ class AgentRecommend(AgentGPT):
         | ChatCompletionToolMessageParam
         | ChatCompletionFunctionMessageParam
     ]:
-        messages: List[str] = []
-        for i in range(1, 3):
-            after_days = random.randint(14, int(90 / i))
-            before_days = after_days - 14
-            query: str = slack_search_utils.build_past_query(
-                self._share_channel, after_days=after_days, before_days=before_days
-            )
+        recommend_messages: List[str] = []
+        for i in range(0, 8):
+            query: str = self.build_random_date_range_query(i)
             self._logger.debug("Recommend Slack Message Query=%s", query)
-            messages.extend(
+            recommend_messages.extend(
                 slack_search_utils.search_messages(self._slack_behalf_user, query, 10)
+                or []
             )
-            if len(messages) >= 3:
+            if len(recommend_messages) >= 3:
                 break
 
-        if len(messages) > 3:
-            messages = random.sample(messages, 3)
-        if len(messages) >= 1:
-            chat_history = []
-            for message in messages:
-                chat_history.append({"role": "assistant", "content": message})
+        if len(recommend_messages) > 3:
+            recommend_messages = random.sample(recommend_messages, 3)
+        if len(recommend_messages) >= 1:
             with open("./conf/recommend_prompt.yml", "r", encoding="utf-8") as file:
                 prompt = file.read()
-                prompt = prompt.replace("${recommend_messages}", "\n\n".join(messages))
+                prompt = prompt.replace(
+                    "${recommend_messages}", "\n\n".join(recommend_messages)
+                )
                 chat_history.append({"role": "user", "content": prompt.strip()})
         return super().build_prompt(chat_history)

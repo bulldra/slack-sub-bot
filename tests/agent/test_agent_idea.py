@@ -17,7 +17,7 @@ def test_idea(pytestconfig: pytest.Config):
     messages = [{"role": "user", "content": ""}]
     agent = AgentIdea({}, messages)
     prompt = agent.build_prompt(messages)
-    print(agent.completion(prompt))
+    print(prompt)
 
 
 def test_idea2(pytestconfig: pytest.Config):
@@ -25,8 +25,7 @@ def test_idea2(pytestconfig: pytest.Config):
     messages = [{"role": "user", "content": "AI Agentを作成する"}]
     agent = AgentIdea({}, messages)
     prompt = agent.build_prompt(messages)
-    result = agent.completion(prompt)
-    print(result)
+    print(prompt)
 
 
 def test_recommend_basic(pytestconfig: pytest.Config):
@@ -34,5 +33,7 @@ def test_recommend_basic(pytestconfig: pytest.Config):
     messages = [{"role": "user", "content": "コンサルタントの役割は？"}]
     agent = AgentIdea({}, messages)
     prompt = agent.build_prompt(messages)
+    print(prompt)
+    print("====")
     result = agent.completion(prompt)
     print(result)

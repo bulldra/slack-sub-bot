@@ -41,11 +41,11 @@ class AgentIdea(AgentGPT):
                 query = slack_search_utils.build_past_query(
                     channel_id=self._share_channel, keyword=keyword
                 )
-                related_messages |= set(
-                    slack_search_utils.search_messages(
-                        self._slack_behalf_user, query, max_messages
-                    )
+                messages = slack_search_utils.search_messages(
+                    self._slack_behalf_user, query
                 )
+                if messages:
+                    related_messages |= set(messages)
                 if len(related_messages) >= max_messages:
                     break
         if len(related_messages) < max_messages:
@@ -55,15 +55,21 @@ class AgentIdea(AgentGPT):
                     self._slack_behalf_user, query, max_messages - len(related_messages)
                 )
             )
-        for message in related_messages:
-            chat_history.append({"role": "assistant", "content": message})
-        with open("./conf/idea_prompt.toml", "r", encoding="utf-8") as file:
-            prompt = file.read()
-            prompt = prompt.replace("${keywords}", ", ".join(keywords))
-            prompt = prompt.replace(
-                "${related_messages}", "\n\n".join(related_messages)
-            )
-            chat_history.append({"role": "user", "content": prompt.strip()})
+        if len(related_messages) >= 1:
+            with open("./conf/idea_prompt.toml", "r", encoding="utf-8") as file:
+                prompt = file.read()
+                if keywords and len(keywords) >= 1:
+                    keywords_str = ", ".join(keywords)
+                    chat_history.append(
+                        {"role": "assistant", "content": keywords_str},
+                    )
+                    prompt = prompt.replace("${keywords}", keywords_str)
+                else:
+                    prompt = prompt.replace("${keywords}", "なし")
+                prompt = prompt.replace(
+                    "${related_messages}", "\n\n".join(related_messages)
+                )
+                chat_history.append({"role": "assistant", "content": prompt.strip()})
         return super().build_prompt(chat_history)
 
     def build_message_blocks(self, content: str) -> List[dict]:
