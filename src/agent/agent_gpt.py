@@ -3,7 +3,7 @@ import logging
 import os
 import re
 import uuid
-from typing import Any
+from typing import Any, List
 
 import openai
 import slack_sdk
@@ -22,8 +22,9 @@ from function.generative_actions import GenerativeActions
 
 
 class AgentGPT(Agent):
+
     def __init__(
-        self, context: dict[str, Any], chat_history: list[dict[str, str]]
+        self, context: dict[str, Any], chat_history: List[dict[str, str]]
     ) -> None:
         self._secrets: dict = json.loads(str(os.getenv("SECRETS")))
         self._slack: slack_sdk.WebClient = slack_sdk.WebClient(
@@ -42,7 +43,7 @@ class AgentGPT(Agent):
         self._ts = str(context.get("ts"))
         self._thread_ts = str(context.get("thread_ts"))
         self._context: dict[str, Any] = context
-        self._chat_history: list[dict[str, str]] = chat_history
+        self._chat_history: List[dict[str, str]] = chat_history
         self._openai_model: str = "gpt-4.1-mini"
         self._openai_temperature: float = 0.0
         self._output_max_token: int = 30000
@@ -53,7 +54,7 @@ class AgentGPT(Agent):
     def execute(self) -> None:
         try:
             self.tik_process()
-            prompt_messages: list[
+            prompt_messages: List[
                 ChatCompletionSystemMessageParam
                 | ChatCompletionUserMessageParam
                 | ChatCompletionAssistantMessageParam
@@ -67,14 +68,14 @@ class AgentGPT(Agent):
                     self.update_message(self.build_message_blocks(content))
             else:
                 content = self.completion(prompt_messages)
-            blocks: list = self.build_message_blocks(content)
+            blocks: List[dict] = self.build_message_blocks(content)
             self._logger.debug("content=%s", content)
             self._chat_history.append({"role": "assistant", "content": content})
 
             action_generator = GenerativeActions()
-            actions: list[dict[str, str]] = action_generator.execute(content)
+            actions: List[dict[str, str]] = action_generator.execute(content)
             self._logger.debug("actions=%s", actions)
-            elements: list[dict[str, Any]] = [
+            elements: List[dict[str, Any]] = [
                 {
                     "type": "button",
                     "text": {
@@ -96,20 +97,20 @@ class AgentGPT(Agent):
         self.next_execute(self._context, self._chat_history)
 
     def next_execute(
-        self, context: dict[str, Any], chat_history: list[dict[str, str]]
+        self, context: dict[str, Any], chat_history: List[dict[str, str]]
     ) -> None:
         pass
 
     def build_prompt(
-        self, chat_history: list[dict[str, Any]]
-    ) -> list[
+        self, chat_history: List[dict[str, Any]]
+    ) -> List[
         ChatCompletionSystemMessageParam
         | ChatCompletionUserMessageParam
         | ChatCompletionAssistantMessageParam
         | ChatCompletionToolMessageParam
         | ChatCompletionFunctionMessageParam
     ]:
-        prompt_messages: list[
+        prompt_messages: List[
             ChatCompletionSystemMessageParam
             | ChatCompletionUserMessageParam
             | ChatCompletionAssistantMessageParam
@@ -157,6 +158,11 @@ class AgentGPT(Agent):
                     break
 
             if chat["role"] == "user":
+                current_content = current_content.replace("```", "")
+                current_content = current_content.replace("\u200b", "")
+                current_content = re.sub(
+                    r"(?i)^\s*(?:system|assistant|user)\s*:", "", current_content
+                )
                 prompt_messages.append(
                     ChatCompletionUserMessageParam(role="user", content=current_content)
                 )
@@ -261,13 +267,13 @@ class AgentGPT(Agent):
         ]
         self.update_message(blocks)
 
-    def build_message_blocks(self, content: str) -> list:
-        blocks: list[dict] = [
+    def build_message_blocks(self, content: str) -> List:
+        blocks: List[dict] = [
             {"type": "markdown", "text": content},
         ]
         return blocks
 
-    def update_message(self, blocks: list) -> None:
+    def update_message(self, blocks: List) -> None:
         text: str = (
             "\n".join(
                 [
@@ -295,7 +301,7 @@ class AgentGPT(Agent):
 
     def error(self, err: Exception) -> None:
         self._logger.error(err)
-        blocks: list = [
+        blocks: List[dict] = [
             {
                 "type": "section",
                 "text": {"type": "mrkdwn", "text": "エラーが発生しました。"},
