@@ -32,6 +32,7 @@ class AgentGPT(Agent):
         if not secrets:
             raise ValueError("einvirament not define.")
         self._secrets: dict = json.loads(secrets)
+        self._slack_user_id = context.get("user_id")
         self._slack: slack_sdk.WebClient = slack_sdk.WebClient(
             token=self._secrets.get("SLACK_BOT_TOKEN")
         )
@@ -161,7 +162,6 @@ class AgentGPT(Agent):
         )
         self._logger.debug("prompt %s", prompt_messages)
         self._logger.debug("prompt token count %s", last_prompt_count)
-
         return prompt_messages
 
     def completion(
@@ -242,17 +242,20 @@ class AgentGPT(Agent):
         return blocks
 
     def update_message(self, blocks: List) -> None:
-        text: str = (
-            "\n".join(
-                [
-                    str(b["text"])
-                    for b in blocks
-                    if b["type"] == "section" or b["type"] == "markdown"
-                ]
-            )
-            .encode("utf-8")[:3000]
-            .decode("utf-8", errors="ignore")
-        )
+        pieces: list[str] = []
+        for b in blocks:
+            if b["type"] == "section":
+                txt_obj = b.get("text", {})
+                if isinstance(txt_obj, dict):
+                    if txt_obj.get("type") in ("mrkdwn", "plain_text"):
+                        pieces.append(txt_obj.get("text", ""))
+            elif b["type"] == "markdown":
+                pieces.append(str(b.get("text", "")))
+        text: str = "\n".join(pieces)
+        text = text.encode("utf-8")
+        if len(text) > 3000:
+            text = text[:3000]
+        text = text.decode("utf-8", errors="ignore")
         self._slack.chat_update(
             channel=self._channel,
             ts=self._ts,

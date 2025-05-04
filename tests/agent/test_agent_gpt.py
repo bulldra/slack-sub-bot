@@ -9,7 +9,14 @@ with open("secrets.json", "r", encoding="utf-8") as f:
 from agent.agent_gpt import AgentGPT
 
 
-def test_completion1(pytestconfig: pytest.Config):
+def test_build_system_prompt(pytestconfig: pytest.Config):
+    os.chdir(pytestconfig.getini("pythonpath")[0])
+    agt = AgentGPT({}, {})
+    prompt = agt._build_system_prompt()
+    print(prompt)
+
+
+def test_promprompt(pytestconfig: pytest.Config):
     os.chdir(pytestconfig.getini("pythonpath")[0])
     text = [{"role": "user", "content": ""}]
     agt = AgentGPT({}, text)
@@ -19,18 +26,21 @@ def test_completion1(pytestconfig: pytest.Config):
         print(content)
 
 
-def test_completion2(pytestconfig: pytest.Config):
+def test_completion(pytestconfig: pytest.Config):
     os.chdir(pytestconfig.getini("pythonpath")[0])
     text = [{"role": "user", "content": "コンサルタントの役割は？"}]
     agt = AgentGPT({}, text)
     prompt = agt.build_prompt(text)
     print(prompt)
-    for content in agt.completion_stream(prompt):
+    for content in agt.completion(prompt):
         print(content)
 
 
-def test_build_system_prompt(pytestconfig: pytest.Config):
+def test_completion_stream(pytestconfig: pytest.Config):
     os.chdir(pytestconfig.getini("pythonpath")[0])
-    agt = AgentGPT({}, {})
-    prompt = agt._build_system_prompt()
+    text = [{"role": "user", "content": "AITuberの役割は？"}]
+    agt = AgentGPT({}, text)
+    prompt = agt.build_prompt(text)
     print(prompt)
+    for content in agt.completion_stream(prompt):
+        print(content)
