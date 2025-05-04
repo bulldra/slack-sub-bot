@@ -1,71 +1,56 @@
-from typing import Any
+from string import Template
+from typing import Any, List
 
-from openai.types.chat import (
-    ChatCompletionAssistantMessageParam,
-    ChatCompletionFunctionMessageParam,
-    ChatCompletionSystemMessageParam,
-    ChatCompletionToolMessageParam,
-    ChatCompletionUserMessageParam,
-)
+from openai.types.chat import ChatCompletionMessageParam
 
 import utils.scraping_utils as scraping_utils
 import utils.slack_link_utils as slack_link_utils
+from agent.agent import Chat
 from agent.agent_gpt import AgentGPT
 
 
 class AgentSummarize(AgentGPT):
-    def __init__(
-        self, context: dict[str, Any], chat_history: list[dict[str, str]]
-    ) -> None:
+
+    def __init__(self, context: dict[str, Any], chat_history: List[Chat]) -> None:
         super().__init__(context, chat_history)
         self._openai_model: str = "gpt-4.1-mini"
         self._openai_stream = False
-        self._site: scraping_utils.Site | None = None
+        self._site: scraping_utils.SiteInfo | None = None
 
     def build_prompt(
-        self, chat_history: list[dict[str, Any]]
-    ) -> list[
-        ChatCompletionSystemMessageParam
-        | ChatCompletionUserMessageParam
-        | ChatCompletionAssistantMessageParam
-        | ChatCompletionToolMessageParam
-        | ChatCompletionFunctionMessageParam
-    ]:
+        self, chat_history: List[Chat]
+    ) -> List[ChatCompletionMessageParam]:
         url: str = slack_link_utils.extract_and_remove_tracking_url(
-            chat_history[-1]["content"]
+            chat_history[-1].get("content")
         )
         self._logger.debug("scraping url=%s", url)
         if not scraping_utils.is_allow_scraping(url):
             raise ValueError("scraping is not allowed")
-        site: scraping_utils.Site = scraping_utils.scraping(url)
-        if site is None:
+        self._site = scraping_utils.scraping(url)
+        if self._site is None:
             raise ValueError("scraping failed")
-        self._site = site
-
-        with open("./conf/summarize_prompt.toml", "r", encoding="utf-8") as file:
-            prompt: str = file.read()
-
-        replace_dict: dict[str, str] = {
-            "url": site.url,
-            "title": site.title,
-            "content": site.content,
-        }
-        for key, value in replace_dict.items():
-            prompt = prompt.replace(f"${{{key}}}", value)
-
-        return super().build_prompt([{"role": "user", "content": prompt}])
+        with open("./conf/summarize_prompt.yaml", "r", encoding="utf-8") as file:
+            prompt_template = Template(file.read())
+            replace_dict: dict[str, str] = {
+                "url": self._site.url,
+                "title": self._site.title,
+                "content": self._site.content,
+            }
+            prompt = prompt_template.substitute(replace_dict)
+            return super().build_prompt([Chat(role="user", content=prompt)])
 
     def build_message_blocks(self, content: str) -> list:
-        site: scraping_utils.Site = self._site
-        if site is None:
+        if self._site is None:
             raise ValueError("site is empty")
 
-        blocks: list[dict] = [
+        blocks: List[dict] = [
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": slack_link_utils.build_link(site.url, site.title),
+                    "text": slack_link_utils.build_link(
+                        self._site.url, self._site.title
+                    ),
                 },
             },
             {"type": "divider"},

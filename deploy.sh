@@ -25,3 +25,4 @@ else
 	echo "Deployment failed for ${FUNCTION_NAME}."
 	echo "Error: ${ERROR_MESSAGE}"
 fi
+date

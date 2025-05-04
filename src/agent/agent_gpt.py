@@ -3,7 +3,9 @@ import logging
 import os
 import re
 import uuid
-from typing import Any
+from datetime import datetime, timedelta, timezone
+from string import Template
+from typing import Any, List
 
 import openai
 import slack_sdk
@@ -12,20 +14,24 @@ from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
     ChatCompletionChunk,
     ChatCompletionFunctionMessageParam,
+    ChatCompletionMessageParam,
     ChatCompletionSystemMessageParam,
     ChatCompletionToolMessageParam,
     ChatCompletionUserMessageParam,
 )
 
-from agent.agent import Agent
+import utils.weather
+from agent.agent import Agent, Chat
 from function.generative_actions import GenerativeActions
 
 
 class AgentGPT(Agent):
-    def __init__(
-        self, context: dict[str, Any], chat_history: list[dict[str, str]]
-    ) -> None:
-        self._secrets: dict = json.loads(str(os.getenv("SECRETS")))
+
+    def __init__(self, context: dict[str, Any], chat_history: List[Chat]) -> None:
+        secrets: str = str(os.getenv("SECRETS"))
+        if not secrets:
+            raise ValueError("einvirament not define.")
+        self._secrets: dict = json.loads(secrets)
         self._slack: slack_sdk.WebClient = slack_sdk.WebClient(
             token=self._secrets.get("SLACK_BOT_TOKEN")
         )
@@ -37,29 +43,27 @@ class AgentGPT(Agent):
         self._youtube_api_key: str = self._secrets.get("YOUTUBE_API_KEY")
         self._logger: logging.Logger = logging.getLogger(__name__)
         self._logger.setLevel(logging.DEBUG)
-        self._proceesing_message: str = str(context.get("processing_message"))
+        self._processing_message: str = str(context.get("processing_message"))
         self._channel = str(context.get("channel"))
         self._ts = str(context.get("ts"))
         self._thread_ts = str(context.get("thread_ts"))
         self._context: dict[str, Any] = context
-        self._chat_history: list[dict[str, str]] = chat_history
         self._openai_model: str = "gpt-4.1-mini"
         self._openai_temperature: float = 0.0
         self._output_max_token: int = 30000
         self._max_token: int = 128000 // 2 - self._output_max_token
         self._openai_stream = True
         self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
+        self._chat_history: List[Chat] = [
+            Chat(role=x["role"], content=x["content"]) for x in chat_history
+        ]
 
     def execute(self) -> None:
         try:
             self.tik_process()
-            prompt_messages: list[
-                ChatCompletionSystemMessageParam
-                | ChatCompletionUserMessageParam
-                | ChatCompletionAssistantMessageParam
-                | ChatCompletionToolMessageParam
-                | ChatCompletionFunctionMessageParam
-            ] = self.build_prompt(self._chat_history)
+            prompt_messages: List[ChatCompletionMessageParam] = self.build_prompt(
+                self._chat_history
+            )
             self.tik_process()
             content: str = ""
             if self._openai_stream:
@@ -67,14 +71,14 @@ class AgentGPT(Agent):
                     self.update_message(self.build_message_blocks(content))
             else:
                 content = self.completion(prompt_messages)
-            blocks: list = self.build_message_blocks(content)
+            blocks: List[dict] = self.build_message_blocks(content)
             self._logger.debug("content=%s", content)
-            self._chat_history.append({"role": "assistant", "content": content})
+            self._chat_history.append(Chat(role="assistant", content=content))
 
             action_generator = GenerativeActions()
-            actions: list[dict[str, str]] = action_generator.execute(content)
+            actions: List[dict[str, str]] = action_generator.generate(content)
             self._logger.debug("actions=%s", actions)
-            elements: list[dict[str, Any]] = [
+            elements: List[dict[str, Any]] = [
                 {
                     "type": "button",
                     "text": {
@@ -93,44 +97,22 @@ class AgentGPT(Agent):
         except Exception as err:
             self.error(err)
             raise err
-        self.next_execute(self._context, self._chat_history)
-
-    def next_execute(
-        self, context: dict[str, Any], chat_history: list[dict[str, str]]
-    ) -> None:
-        pass
 
     def build_prompt(
-        self, chat_history: list[dict[str, Any]]
-    ) -> list[
-        ChatCompletionSystemMessageParam
-        | ChatCompletionUserMessageParam
-        | ChatCompletionAssistantMessageParam
-        | ChatCompletionToolMessageParam
-        | ChatCompletionFunctionMessageParam
-    ]:
-        prompt_messages: list[
-            ChatCompletionSystemMessageParam
-            | ChatCompletionUserMessageParam
-            | ChatCompletionAssistantMessageParam
-            | ChatCompletionToolMessageParam
-            | ChatCompletionFunctionMessageParam
-        ] = []
+        self, chat_history: List[Chat]
+    ) -> List[ChatCompletionMessageParam]:
+        prompt_messages: List[ChatCompletionMessageParam] = []
         openai_encoding: tiktoken.core.Encoding = tiktoken.encoding_for_model(
             self._openai_model
             if self._openai_model in tiktoken.list_encoding_names()
             else "gpt-4o"
         )
-        with open("./conf/system_prompt.yml", "r", encoding="utf-8") as file:
-            system_prompt = file.read()
-            prompt_messages.append(
-                ChatCompletionSystemMessageParam(
-                    role="system",
-                    content=system_prompt,
-                )
-            )
+        system_prompt: str = self._build_system_prompt()
+        prompt_messages.append(
+            ChatCompletionSystemMessageParam(role="system", content=system_prompt)
+        )
         for chat in chat_history:
-            current_content = chat["content"]
+            current_content = chat.get("content")
             while True:
                 current_count: int = len(openai_encoding.encode(str(current_content)))
                 prompt_count: int = len(
@@ -157,6 +139,11 @@ class AgentGPT(Agent):
                     break
 
             if chat["role"] == "user":
+                current_content = current_content.replace("```", "")
+                current_content = current_content.replace("\u200b", "")
+                current_content = re.sub(
+                    r"(?i)^\s*(?:system|assistant|user)\s*:", "", current_content
+                )
                 prompt_messages.append(
                     ChatCompletionUserMessageParam(role="user", content=current_content)
                 )
@@ -179,28 +166,15 @@ class AgentGPT(Agent):
 
     def completion(
         self,
-        prompt_messages: [
-            ChatCompletionSystemMessageParam
-            | ChatCompletionUserMessageParam
-            | ChatCompletionAssistantMessageParam
-            | ChatCompletionToolMessageParam
-            | ChatCompletionFunctionMessageParam
-        ],
+        prompt_messages: [ChatCompletionMessageParam],
     ) -> str:
-        if self._openai_model in ["o1-preview", "o1-mini"]:
-            response = self._openai_client.chat.completions.create(
-                messages=prompt_messages,
-                model=self._openai_model,
-                stream=False,
-            )
-        else:
-            response = self._openai_client.chat.completions.create(
-                messages=prompt_messages,
-                model=self._openai_model,
-                temperature=self._openai_temperature,
-                stream=False,
-                max_tokens=self._output_max_token,
-            )
+        response = self._openai_client.chat.completions.create(
+            messages=prompt_messages,
+            model=self._openai_model,
+            temperature=self._openai_temperature,
+            stream=False,
+            max_tokens=self._output_max_token,
+        )
         return str(response.choices[0].message.content)
 
     def completion_stream(
@@ -213,7 +187,7 @@ class AgentGPT(Agent):
             | ChatCompletionFunctionMessageParam
         ],
     ) -> str:
-        chunk_size: int = self._output_max_token // 15
+        chunk_size: int = self._output_max_token // 50
         border_lambda: int = chunk_size // 5
 
         if self._openai_model in ["o1-preview", "o1-mini"]:
@@ -238,7 +212,7 @@ class AgentGPT(Agent):
             if add_content:
                 response_text += add_content
                 if len(response_text) >= border:
-                    tokens: list[str] = re.split("\n", response_text[len(prev_text) :])
+                    tokens: List[str] = re.split("\n", response_text[len(prev_text) :])
                     if len(tokens) >= 2:
                         res: str = prev_text + "\n".join(tokens[:-1])
                         border += chunk_size
@@ -249,25 +223,25 @@ class AgentGPT(Agent):
         yield response_text
 
     def tik_process(self) -> None:
-        self._proceesing_message += "."
+        self._processing_message += "."
         blocks: list = [
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": self._proceesing_message,
+                    "text": self._processing_message,
                 },
             },
         ]
         self.update_message(blocks)
 
-    def build_message_blocks(self, content: str) -> list:
-        blocks: list[dict] = [
+    def build_message_blocks(self, content: str) -> List:
+        blocks: List[dict] = [
             {"type": "markdown", "text": content},
         ]
         return blocks
 
-    def update_message(self, blocks: list) -> None:
+    def update_message(self, blocks: List) -> None:
         text: str = (
             "\n".join(
                 [
@@ -295,7 +269,7 @@ class AgentGPT(Agent):
 
     def error(self, err: Exception) -> None:
         self._logger.error(err)
-        blocks: list = [
+        blocks: List[dict] = [
             {
                 "type": "section",
                 "text": {"type": "mrkdwn", "text": "エラーが発生しました。"},
@@ -306,4 +280,20 @@ class AgentGPT(Agent):
             },
         ]
         self.update_message(blocks)
-        raise err
+
+    def _build_system_prompt(self) -> str:
+        with open("./conf/system_prompt.yaml", "r", encoding="utf-8") as file:
+            system_prompt = file.read()
+
+        weather: dict = utils.weather.Weather().get()
+        weather_report_datetime = weather.get("reportDatetime")
+        weather_report_text = weather.get("text")
+
+        replace_map = {
+            "WEATHER_REPORT_DATETIME": weather_report_datetime,
+            "WEATHER_REPORT_TEXT": weather_report_text,
+            "DATE_TIME": datetime.now(timezone(timedelta(hours=9))).isoformat(),
+        }
+        template = Template(system_prompt)
+        system_prompt = template.substitute(replace_map)
+        return system_prompt

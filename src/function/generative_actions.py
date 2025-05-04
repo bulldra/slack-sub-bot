@@ -1,10 +1,9 @@
 import json
+from typing import List
 
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
-    ChatCompletionFunctionMessageParam,
-    ChatCompletionSystemMessageParam,
-    ChatCompletionToolMessageParam,
+    ChatCompletionMessageParam,
     ChatCompletionUserMessageParam,
 )
 from openai.types.chat.chat_completion_message_tool_call import Function
@@ -14,17 +13,11 @@ from function.generative_base import GenerativeBase
 
 class GenerativeActions(GenerativeBase):
 
-    def execute(self, content: str) -> list[dict[str, str]]:
+    def generate(self, content: str) -> List[dict[str, str]]:
         prompt: str = (
             "回答された内容をもとに次のアクションとなる選択肢とプロンプトを生成する。解像度を高めたり、反論したり、異なる視点を提示する"
         )
-        prompt_messages: list[
-            ChatCompletionSystemMessageParam
-            | ChatCompletionUserMessageParam
-            | ChatCompletionAssistantMessageParam
-            | ChatCompletionToolMessageParam
-            | ChatCompletionFunctionMessageParam
-        ] = [
+        prompt_messages: List[ChatCompletionMessageParam] = [
             ChatCompletionAssistantMessageParam(role="assistant", content=content),
             ChatCompletionUserMessageParam(
                 role="user",
@@ -64,8 +57,8 @@ class GenerativeActions(GenerativeBase):
 
         actions: list[dict[str, str]] = [
             {
-                "action_label": "水平思考",
-                "action_prompt": "これまでの内容から関連する記事をレコメンドして考察。",
+                "action_label": "アイディア",
+                "action_prompt": "アイディアを出して",
             },
         ]
 

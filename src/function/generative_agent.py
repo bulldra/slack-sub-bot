@@ -15,6 +15,7 @@ from agent.agent import Agent
 from agent.agent_delete import AgentDelete
 from agent.agent_gpt import AgentGPT
 from agent.agent_idea import AgentIdea
+from agent.agent_recommend import AgentRecommend
 from agent.agent_slack_mail import AgentSlackMail
 from agent.agent_summarize import AgentSummarize
 from function.generative_base import GenerativeBase
@@ -26,6 +27,7 @@ class GenerativeAgent(GenerativeBase):
             "/gpt": AgentGPT,
             "/summazise": AgentSummarize,
             "/idea": AgentIdea,
+            "/recommend": AgentRecommend,
             "/mail": AgentSlackMail,
             "/delete": AgentDelete,
         }
@@ -57,8 +59,9 @@ class GenerativeAgent(GenerativeBase):
         tool: dict = {
             "type": "function",
             "name": "generate_agent",
-            "description": "ブログ記事作成やアイディア出しを依頼されたなら /idea, \
-それ以外なら /gpt をエージェントとして指定する",
+            "description": "アイディア出しを依頼されたなら /idea, "
+            "おすすめ記事を依頼されたら /recommend"
+            "それ以外なら /gpt をエージェントとして指定する",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -68,6 +71,7 @@ class GenerativeAgent(GenerativeBase):
                         "enum": [
                             "/gpt",
                             "/idea",
+                            "/recommend",
                         ],
                     }
                 },

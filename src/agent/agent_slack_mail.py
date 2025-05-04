@@ -1,41 +1,33 @@
 import html
 import json
-from collections import namedtuple
-from typing import Any
+from string import Template
+from typing import Any, List, NamedTuple
 
 import requests
-from openai.types.chat import (
-    ChatCompletionAssistantMessageParam,
-    ChatCompletionFunctionMessageParam,
-    ChatCompletionSystemMessageParam,
-    ChatCompletionToolMessageParam,
-    ChatCompletionUserMessageParam,
-)
+from openai.types.chat import ChatCompletionMessageParam
 
 import utils.scraping_utils as scraping_utils
+from agent.agent import Chat
 from agent.agent_gpt import AgentGPT
 
-Mail = namedtuple("Mail", ("from_name", "subject", "content"))
+
+class Mail(NamedTuple):
+    from_name: str
+    subject: str
+    content: str
 
 
 class AgentSlackMail(AgentGPT):
-    def __init__(
-        self, context: dict[str, Any], chat_history: list[dict[str, str]]
-    ) -> None:
+
+    def __init__(self, context: dict[str, Any], chat_history: List[Chat]) -> None:
         super().__init__(context, chat_history)
         self._openai_stream = False
         self._openai_model: str = "gpt-4.1-mini"
         self._mail: Mail | None = None
 
     def build_prompt(
-        self, chat_history: list[dict[str, Any]]
-    ) -> list[
-        ChatCompletionSystemMessageParam
-        | ChatCompletionUserMessageParam
-        | ChatCompletionAssistantMessageParam
-        | ChatCompletionToolMessageParam
-        | ChatCompletionFunctionMessageParam
-    ]:
+        self, chat_history: List[dict[str, Any]]
+    ) -> List[ChatCompletionMessageParam]:
         mail = json.loads(chat_history[0]["content"])
         mail_content: str = mail.get("plain_text", "")
         mail_url: str = mail.get("url_private_download")
@@ -54,6 +46,7 @@ class AgentSlackMail(AgentGPT):
                     mail_content
                 )
                 mail_content = content
+
         subject = mail.get("subject", "")
         self._logger.debug("Mail content: %s", mail_content)
         self._mail = Mail(
@@ -62,15 +55,17 @@ class AgentSlackMail(AgentGPT):
             content=mail_content,
         )
 
-        with open("./conf/slack_mail_prompt.toml", "r", encoding="utf-8") as file:
-            prompt: str = file.read()
-            prompt = prompt.replace("${subject}", self._mail.subject)
-            prompt = prompt.replace("${content}", self._mail.content)
-            chat_history = [{"role": "user", "content": prompt.strip()}]
+        with open("./conf/slack_mail_prompt.yaml", "r", encoding="utf-8") as file:
+            prompt_template = Template(file.read())
+            prompt = prompt_template.substitute(
+                subject=self._mail.subject,
+                content=self._mail.content,
+            )
+            chat_history = [Chat(role="user", content=prompt.strip())]
             return super().build_prompt(chat_history)
 
-    def build_message_blocks(self, content: str) -> list:
-        blocks: list[dict] = [
+    def build_message_blocks(self, content: str) -> List[dict]:
+        blocks: List[dict] = [
             {
                 "type": "section",
                 "text": {
