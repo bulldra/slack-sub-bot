@@ -1,14 +1,11 @@
 import json
-import logging
 import os
 import re
-import uuid
 from datetime import datetime, timedelta, timezone
 from string import Template
 from typing import Any, List
 
 import openai
-import slack_sdk
 import tiktoken
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
@@ -20,32 +17,16 @@ from openai.types.chat import (
 
 import utils.weather
 from agent.agent import Agent, Chat
-from function.generative_actions import GenerativeActions
 
 
 class AgentGPT(Agent):
 
-    def __init__(self, context: dict[str, Any], chat_history: List[Chat]) -> None:
-        super().__init__(context, chat_history)
+    def __init__(self, context: dict[str, Any]) -> None:
+        super().__init__(context)
         secrets: str = str(os.getenv("SECRETS"))
         if not secrets:
             raise ValueError("einvirament not define.")
         self._secrets: dict = json.loads(secrets)
-        self._slack_user_id = context.get("user_id")
-        self._slack: slack_sdk.WebClient = slack_sdk.WebClient(
-            token=self._secrets.get("SLACK_BOT_TOKEN")
-        )
-        self._slack_behalf_user: slack_sdk.WebClient = slack_sdk.WebClient(
-            token=self._secrets.get("SLACK_USER_TOKEN")
-        )
-        self._share_channel: str = self._secrets.get("SHARE_CHANNEL_ID")
-        self._image_channel: str = self._secrets.get("IMAGE_CHANNEL_ID")
-        self._logger: logging.Logger = logging.getLogger(__name__)
-        self._logger.setLevel(logging.DEBUG)
-        self._processing_message: str = str(context.get("processing_message"))
-        self._channel = str(context.get("channel"))
-        self._ts = str(context.get("ts"))
-        self._thread_ts = str(context.get("thread_ts"))
         self._context: dict[str, Any] = context
         self._openai_model: str = "gpt-4.1-mini"
         self._openai_temperature: float = 0.0
@@ -53,15 +34,12 @@ class AgentGPT(Agent):
         self._max_token: int = 128000 // 2 - self._output_max_token
         self._openai_stream = True
         self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
-        self._chat_history: List[Chat] = [
-            Chat(role=x["role"], content=x["content"]) for x in chat_history
-        ]
 
-    def execute(self) -> None:
+    def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> None:
         try:
             self.tik_process()
             prompt_messages: List[ChatCompletionMessageParam] = self.build_prompt(
-                self._chat_history
+                arguments, chat_history
             )
             self.tik_process()
             content: str = ""
@@ -72,16 +50,17 @@ class AgentGPT(Agent):
                 content = self.completion(prompt_messages)
             blocks: List[dict] = self.build_message_blocks(content)
             self._logger.debug("content=%s", content)
-            self._chat_history.append(Chat(role="assistant", content=content))
+
             action_blocks = self.build_action_blocks(content)
             blocks.append(action_blocks)
             self.update_message(blocks)
+            return Chat(role="assistant", content=content)
         except Exception as err:
             self.error(err)
             raise err
 
     def build_prompt(
-        self, chat_history: List[Chat]
+        self, arguments: dict[str, Any], chat_history: List[Chat]
     ) -> List[ChatCompletionMessageParam]:
         prompt_messages: List[ChatCompletionMessageParam] = []
         openai_encoding: tiktoken.core.Encoding = tiktoken.encoding_for_model(
@@ -213,22 +192,3 @@ class AgentGPT(Agent):
         template = Template(system_prompt)
         system_prompt = template.substitute(replace_map)
         return system_prompt
-
-    def build_action_blocks(self, content) -> List[dict[any]]:
-        action_generator = GenerativeActions()
-        actions: List[dict[str, str]] = action_generator.generate(content)
-        self._logger.debug("actions=%s", actions)
-        elements: List[dict[str, Any]] = [
-            {
-                "type": "button",
-                "text": {
-                    "type": "plain_text",
-                    "text": x["action_label"],
-                    "emoji": True,
-                },
-                "value": x["action_prompt"],
-                "action_id": f"button-{uuid.uuid4()}",
-            }
-            for x in actions
-        ]
-        return {"type": "actions", "elements": elements}

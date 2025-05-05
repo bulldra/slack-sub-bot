@@ -1,5 +1,3 @@
-"""シノニムを探す"""
-
 import json
 import os
 

@@ -3,46 +3,84 @@ import os
 
 import pytest
 
-from agent.agent_gpt import AgentGPT
 from agent.agent_idea import AgentIdea
 from agent.agent_recommend import AgentRecommend
 from agent.agent_summarize import AgentSummarize
-from function.generative_agent import GenerativeAgent
+from agent.agent_text import AgentText
+from function.generative_agent import AgentExecute, GenerativeAgent
 
 with open("secrets.json", "r", encoding="utf-8") as f:
     os.environ["SECRETS"] = json.dumps(json.load(f))
 
 
+def test_summarize(pytestconfig: pytest.Config):
+    os.chdir(pytestconfig.getini("pythonpath")[0])
+    result = GenerativeAgent().generate(
+        None, [{"role": "user", "content": "https://www.du-soleil.com"}]
+    )
+    expected = [AgentExecute(AgentSummarize, {})]
+    print(f"actual={result}")
+    print(f"expected={expected}")
+    assert expected == result
+
+
 def test_idea(pytestconfig: pytest.Config):
     os.chdir(pytestconfig.getini("pythonpath")[0])
-    generator = GenerativeAgent()
-    result = generator.generate(None, "ビールに関するアイディア")
-    assert result == AgentIdea
+    result = GenerativeAgent().generate(
+        None, [{"role": "user", "content": "ビールに関するアイディア"}]
+    )
+    expected = [AgentExecute(AgentIdea, {})]
+    print(f"actual={result}")
+    print(f"expected={expected}")
+    assert expected == result
+
+
+def test_recommed(pytestconfig: pytest.Config):
+    os.chdir(pytestconfig.getini("pythonpath")[0])
+    result = GenerativeAgent().generate(
+        None, [{"role": "user", "content": "最近のおすすめ記事を教えて"}]
+    )
+    expected = [AgentExecute(AgentRecommend, {})]
+    print(f"actual={result}")
+    print(f"expected={expected}")
+    assert expected == result
+
+
+def test_text(pytestconfig: pytest.Config):
+    os.chdir(pytestconfig.getini("pythonpath")[0])
+    result = GenerativeAgent().generate(
+        None,
+        [{"role": "user", "content": "こんにちわ！"}],
+    )
+    result = result[0].agent
+    expected = AgentText
+    print(f"actual={result}")
+    print(f"expected={expected}")
+    assert expected == result
 
 
 def test_gpt(pytestconfig: pytest.Config):
     os.chdir(pytestconfig.getini("pythonpath")[0])
-    generator = GenerativeAgent()
-    result = generator.generate(None, "ビールについて教えて")
-    assert result == AgentGPT
-
-
-def test_summarize(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
-    generator = GenerativeAgent()
-    result = generator.generate(
+    result = GenerativeAgent().generate(
         None,
-        "https://xtrend.nikkei.com/atcl/contents/"
-        "18/01013/00018/?n_cid=nbpnxr_mled_relatedlink",
+        [{"role": "user", "content": "マーケティングに関する蘊蓄を教えて"}],
     )
-    assert result == AgentSummarize
+    result = result[0].agent
+    expected = AgentText
+    print(f"actual={result}")
+    print(f"expected={expected}")
+    assert expected == result
 
 
-def test_(pytestconfig: pytest.Config):
+def test_multi(pytestconfig: pytest.Config):
     os.chdir(pytestconfig.getini("pythonpath")[0])
-    generator = GenerativeAgent()
-    result = generator.generate(
+    result = GenerativeAgent().generate(
         None,
-        "おすすめ記事を教えて",
+        [
+            {
+                "role": "user",
+                "content": "こんにちわ！ビールについてのおすすめ記事を教えてもらった後に、アイディアを検討して",
+            }
+        ],
     )
-    assert result == AgentRecommend
+    print(result)

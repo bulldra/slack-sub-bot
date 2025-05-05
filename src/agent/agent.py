@@ -1,9 +1,12 @@
 import json
 import logging
 import os
+import uuid
 from typing import Any, List, Literal, TypedDict
 
 import slack_sdk
+
+from function.generative_actions import GenerativeActions
 
 
 class Chat(TypedDict):
@@ -13,7 +16,7 @@ class Chat(TypedDict):
 
 class Agent:
 
-    def __init__(self, context: dict[str, Any], chat_history: List[Chat]) -> None:
+    def __init__(self, context: dict[str, Any]) -> None:
         secrets: str = str(os.getenv("SECRETS"))
         if not secrets:
             raise ValueError("einvirament not define.")
@@ -34,11 +37,8 @@ class Agent:
         self._ts = str(context.get("ts"))
         self._thread_ts = str(context.get("thread_ts"))
         self._context: dict[str, Any] = context
-        self._chat_history: List[Chat] = [
-            Chat(role=x["role"], content=x["content"]) for x in chat_history
-        ]
 
-    def execute(self) -> None:
+    def execute(self, arguments, chat_history) -> None:
         raise NotImplementedError
 
     def tik_process(self) -> None:
@@ -59,6 +59,21 @@ class Agent:
             {"type": "markdown", "text": content},
         ]
         return blocks
+
+    def next_placeholder(self) -> str:
+        res = self._slack.chat_postMessage(
+            channel=self._channel,
+            thread_ts=self._thread_ts,
+            blocks=[
+                {
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": self._processing_message},
+                }
+            ],
+            text=self._processing_message,
+        )
+        if res.get("ok"):
+            return res.get("ts")
 
     def update_message(self, blocks: List) -> None:
         pieces: list[str] = []
@@ -102,3 +117,22 @@ class Agent:
             },
         ]
         self.update_message(blocks)
+
+    def build_action_blocks(self, content) -> List[dict[any]]:
+        action_generator = GenerativeActions()
+        actions: List[dict[str, str]] = action_generator.generate(content)
+        self._logger.debug("actions=%s", actions)
+        elements: List[dict[str, Any]] = [
+            {
+                "type": "button",
+                "text": {
+                    "type": "plain_text",
+                    "text": x["action_label"],
+                    "emoji": True,
+                },
+                "value": x["action_prompt"],
+                "action_id": f"button-{uuid.uuid4()}",
+            }
+            for x in actions
+        ]
+        return {"type": "actions", "elements": elements}

@@ -14,15 +14,13 @@ class GenerativeBase:
         self._secrets: dict = json.loads(str(os.getenv("SECRETS")))
         self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
         self._openai_model: str = "gpt-4.1-mini"
-        self._openai_temperature: float = 0.5
+        self._openai_temperature: float = 0.0
         self._logger: logging.Logger = logging.getLogger(__name__)
         self._logger.setLevel(logging.DEBUG)
 
     def build_prompt(
         self, chat_history: List[dict[str, str]]
     ) -> List[ChatCompletionMessage]:
-        if len(chat_history) >= 2:
-            chat_history = chat_history[-2:]
         messages: List[ChatCompletionMessage] = [
             ChatCompletionAssistantMessageParam(
                 role="assistant", content=x.get("content", "")
@@ -45,14 +43,17 @@ class GenerativeBase:
         return None
 
     def function_call(
-        self, tools: List[dict], messages: List[ChatCompletionMessage]
+        self,
+        tools: List[dict],
+        messages: List[ChatCompletionMessage],
+        tool_choise="required",
     ) -> List[Function] | None:
         response = self._openai_client.responses.create(
             model=self._openai_model,
             input=messages,
             temperature=self._openai_temperature,
             tools=tools,
-            tool_choice="required",
+            tool_choice=tool_choise,
         )
         function_calls: [ChatCompletionMessage.tool_calls] = response.output
         self._logger.debug("function_calls=%s", function_calls)

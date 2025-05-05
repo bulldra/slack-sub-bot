@@ -19,14 +19,14 @@ class Mail(NamedTuple):
 
 class AgentSlackMail(AgentGPT):
 
-    def __init__(self, context: dict[str, Any], chat_history: List[Chat]) -> None:
-        super().__init__(context, chat_history)
+    def __init__(self, context: dict[str, Any]) -> None:
+        super().__init__(context)
         self._openai_stream = False
         self._openai_model: str = "gpt-4.1-mini"
         self._mail: Mail | None = None
 
     def build_prompt(
-        self, chat_history: List[dict[str, Any]]
+        self, arguments: dict[str, Any], chat_history: List[dict[str, Any]]
     ) -> List[ChatCompletionMessageParam]:
         mail = json.loads(chat_history[0]["content"])
         mail_content: str = mail.get("plain_text", "")
@@ -62,7 +62,7 @@ class AgentSlackMail(AgentGPT):
                 content=self._mail.content,
             )
             chat_history = [Chat(role="user", content=prompt.strip())]
-            return super().build_prompt(chat_history)
+            return super().build_prompt(arguments, chat_history)
 
     def build_message_blocks(self, content: str) -> List[dict]:
         blocks: List[dict] = [
