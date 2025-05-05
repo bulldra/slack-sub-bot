@@ -15,24 +15,24 @@ Case = collections.namedtuple("Case", ("argument", "expected"))
 def test_idea(pytestconfig: pytest.Config):
     os.chdir(pytestconfig.getini("pythonpath")[0])
     messages = [{"role": "user", "content": ""}]
-    agent = AgentIdea({}, messages)
-    prompt = agent.build_prompt(messages)
+    agent = AgentIdea({})
+    prompt = agent.build_prompt({}, messages)
     print(prompt)
 
 
 def test_idea2(pytestconfig: pytest.Config):
     os.chdir(pytestconfig.getini("pythonpath")[0])
     messages = [{"role": "user", "content": "AI Agentを作成する"}]
-    agent = AgentIdea({}, messages)
-    prompt = agent.build_prompt(messages)
+    agent = AgentIdea({})
+    prompt = agent.build_prompt({}, messages)
     print(prompt)
 
 
 def test_idea3(pytestconfig: pytest.Config):
     os.chdir(pytestconfig.getini("pythonpath")[0])
     messages = [{"role": "user", "content": "コンサルタントの役割は？"}]
-    agent = AgentIdea({}, messages)
-    prompt = agent.build_prompt(messages)
+    agent = AgentIdea({})
+    prompt = agent.build_prompt({}, messages)
     print(prompt)
     print("====")
     result = agent.completion(prompt)
@@ -42,7 +42,7 @@ def test_idea3(pytestconfig: pytest.Config):
 def test_idea4(pytestconfig: pytest.Config):
     os.chdir(pytestconfig.getini("pythonpath")[0])
     messages = [{"role": "user", "content": "AIチューバーとアシスタントエージェント"}]
-    agent = AgentIdea({}, messages)
-    prompt = agent.build_prompt(messages)
+    agent = AgentIdea({})
+    prompt = agent.build_prompt({}, messages)
     result = agent.completion(prompt)
     print(result)

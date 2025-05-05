@@ -21,6 +21,6 @@ def test_scraping(pytestconfig: pytest.Config):
             content="https://www.du-soleil.com/entry/gentle-internet-is-a-translation",
         )
     ]
-    agent = AgentSummarize({}, messages)
-    prompt = agent.build_prompt(messages)
+    agent = AgentSummarize({})
+    prompt = agent.build_prompt({}, messages)
     print(agent.completion(prompt))

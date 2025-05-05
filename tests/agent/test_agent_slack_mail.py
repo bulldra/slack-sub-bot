@@ -38,7 +38,7 @@ def test_gpt(pytestconfig: pytest.Config):
             ),
         }
     ]
-    agent = AgentSlackMail({}, messages)
-    prompt = agent.build_prompt(messages)
+    agent = AgentSlackMail({})
+    prompt = agent.build_prompt({}, messages)
     print(prompt)
     print(agent.completion(prompt))

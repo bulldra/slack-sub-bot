@@ -11,16 +11,18 @@ from function.generative_synonyms import GenerativeSynonyms
 
 class AgentIdea(AgentGPT):
 
-    def __init__(self, context: dict[str, Any], chat_history: List[Chat]) -> None:
-        super().__init__(context, chat_history)
+    def __init__(self, context: dict[str, Any]) -> None:
+        super().__init__(context)
         self._openai_stream = True
         self._openai_model: str = "gpt-4.1-mini"
         self._keywords: List[str] = []
 
     def build_prompt(
-        self, chat_history: List[Chat]
+        self, arguments: dict[str, Any], chat_history: List[Chat]
     ) -> List[ChatCompletionMessageParam]:
-        keywords = GenerativeSynonyms().generate(chat_history)
+        keywords = set()
+        keywords |= set(arguments.get("keywords", []))
+        keywords = GenerativeSynonyms().generate(chat_history) or []
         related_messages = set()
         max_messages = 20
         if keywords:
@@ -58,7 +60,7 @@ class AgentIdea(AgentGPT):
                         Chat(role="assistant", content=keywords_str),
                     )
                 chat_history.append(Chat(role="assistant", content=prompt.strip()))
-        return super().build_prompt(chat_history)
+        return super().build_prompt(arguments, chat_history)
 
     def build_message_blocks(self, content: str) -> List[dict]:
         blocks: List[dict] = [

@@ -11,14 +11,14 @@ from agent.agent_gpt import AgentGPT
 
 class AgentSummarize(AgentGPT):
 
-    def __init__(self, context: dict[str, Any], chat_history: List[Chat]) -> None:
-        super().__init__(context, chat_history)
+    def __init__(self, context: dict[str, Any]) -> None:
+        super().__init__(context)
         self._openai_model: str = "gpt-4.1-mini"
         self._openai_stream = False
         self._site: scraping_utils.SiteInfo | None = None
 
     def build_prompt(
-        self, chat_history: List[Chat]
+        self, arguments: dict[str, Any], chat_history: List[Chat]
     ) -> List[ChatCompletionMessageParam]:
         url: str = slack_link_utils.extract_and_remove_tracking_url(
             chat_history[-1].get("content")
@@ -37,7 +37,7 @@ class AgentSummarize(AgentGPT):
                 "content": self._site.content,
             }
             prompt = prompt_template.substitute(replace_dict)
-            return super().build_prompt([Chat(role="user", content=prompt)])
+            return super().build_prompt(arguments, [Chat(role="user", content=prompt)])
 
     def build_message_blocks(self, content: str) -> list:
         if self._site is None:
