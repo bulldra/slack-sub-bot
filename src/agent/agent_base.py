@@ -2,24 +2,34 @@ import json
 import logging
 import os
 import uuid
-from typing import Any, List, Literal, TypedDict
+from datetime import datetime, timedelta, timezone
+from string import Template
+from typing import Any, List
 
 import slack_sdk
 
+import utils.weather
+from agent.types import Chat
 from function.generative_actions import GenerativeActions
 
 
-class Chat(TypedDict):
-    role: Literal["system", "user", "assistant"]
-    content: str
-
-
 class Agent:
+    def __init__(self, context: dict[str, Any]) -> None:
+        raise NotImplementedError
+
+    def execute(self, arguments, chat_history) -> Chat:
+        raise NotImplementedError
+
+    def next_placeholder(self) -> str:
+        raise NotImplementedError
+
+
+class AgentSlack(Agent):
 
     def __init__(self, context: dict[str, Any]) -> None:
         secrets: str = str(os.getenv("SECRETS"))
         if not secrets:
-            raise ValueError("einvirament not define.")
+            raise ValueError("envirament not define.")
         self._secrets: dict = json.loads(secrets)
         self._slack_user_id = context.get("user_id")
         self._slack: slack_sdk.WebClient = slack_sdk.WebClient(
@@ -28,8 +38,8 @@ class Agent:
         self._slack_behalf_user: slack_sdk.WebClient = slack_sdk.WebClient(
             token=self._secrets.get("SLACK_USER_TOKEN")
         )
-        self._share_channel: str = self._secrets.get("SHARE_CHANNEL_ID")
-        self._image_channel: str = self._secrets.get("IMAGE_CHANNEL_ID")
+        self._share_channel: str = str(self._secrets.get("SHARE_CHANNEL_ID"))
+        self._image_channel: str = str(self._secrets.get("IMAGE_CHANNEL_ID"))
         self._logger: logging.Logger = logging.getLogger(__name__)
         self._logger.setLevel(logging.DEBUG)
         self._processing_message: str = str(context.get("processing_message"))
@@ -40,6 +50,23 @@ class Agent:
 
     def execute(self, arguments, chat_history) -> None:
         raise NotImplementedError
+
+    def build_system_prompt(self) -> str:
+        with open("./conf/system_prompt.yaml", "r", encoding="utf-8") as file:
+            system_prompt = file.read()
+
+        weather: dict = utils.weather.Weather().get()
+        weather_report_datetime = weather.get("reportDatetime")
+        weather_report_text = weather.get("text")
+
+        replace_map = {
+            "WEATHER_REPORT_DATETIME": weather_report_datetime,
+            "WEATHER_REPORT_TEXT": weather_report_text,
+            "DATE_TIME": datetime.now(timezone(timedelta(hours=9))).isoformat(),
+        }
+        template = Template(system_prompt)
+        system_prompt = template.substitute(replace_map)
+        return system_prompt
 
     def tik_process(self) -> None:
         self._processing_message += "."
@@ -54,11 +81,10 @@ class Agent:
         ]
         self.update_message(blocks)
 
-    def build_message_blocks(self, content: str) -> List:
-        blocks: List[dict] = [
-            {"type": "markdown", "text": content},
-        ]
-        return blocks
+    def build_message_blocks(self, content: str) -> list[dict[str, Any]]:
+        if not content:
+            raise ValueError("Content is empty.")
+        return [{"type": "markdown", "text": content}]
 
     def next_placeholder(self) -> str:
         res = self._slack.chat_postMessage(
@@ -73,9 +99,11 @@ class Agent:
             text=self._processing_message,
         )
         if res.get("ok"):
-            return res.get("ts")
+            return str(res.get("ts"))
+        else:
+            raise ValueError("Failed to post message to Slack.")
 
-    def update_message(self, blocks: List) -> None:
+    def update_message(self, blocks: list) -> None:
         pieces: list[str] = []
         for b in blocks:
             if b["type"] == "section":
@@ -86,10 +114,10 @@ class Agent:
             elif b["type"] == "markdown":
                 pieces.append(str(b.get("text", "")))
         text: str = "\n".join(pieces)
-        text = text.encode("utf-8")
-        if len(text) > 3000:
-            text = text[:3000]
-        text = text.decode("utf-8", errors="ignore")
+        text_byte: bytes = text.encode("utf-8")
+        if len(text_byte) > 3000:
+            text_byte = text_byte[:3000]
+        text = text_byte.decode("utf-8", errors="ignore")
         self._slack.chat_update(
             channel=self._channel,
             ts=self._ts,
@@ -106,7 +134,7 @@ class Agent:
 
     def error(self, err: Exception) -> None:
         self._logger.error(err)
-        blocks: List[dict] = [
+        blocks: list[dict] = [
             {
                 "type": "section",
                 "text": {"type": "mrkdwn", "text": "エラーが発生しました。"},
@@ -118,11 +146,11 @@ class Agent:
         ]
         self.update_message(blocks)
 
-    def build_action_blocks(self, content) -> List[dict[any]]:
+    def build_action_blocks(self, chat_history: List[Chat]) -> dict[str, Any]:
         action_generator = GenerativeActions()
-        actions: List[dict[str, str]] = action_generator.generate(content)
+        actions: list[dict[str, str]] = action_generator.generate(chat_history)
         self._logger.debug("actions=%s", actions)
-        elements: List[dict[str, Any]] = [
+        elements: list[dict[str, Any]] = [
             {
                 "type": "button",
                 "text": {
@@ -136,3 +164,44 @@ class Agent:
             for x in actions
         ]
         return {"type": "actions", "elements": elements}
+
+
+class AgentDelete(AgentSlack):
+
+    def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> None:
+        self._logger.debug("delete")
+        self._slack.chat_delete(
+            channel=self._channel,
+            ts=self._ts,
+        )
+
+
+class AgentText(AgentSlack):
+
+    def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> None:
+        try:
+            content = str(arguments.get("content", ""))
+            blocks: List[dict] = self.build_message_blocks(content)
+            result: Chat = Chat(role="assistant", content=content)
+            chat_history.append(result)
+            action_blocks = self.build_action_blocks(chat_history)
+            blocks.append(action_blocks)
+            self.update_message(blocks)
+            return result
+        except Exception as err:
+            self.error(err)
+            raise err
+
+
+class AgentNotification(AgentSlack):
+
+    def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> None:
+        try:
+            content: str = arguments.get("content", "")
+            content = f"<@{self._slack_user_id}> {content}"
+            blocks: List[dict] = self.build_message_blocks(content)
+            self.update_message(blocks)
+            return Chat(role="assistant", content=content)
+        except Exception as err:
+            self.error(err)
+            raise err

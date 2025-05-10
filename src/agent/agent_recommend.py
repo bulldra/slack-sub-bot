@@ -4,9 +4,8 @@ from typing import Any, List
 from openai.types.chat import ChatCompletionMessageParam
 
 import utils.slack_search_utils as slack_search_utils
-from agent.agent import Chat
 from agent.agent_gpt import AgentGPT
-from function.generative_synonyms import GenerativeSynonyms
+from agent.types import Chat
 
 
 class AgentRecommend(AgentGPT):
@@ -24,10 +23,7 @@ class AgentRecommend(AgentGPT):
         days_ago_start = arguments.get("start_days_ago", 365)
         days_ago_end = arguments.get("end_days_ago", 0)
         days_ago_end = min(days_ago_start, days_ago_end)
-
-        keywords = set()
-        keywords |= set(arguments.get("keywords", []))
-        keywords = GenerativeSynonyms().generate(chat_history) or []
+        keywords = arguments.get("keywords", [])
         recommend_messages: set[str] = set()
         for keyword in keywords:
             query: str = slack_search_utils.build_past_query(
@@ -46,7 +42,7 @@ class AgentRecommend(AgentGPT):
                 break
 
         if len(recommend_messages) == 0:
-            query: str = slack_search_utils.build_past_query(
+            query = slack_search_utils.build_past_query(
                 self._share_channel,
                 after_days=days_ago_start,
                 before_days=days_ago_end,

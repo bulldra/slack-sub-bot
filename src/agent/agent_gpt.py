@@ -1,12 +1,9 @@
 import json
 import os
 import re
-from datetime import datetime, timedelta, timezone
-from string import Template
-from typing import Any, List
+from typing import Any, Iterator
 
 import openai
-import tiktoken
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
     ChatCompletionChunk,
@@ -15,17 +12,17 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 
-import utils.weather
-from agent.agent import Agent, Chat
+from agent.agent_base import AgentSlack
+from agent.types import Chat
 
 
-class AgentGPT(Agent):
+class AgentGPT(AgentSlack):
 
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
         secrets: str = str(os.getenv("SECRETS"))
         if not secrets:
-            raise ValueError("einvirament not define.")
+            raise ValueError("environment not defined.")
         self._secrets: dict = json.loads(secrets)
         self._context: dict[str, Any] = context
         self._openai_model: str = "gpt-4.1-mini"
@@ -35,10 +32,10 @@ class AgentGPT(Agent):
         self._openai_stream = True
         self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
 
-    def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> None:
+    def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> Chat:
         try:
             self.tik_process()
-            prompt_messages: List[ChatCompletionMessageParam] = self.build_prompt(
+            prompt_messages: list[ChatCompletionMessageParam] = self.build_prompt(
                 arguments, chat_history
             )
             self.tik_process()
@@ -48,57 +45,31 @@ class AgentGPT(Agent):
                     self.update_message(self.build_message_blocks(content))
             else:
                 content = self.completion(prompt_messages)
-            blocks: List[dict] = self.build_message_blocks(content)
+            blocks: list[dict] = self.build_message_blocks(content)
             self._logger.debug("content=%s", content)
 
-            action_blocks = self.build_action_blocks(content)
+            result: Chat = Chat(role="assistant", content=content)
+            chat_history.append(result)
+
+            action_blocks = self.build_action_blocks(chat_history)
             blocks.append(action_blocks)
             self.update_message(blocks)
-            return Chat(role="assistant", content=content)
+
+            return result
         except Exception as err:
             self.error(err)
             raise err
 
     def build_prompt(
-        self, arguments: dict[str, Any], chat_history: List[Chat]
-    ) -> List[ChatCompletionMessageParam]:
-        prompt_messages: List[ChatCompletionMessageParam] = []
-        openai_encoding: tiktoken.core.Encoding = tiktoken.encoding_for_model(
-            self._openai_model
-            if self._openai_model in tiktoken.list_encoding_names()
-            else "gpt-4o"
-        )
+        self, arguments: dict[str, Any], chat_history: list[Chat]
+    ) -> list[ChatCompletionMessageParam]:
+        prompt_messages: list[ChatCompletionMessageParam] = []
         system_prompt: str = self.build_system_prompt()
         prompt_messages.append(
             ChatCompletionSystemMessageParam(role="system", content=system_prompt)
         )
         for chat in chat_history:
             current_content = chat.get("content")
-            while True:
-                current_count: int = len(openai_encoding.encode(str(current_content)))
-                prompt_count: int = len(
-                    openai_encoding.encode(
-                        "".join([str(p.get("content")) for p in prompt_messages])
-                    )
-                )
-                if current_count + prompt_count > self._max_token:
-                    if len(prompt_messages) >= 2:
-                        del prompt_messages[1]
-                    else:
-                        if isinstance(current_content, str):
-                            tmp: str = ""
-                            for r in current_content.split("\n"):
-                                if len(tmp) + len(r) > self._max_token // 2:
-                                    if len(tmp) > self._max_token // 2:
-                                        tmp = tmp[: self._max_token // 2]
-                                    current_content = tmp
-                                    break
-                                tmp += r + "\n"
-                        else:
-                            raise ValueError("current_content is not str and too long")
-                else:
-                    break
-
             if chat["role"] == "user":
                 current_content = current_content.replace("```", "")
                 current_content = current_content.replace("\u200b", "")
@@ -114,20 +85,10 @@ class AgentGPT(Agent):
                         role="assistant", content=current_content
                     )
                 )
-
-        last_prompt_count: int = len(
-            openai_encoding.encode(
-                "".join([str(p.get("content")) for p in prompt_messages])
-            )
-        )
         self._logger.debug("prompt %s", prompt_messages)
-        self._logger.debug("prompt token count %s", last_prompt_count)
         return prompt_messages
 
-    def completion(
-        self,
-        prompt_messages: [ChatCompletionMessageParam],
-    ) -> str:
+    def completion(self, prompt_messages: list[ChatCompletionMessageParam]) -> str:
         response = self._openai_client.chat.completions.create(
             messages=prompt_messages,
             model=self._openai_model,
@@ -138,25 +99,20 @@ class AgentGPT(Agent):
         return str(response.choices[0].message.content)
 
     def completion_stream(
-        self,
-        prompt_messages: [ChatCompletionMessageParam],
-    ) -> str:
+        self, prompt_messages: list[ChatCompletionMessageParam]
+    ) -> Iterator[str]:
         chunk_size: int = self._output_max_token // 50
         border_lambda: int = chunk_size // 5
 
-        if self._openai_model in ["o1-preview", "o1-mini"]:
-            response: str = self.completion(prompt_messages)
-            return response
-        else:
-            stream: openai.Stream[ChatCompletionChunk] = (
-                self._openai_client.chat.completions.create(
-                    messages=prompt_messages,
-                    model=self._openai_model,
-                    temperature=self._openai_temperature,
-                    stream=True,
-                    max_tokens=self._output_max_token,
-                )
+        stream: openai.Stream[ChatCompletionChunk] = (
+            self._openai_client.chat.completions.create(
+                messages=prompt_messages,
+                model=self._openai_model,
+                temperature=self._openai_temperature,
+                stream=True,
+                max_tokens=self._output_max_token,
             )
+        )
 
         response_text: str = ""
         prev_text: str = ""
@@ -166,7 +122,7 @@ class AgentGPT(Agent):
             if add_content:
                 response_text += add_content
                 if len(response_text) >= border:
-                    tokens: List[str] = re.split("\n", response_text[len(prev_text) :])
+                    tokens: list[str] = re.split("\n", response_text[len(prev_text) :])
                     if len(tokens) >= 2:
                         res: str = prev_text + "\n".join(tokens[:-1])
                         border += chunk_size
@@ -175,20 +131,3 @@ class AgentGPT(Agent):
                     else:
                         border += border_lambda
         yield response_text
-
-    def build_system_prompt(self) -> str:
-        with open("./conf/system_prompt.yaml", "r", encoding="utf-8") as file:
-            system_prompt = file.read()
-
-        weather: dict = utils.weather.Weather().get()
-        weather_report_datetime = weather.get("reportDatetime")
-        weather_report_text = weather.get("text")
-
-        replace_map = {
-            "WEATHER_REPORT_DATETIME": weather_report_datetime,
-            "WEATHER_REPORT_TEXT": weather_report_text,
-            "DATE_TIME": datetime.now(timezone(timedelta(hours=9))).isoformat(),
-        }
-        template = Template(system_prompt)
-        system_prompt = template.substitute(replace_map)
-        return system_prompt

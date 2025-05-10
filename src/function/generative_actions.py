@@ -1,40 +1,38 @@
 import json
-from typing import List
 
-from openai.types.chat import (
-    ChatCompletionAssistantMessageParam,
-    ChatCompletionMessageParam,
-    ChatCompletionUserMessageParam,
-)
-from openai.types.chat.chat_completion_message_tool_call import Function
+from openai.types.chat import ChatCompletionMessageParam
+from openai.types.responses.function_tool_param import FunctionToolParam
+from openai.types.responses.response_function_tool_call import ResponseFunctionToolCall
+from openai.types.responses.response_output_item import ResponseOutputItem
 
+from agent.types import Chat
 from function.generative_base import GenerativeBase
 
 
 class GenerativeActions(GenerativeBase):
 
-    def generate(self, content: str) -> List[dict[str, str]]:
+    def generate(self, chat_history: list[Chat]) -> list[dict[str, str]]:
         prompt: str = (
-            "回答された内容をもとに次のアクションとなる選択肢とプロンプトを生成する。解像度を高めたり、反論したり、異なる視点を提示する"
+            "これまでの会話内容をもとに次のアクションとなる選択肢とプロンプトを生成する。"
+            "要約したり、出てきたキーワードの解像度を高めたり、反論したり、異なる視点を"
+            "提示してボタンを押したくなるような選択肢群にしてください"
         )
-        prompt_messages: List[ChatCompletionMessageParam] = [
-            ChatCompletionAssistantMessageParam(role="assistant", content=content),
-            ChatCompletionUserMessageParam(
-                role="user",
-                content=prompt,
-            ),
-        ]
+        chat_history.append({"role": "user", "content": prompt})
+        prompt_messages: list[ChatCompletionMessageParam] = self.build_prompt(
+            chat_history
+        )
 
-        tool: dict = {
+        tool: FunctionToolParam = {
             "type": "function",
             "name": "generate_actions",
             "description": prompt,
+            "strict": False,
             "parameters": {
                 "type": "object",
                 "properties": {
                     "actions": {
                         "type": "array",
-                        "description": "生成された複数アクションのリスト",
+                        "description": "会話内容から生成された複数アクションのリスト",
                         "items": {
                             "type": "object",
                             "properties": {
@@ -62,7 +60,13 @@ class GenerativeActions(GenerativeBase):
             },
         ]
 
-        function: Function | None = self.function_single_call(tool, prompt_messages)
+        result: ResponseOutputItem | None = self.function_single_call(
+            tool, prompt_messages
+        )
+        if result and result.type != "function_call":
+            return actions
+
+        function: ResponseFunctionToolCall = result  # type: ignore[arg-type]
         if function is not None and function.arguments is not None:
             args: dict = json.loads(function.arguments)
             if args.get("actions") is not None:

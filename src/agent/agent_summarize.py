@@ -1,12 +1,12 @@
 from string import Template
-from typing import Any, List
+from typing import Any, List, Optional
 
 from openai.types.chat import ChatCompletionMessageParam
 
 import utils.scraping_utils as scraping_utils
 import utils.slack_link_utils as slack_link_utils
-from agent.agent import Chat
 from agent.agent_gpt import AgentGPT
+from agent.types import Chat
 
 
 class AgentSummarize(AgentGPT):
@@ -15,14 +15,17 @@ class AgentSummarize(AgentGPT):
         super().__init__(context)
         self._openai_model: str = "gpt-4.1-mini"
         self._openai_stream = False
-        self._site: scraping_utils.SiteInfo | None = None
+        self._site: Optional[scraping_utils.SiteInfo] = None
 
     def build_prompt(
         self, arguments: dict[str, Any], chat_history: List[Chat]
     ) -> List[ChatCompletionMessageParam]:
-        url: str = slack_link_utils.extract_and_remove_tracking_url(
-            chat_history[-1].get("content")
-        )
+        if arguments.get("url"):
+            url = str(arguments.get("url"))
+        else:
+            url = slack_link_utils.extract_and_remove_tracking_url(
+                str(chat_history[-1].get("content"))
+            )
         self._logger.debug("scraping url=%s", url)
         if not scraping_utils.is_allow_scraping(url):
             raise ValueError("scraping is not allowed")
