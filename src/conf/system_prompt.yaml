@@ -34,7 +34,6 @@ output_rules:
     code_blocks_allowed: false
     heading_prefix: '##'
     bullet_style:
-        indent: 4_spaces
         marker: '-'
         blank_lines_between_items: true
         numbered_lists_allowed: false

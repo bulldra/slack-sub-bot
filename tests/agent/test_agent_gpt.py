@@ -9,19 +9,6 @@ with open("secrets.json", "r", encoding="utf-8") as f:
 from agent.agent_gpt import AgentGPT
 
 
-def test_build_system_prompt(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
-    agt = AgentGPT({})
-    prompt = agt.build_system_prompt()
-    print(prompt)
-
-
-def test_build_action_blocks(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
-    agt = AgentGPT({})
-    print(agt.build_action_blocks("ラーメンコンサルタントです。"))
-
-
 def test_promprompt(pytestconfig: pytest.Config):
     os.chdir(pytestconfig.getini("pythonpath")[0])
     text = [{"role": "user", "content": ""}]

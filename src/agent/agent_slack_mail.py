@@ -7,8 +7,8 @@ import requests
 from openai.types.chat import ChatCompletionMessageParam
 
 import utils.scraping_utils as scraping_utils
-from agent.agent import Chat
 from agent.agent_gpt import AgentGPT
+from agent.types import Chat
 
 
 class Mail(NamedTuple):
@@ -23,7 +23,7 @@ class AgentSlackMail(AgentGPT):
         super().__init__(context)
         self._openai_stream = False
         self._openai_model: str = "gpt-4.1-mini"
-        self._mail: Mail | None = None
+        self._mail: Mail
 
     def build_prompt(
         self, arguments: dict[str, Any], chat_history: List[dict[str, Any]]

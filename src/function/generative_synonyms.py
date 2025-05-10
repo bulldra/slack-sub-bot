@@ -1,14 +1,16 @@
 import json
-from typing import List
 
 from openai.types.chat import ChatCompletionMessageParam
-from openai.types.chat.chat_completion_message_tool_call import Function
+from openai.types.responses.function_tool_param import FunctionToolParam
+from openai.types.responses.response_output_item import ResponseOutputItem
 
+from agent.types import Chat
 from function.generative_base import GenerativeBase
 
 
 class GenerativeSynonyms(GenerativeBase):
-    def generate(self, chat_history: List[dict[str, str]]) -> List[dict[str, str]]:
+
+    def generate(self, chat_history: list[Chat]) -> list[dict[str, str]]:
         prompt_messages: list[ChatCompletionMessageParam] = self.build_prompt(
             chat_history
         )
@@ -16,11 +18,12 @@ class GenerativeSynonyms(GenerativeBase):
         if prompt_messages is None or len(prompt_messages) == 0:
             return []
 
-        tool: dict = {
+        tool: FunctionToolParam = {
             "type": "function",
             "name": "generate_synonyms",
             "description": "これまでの会話から検索するためのキーワードを複数挙げる。直近の会話内容から優先的に選択して、"
             "関係のない文言を無理に生成しようとしないでください",
+            "strict": False,
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -36,8 +39,10 @@ class GenerativeSynonyms(GenerativeBase):
             },
         }
 
-        function: Function | None = self.function_single_call(tool, prompt_messages)
-        if function is not None and function.arguments is not None:
+        function: ResponseOutputItem | None = self.function_single_call(
+            tool, prompt_messages
+        )
+        if function and function.type == "function_call":
             args: dict = json.loads(function.arguments)
             if args.get("synonyms") is not None:
                 if isinstance(args["synonyms"], list):
@@ -47,6 +52,4 @@ class GenerativeSynonyms(GenerativeBase):
                         if ng in synonyms:
                             synonyms.remove(ng)
                     return synonyms
-                else:
-                    return [str(args["synonyms"])]
         return []

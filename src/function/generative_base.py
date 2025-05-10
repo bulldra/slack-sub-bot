@@ -1,11 +1,17 @@
 import json
 import logging
 import os
-from typing import List
 
 import openai
-from openai.types.chat import ChatCompletionAssistantMessageParam, ChatCompletionMessage
-from openai.types.chat.chat_completion_message_tool_call import Function
+from openai.types.chat import (
+    ChatCompletionAssistantMessageParam,
+    ChatCompletionMessageParam,
+    ChatCompletionUserMessageParam,
+)
+from openai.types.responses.function_tool_param import FunctionToolParam
+from openai.types.responses.response_output_item import ResponseOutputItem
+
+from agent.types import Chat
 
 
 class GenerativeBase:
@@ -19,19 +25,28 @@ class GenerativeBase:
         self._logger.setLevel(logging.DEBUG)
 
     def build_prompt(
-        self, chat_history: List[dict[str, str]]
-    ) -> List[ChatCompletionMessage]:
-        messages: List[ChatCompletionMessage] = [
-            ChatCompletionAssistantMessageParam(
-                role="assistant", content=x.get("content", "")
-            )
-            for x in chat_history
-        ]
-        return messages
+        self, chat_history: list[Chat]
+    ) -> list[ChatCompletionMessageParam]:
+        prompt_messages: list[ChatCompletionMessageParam] = []
+        if chat_history:
+            for message in chat_history:
+                if message.get("role") == "user":
+                    prompt_messages.append(
+                        ChatCompletionUserMessageParam(
+                            role="user", content=message.get("content", "")
+                        )
+                    )
+                elif message.get("role") == "assistant":
+                    prompt_messages.append(
+                        ChatCompletionAssistantMessageParam(
+                            role="assistant", content=message.get("content", "")
+                        )
+                    )
+        return prompt_messages
 
     def function_single_call(
-        self, tool: dict, messages: List[ChatCompletionMessage]
-    ) -> Function | None:
+        self, tool: FunctionToolParam, messages: list[ChatCompletionMessageParam]
+    ) -> ResponseOutputItem | None:
         function_calls = self.function_call([tool], messages)
         if function_calls is not None:
             for function_call in function_calls:
@@ -44,17 +59,17 @@ class GenerativeBase:
 
     def function_call(
         self,
-        tools: List[dict],
-        messages: List[ChatCompletionMessage],
-        tool_choise="required",
-    ) -> List[Function] | None:
+        tools: list[FunctionToolParam],
+        messages: list[ChatCompletionMessageParam],
+        tool_choice="required",
+    ) -> list[ResponseOutputItem] | None:
         response = self._openai_client.responses.create(
             model=self._openai_model,
             input=messages,
             temperature=self._openai_temperature,
             tools=tools,
-            tool_choice=tool_choise,
+            tool_choice=tool_choice,
         )
-        function_calls: [ChatCompletionMessage.tool_calls] = response.output
+        function_calls: list[ResponseOutputItem] = response.output
         self._logger.debug("function_calls=%s", function_calls)
         return function_calls

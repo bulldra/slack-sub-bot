@@ -4,8 +4,8 @@ import os
 
 import pytest
 
-from agent.agent import Chat
 from agent.agent_summarize import AgentSummarize
+from agent.types import Chat
 
 with open("secrets.json", "r", encoding="utf-8") as f:
     os.environ["SECRETS"] = json.dumps(json.load(f))
