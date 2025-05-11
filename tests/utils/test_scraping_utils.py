@@ -130,3 +130,8 @@ def test_is_code_url():
         "https://www.du-soleil.com/entry/gentle-internet-is-a-translation"
     )
     print(site)
+
+
+def test_pdf_url():
+    site = scraping_utils.scraping("https://www.soumu.go.jp/main_content/000998475.pdf")
+    print(site)

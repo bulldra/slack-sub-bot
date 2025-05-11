@@ -2,7 +2,7 @@ import os
 import re
 import tempfile
 import urllib
-from typing import NamedTuple, Tuple
+from typing import NamedTuple, Optional, Tuple
 
 import pypdf
 import requests
@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 class SiteInfo(NamedTuple):
     url: str = ""
     title: str = ""
-    content: str = None
+    content: Optional[str] = None
 
 
 def is_allow_scraping(url: str) -> bool:
@@ -99,8 +99,14 @@ def scraping_raw(url: str) -> str:
 
 
 def scraping_pdf(url: str) -> SiteInfo:
+    headers: dict[str, str] = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6\
+) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36",
+    }
+    res = requests.get(url, timeout=(3.0, 8.0), headers=headers)
+    res.raise_for_status()
     with tempfile.NamedTemporaryFile(mode="wb+", delete=True) as t:
-        t.write(scraping_raw(url))
+        t.write(res.content)
         t.seek(0)
         pdf = pypdf.PdfReader(t)
         content: str = "\n\n".join(
@@ -159,11 +165,11 @@ def scraping_text(content: str) -> Tuple[str, str]:
         else:
             tag.unwrap()
 
-    content: str = str(soup)
-    content = re.sub(r"\n\s*\n", "\n", content)
-    content = re.sub(r"[ \t]+", " ", content)
-    content = content.strip()
-    return title, content
+    result: str = str(soup)
+    result = re.sub(r"\n\s*\n", "\n", result)
+    result = re.sub(r"[ \t]+", " ", result)
+    result = result.strip()
+    return title, result
 
 
 def scraping_web(url: str) -> SiteInfo:
