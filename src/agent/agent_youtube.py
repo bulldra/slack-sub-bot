@@ -1,4 +1,6 @@
+import re
 from typing import Any, Dict, List, Optional
+from urllib.parse import parse_qs, urlparse
 
 from google.genai import types
 
@@ -21,6 +23,9 @@ class AgentYoutube(AgentGemini):
             url = slack_link_utils.extract_and_remove_tracking_url(
                 str(chat_history[-1]["content"])
             )
+
+        video_id = self.extract_video_id(url)
+        url = f"https://www.youtube.com/watch?v={video_id}" if video_id else url
         self._video_url = url
         with open("./conf/youtube_prompt.yaml", "r", encoding="utf-8") as file:
             prompt = file.read()
@@ -43,3 +48,16 @@ class AgentYoutube(AgentGemini):
             {"type": "markdown", "text": content},
         ]
         return blocks
+
+    def extract_video_id(self, youtube_url: str) -> str:
+        parsed = urlparse(youtube_url)
+        if parsed.hostname in ["youtu.be"]:
+            return parsed.path.lstrip("/")
+        if parsed.hostname in ["www.youtube.com", "youtube.com", "m.youtube.com"]:
+            qs = parse_qs(parsed.query)
+            return qs.get("v", [""])[0]
+        # その他の形式
+        match = re.search(r"(?:v=|youtu.be/)([\w-]{11})", youtube_url)
+        if match:
+            return match.group(1)
+        return ""
