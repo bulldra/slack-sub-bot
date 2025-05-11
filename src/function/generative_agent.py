@@ -51,7 +51,7 @@ class GenerativeAgent(GenerativeBase):
         content: str = str(chat_history[-1].get("content", ""))
 
         if command is not None and command in command_dict:
-            return [AgentExecute(command_dict[command])]
+            return [AgentExecute(command_dict[command], {})]
 
         if slack_link_utils.is_only_url(content):
             url: str = slack_link_utils.extract_and_remove_tracking_url(content)
@@ -188,7 +188,7 @@ class GenerativeAgent(GenerativeBase):
                             args = json.loads(function_call.arguments)
                             execute_que.append(AgentExecute(exe, args))
                         else:
-                            execute_que.append(AgentExecute(exe))
+                            execute_que.append(AgentExecute(exe, {}))
                 elif function_call.type == "message":
                     messages: list[ResponseOutputText | ResponseOutputRefusal] = (
                         function_call.content
@@ -210,7 +210,7 @@ class GenerativeAgent(GenerativeBase):
                                 ),
                             )
         if len(execute_que) == 0:
-            execute_que.append(AgentExecute(agent=command_dict["/gpt"]))
+            execute_que.append(AgentExecute(agent=command_dict["/gpt"], arguments={}))
         elif len(execute_que) >= 2:
             execute_que.append(
                 AgentExecute(
