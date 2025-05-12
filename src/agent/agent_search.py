@@ -10,9 +10,10 @@ from agent.types import Chat
 class AgentSearch(AgentGemini):
 
     def build_prompt(self, arguments: Dict[str, Any], chat_history: List[Chat]) -> Chat:
-        prompt_messages: list[types.Part] = [
-            types.Part(text=str(chat_history[-1]["content"])),
-        ]
+        query = str(chat_history[-1]["content"])
+        if arguments.get("query"):
+            query = str(arguments["query"])
+        prompt_messages: list[types.Part] = [types.Part(text=query)]
         return prompt_messages
 
     def completion(self, prompt_messages: list[types.Part]) -> str:
