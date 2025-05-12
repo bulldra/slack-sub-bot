@@ -41,10 +41,10 @@ def main(cloud_event: CloudEvent):
     for idx, agent_execute in enumerate(execute_que):
         chat_history_copy: list[Chat] = chat_history.copy()
         agent_class: type[Agent] = agent_execute.agent
-        agt: Agent = agent_class(context)
-        chat_response: Chat = agt.execute(agent_execute.arguments, chat_history_copy)
+        agent: Agent = agent_class(context)
+        chat_response: Chat = agent.execute(agent_execute.arguments, chat_history_copy)
         chat_history.append(chat_response)
         if idx < len(execute_que) - 1:
-            ts = agt.next_placeholder()
+            ts = agent.next_placeholder()
             context["ts"] = ts
-        logger.debug("end process agent=%s", agent_execute.agent.__qualname__)
+        logger.debug("end process agent=%s", agent_class.__qualname__)

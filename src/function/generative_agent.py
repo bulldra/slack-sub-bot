@@ -110,7 +110,7 @@ class GenerativeAgent(GenerativeBase):
                     "properties": {
                         "query": {
                             "type": "string",
-                            "description": "検索クエリ",
+                            "description": "検索クエリ。Google検索のクエリを指定",
                         },
                     },
                     "required": ["query"],
