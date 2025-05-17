@@ -14,7 +14,6 @@ Case = collections.namedtuple("Case", ("argument", "expected"))
 
 
 def test_gpt(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
     messages = messages = [
         {
             "role": "user",
@@ -46,7 +45,6 @@ def test_gpt(pytestconfig: pytest.Config):
 
 
 def test_execute_adds_bookmark(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
     context = {"channel": "C123", "ts": "123.45", "thread_ts": "123.45"}
     agent = AgentSlackMail(context)
     messages = [

@@ -50,16 +50,16 @@ class AgentGemini(AgentSlack):
     def build_prompt(
         self, arguments: Dict[str, Any], chat_history: list[Chat]
     ) -> list[types.Part]:
-        chat: list[types.Part] = []
-        for chat in chat_history:
-            chat.append(
+        parts: list[types.Part] = []
+        for history_item in chat_history:
+            parts.append(
                 types.Part(
-                    text=chat["content"],
+                    text=history_item["content"],
                     role=(
                         types.Part.Role.USER
-                        if chat["role"] == "user"
+                        if history_item["role"] == "user"
                         else types.Part.Role.ASSISTANT
                     ),
                 )
             )
-        return chat
+        return parts
