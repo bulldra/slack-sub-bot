@@ -1,6 +1,6 @@
 import json
 from string import Template
-from typing import Any, List
+from typing import Any, List, Dict
 
 from openai.types.chat import ChatCompletionMessageParam
 
@@ -15,7 +15,33 @@ class AgentQuiz(AgentGPT):
         super().__init__(context)
         self._openai_model = "gpt-4.1"
         self._openai_stream = False
-        self._answer: str | None = None
+        self._choices: List[Dict[str, Any]] = []
+
+    def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
+        """Handle quiz question or evaluate answer."""
+        if "choice_payload" in arguments:
+            payload = arguments.get("choice_payload")
+            if isinstance(payload, str):
+                try:
+                    payload = json.loads(payload)
+                except json.JSONDecodeError:
+                    payload = {}
+
+            correct = bool(payload.get("correct"))
+            explanation = str(payload.get("explanation", ""))
+            text = "正解！" if correct else "不正解！"
+            if explanation:
+                text += f" {explanation}"
+
+            blocks: List[dict] = super().build_message_blocks(text)
+            result: Chat = Chat(role="assistant", content=text)
+            chat_history.append(result)
+            action_blocks = self.build_action_blocks(chat_history)
+            blocks.append(action_blocks)
+            self.update_message(blocks)
+            return result
+
+        return super().execute(arguments, chat_history)
 
     def build_prompt(
         self, arguments: dict[str, Any], chat_history: List[Chat]
@@ -33,34 +59,52 @@ class AgentQuiz(AgentGPT):
             data = json.loads(content)
         except json.JSONDecodeError:
             return [{"type": "markdown", "text": content}]
-        self._answer = str(data.get("answer"))
+
+        question = str(data.get("question", ""))
+        choices = data.get("choices", [])
+        explanations = data.get("explanations", ["" for _ in choices])
+        answer_text = str(data.get("answer", ""))
+
+        self._choices = []
+        for choice, exp in zip(choices, explanations):
+            self._choices.append(
+                {
+                    "choice": choice,
+                    "correct": choice == answer_text,
+                    "explanation": exp,
+                }
+            )
+
         blocks: List[dict] = [
             {
                 "type": "section",
-                "text": {"type": "mrkdwn", "text": f"*Q.* {data.get('question', '')}"},
+                "text": {"type": "mrkdwn", "text": f"*Q.* {question}"},
             },
             {"type": "divider"},
         ]
-        for idx, choice in enumerate(data.get("choices", []), start=1):
-            blocks.append(
-                {
-                    "type": "section",
-                    "text": {"type": "mrkdwn", "text": f"{idx}. {choice}"},
-                }
-            )
         return blocks
 
     def build_action_blocks(self, chat_history: List[Chat]) -> dict:
-        if not self._answer:
+        if not self._choices:
             return super().build_action_blocks(chat_history)
-        return {
-            "type": "actions",
-            "elements": [
+
+        elements: List[dict] = []
+        for idx, item in enumerate(self._choices, start=1):
+            value = json.dumps(
+                {
+                    "choice": item["choice"],
+                    "correct": item["correct"],
+                    "explanation": item["explanation"],
+                },
+                ensure_ascii=False,
+            )
+            elements.append(
                 {
                     "type": "button",
-                    "text": {"type": "plain_text", "text": "答え", "emoji": True},
-                    "value": self._answer,
-                    "action_id": "button-answer",
+                    "text": {"type": "plain_text", "text": item["choice"], "emoji": True},
+                    "value": value,
+                    "action_id": f"button-choice-{idx}",
                 }
-            ],
-        }
+            )
+
+        return {"type": "actions", "elements": elements}
