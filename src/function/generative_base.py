@@ -19,7 +19,7 @@ class GenerativeBase:
     def __init__(self) -> None:
         self._secrets: dict = json.loads(str(os.getenv("SECRETS")))
         self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
-        self._openai_model: str = "gpt-4.1-mini"
+        self._openai_model: str = "gpt-4.1"
         self._openai_temperature: float = 0.0
         self._logger: logging.Logger = logging.getLogger(__name__)
         self._logger.setLevel(logging.DEBUG)

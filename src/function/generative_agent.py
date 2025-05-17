@@ -29,7 +29,7 @@ class AgentExecute(NamedTuple):
 class GenerativeAgent(GenerativeBase):
     def __init__(self) -> None:
         super().__init__()
-        self._openai_model: str = "gpt-4.1-mini"
+        self._openai_model: str = "gpt-4.1"
 
     def generate(
         self, command: Optional[str], chat_history: list[Chat]
