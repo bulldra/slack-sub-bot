@@ -18,7 +18,7 @@ class StoredGcs:
         try:
             self._blob = storage.Client().get_bucket(bucket_name).blob(blob_name)
         except DefaultCredentialsError:
-            self._logger.warning("credentials not set")
+            self._logger.warning("credentials not set.")
 
     def is_exists(self) -> bool:
         if not self._blob:
@@ -42,7 +42,6 @@ class StoredGcs:
         return None
 
     def persist(self, text: str, content_type="application/json") -> None:
-        """Upload text content to the configured GCS blob."""
         if not self._blob:
             return
         self._blob.upload_from_string(text, content_type=content_type)
