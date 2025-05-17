@@ -13,7 +13,6 @@ Case = collections.namedtuple("Case", ("argument", "expected"))
 
 
 def test_idea(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
     messages = [{"role": "user", "content": ""}]
     agent = AgentIdea({})
     prompt = agent.build_prompt({}, messages)
@@ -21,7 +20,6 @@ def test_idea(pytestconfig: pytest.Config):
 
 
 def test_idea2(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
     messages = [{"role": "user", "content": "AI Agentを作成する"}]
     agent = AgentIdea({})
     prompt = agent.build_prompt({}, messages)
@@ -29,7 +27,6 @@ def test_idea2(pytestconfig: pytest.Config):
 
 
 def test_idea3(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
     messages = [{"role": "user", "content": "コンサルタントの役割は？"}]
     agent = AgentIdea({})
     prompt = agent.build_prompt({}, messages)
@@ -40,7 +37,6 @@ def test_idea3(pytestconfig: pytest.Config):
 
 
 def test_idea4(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
     messages = [{"role": "user", "content": "AIチューバーとアシスタントエージェント"}]
     agent = AgentIdea({})
     prompt = agent.build_prompt({}, messages)

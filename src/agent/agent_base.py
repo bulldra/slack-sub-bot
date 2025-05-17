@@ -29,7 +29,7 @@ class AgentSlack(Agent):
     def __init__(self, context: dict[str, Any]) -> None:
         secrets: str = str(os.getenv("SECRETS"))
         if not secrets:
-            raise ValueError("environment not defined")
+            raise ValueError("environment not defined.")
         self._secrets: dict = json.loads(secrets)
         self._slack_user_id = context.get("user_id")
         self._slack: slack_sdk.WebClient = slack_sdk.WebClient(
@@ -52,7 +52,10 @@ class AgentSlack(Agent):
         raise NotImplementedError
 
     def build_system_prompt(self) -> str:
-        with open("./conf/system_prompt.yaml", "r", encoding="utf-8") as file:
+        from pathlib import Path
+
+        conf_path = Path(__file__).resolve().parent.parent / "conf" / "system_prompt.yaml"
+        with open(conf_path, "r", encoding="utf-8") as file:
             system_prompt = file.read()
 
         weather: dict = utils.weather.Weather().get()

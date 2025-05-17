@@ -10,7 +10,6 @@ from agent.agent_gpt import AgentGPT
 
 
 def test_promprompt(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
     text = [{"role": "user", "content": ""}]
     agt = AgentGPT({})
     prompt = agt.build_prompt({}, text)
@@ -18,7 +17,6 @@ def test_promprompt(pytestconfig: pytest.Config):
 
 
 def test_completion(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
     text = [{"role": "user", "content": "コンサルタントの役割は？"}]
     agt = AgentGPT({})
     prompt = agt.build_prompt({}, text)
@@ -28,7 +26,6 @@ def test_completion(pytestconfig: pytest.Config):
 
 
 def test_completion_stream(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
     text = [{"role": "user", "content": "AITuberの役割は？"}]
     agt = AgentGPT({})
     prompt = agt.build_prompt({}, text)
