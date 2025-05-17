@@ -1,7 +1,9 @@
 import html
 import json
 from string import Template
-from typing import Any, List, NamedTuple
+from typing import Any, List
+
+from pydantic import BaseModel
 
 import requests
 from openai.types.chat import ChatCompletionMessageParam
@@ -11,10 +13,13 @@ from agent.agent_gpt import AgentGPT
 from agent.types import Chat
 
 
-class Mail(NamedTuple):
+class Mail(BaseModel):
     from_name: str
     subject: str
     content: str
+
+    class Config:
+        allow_mutation = False
 
 
 class AgentSlackMail(AgentGPT):

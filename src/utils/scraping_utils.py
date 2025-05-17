@@ -2,17 +2,22 @@ import os
 import re
 import tempfile
 import urllib
-from typing import NamedTuple, Optional, Tuple
+from typing import Optional, Tuple
+
+from pydantic import BaseModel
 
 import pypdf
 import requests
 from bs4 import BeautifulSoup
 
 
-class SiteInfo(NamedTuple):
+class SiteInfo(BaseModel):
     url: str = ""
     title: str = ""
     content: Optional[str] = None
+
+    class Config:
+        allow_mutation = False
 
 
 def is_allow_scraping(url: str) -> bool:

@@ -1,5 +1,7 @@
 import json
-from typing import Any, NamedTuple, Optional
+from typing import Any, Optional
+
+from pydantic import BaseModel
 
 from openai.types.chat import ChatCompletionMessageParam
 from openai.types.responses.function_tool_param import FunctionToolParam
@@ -22,9 +24,13 @@ from agent.types import Chat
 from function.generative_base import GenerativeBase
 
 
-class AgentExecute(NamedTuple):
+class AgentExecute(BaseModel):
     agent: type[Agent]
     arguments: dict[str, Any]
+
+    class Config:
+        allow_mutation = False
+        arbitrary_types_allowed = True
 
 
 class GenerativeAgent(GenerativeBase):
