@@ -42,6 +42,12 @@ class AgentSummarize(AgentGPT):
             prompt = prompt_template.substitute(replace_dict)
             return super().build_prompt(arguments, [Chat(role="user", content=prompt)])
 
+    def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> Chat:
+        result = super().execute(arguments, chat_history)
+        if self._site and self._site.content:
+            chat_history.append(Chat(role="assistant", content=self._site.content))
+        return result
+
     def build_message_blocks(self, content: str) -> list:
         if self._site is None:
             raise ValueError("site is empty")
