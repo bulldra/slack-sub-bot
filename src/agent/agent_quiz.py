@@ -16,6 +16,7 @@ class AgentQuiz(AgentGPT):
         self._openai_model = "gpt-4.1"
         self._openai_stream = False
         self._answer: str | None = None
+        self._choices: list[str] = []
 
     def build_prompt(
         self, arguments: dict[str, Any], chat_history: List[Chat]
@@ -34,6 +35,7 @@ class AgentQuiz(AgentGPT):
         except json.JSONDecodeError:
             return [{"type": "markdown", "text": content}]
         self._answer = str(data.get("answer"))
+        self._choices = [str(c) for c in data.get("choices", [])]
         blocks: List[dict] = [
             {
                 "type": "section",
@@ -41,26 +43,22 @@ class AgentQuiz(AgentGPT):
             },
             {"type": "divider"},
         ]
-        for idx, choice in enumerate(data.get("choices", []), start=1):
-            blocks.append(
-                {
-                    "type": "section",
-                    "text": {"type": "mrkdwn", "text": f"{idx}. {choice}"},
-                }
-            )
         return blocks
 
     def build_action_blocks(self, chat_history: List[Chat]) -> dict:
-        if not self._answer:
+        if not self._answer or not self._choices:
             return super().build_action_blocks(chat_history)
-        return {
-            "type": "actions",
-            "elements": [
+
+        elements: list[dict[str, Any]] = []
+        for idx, choice in enumerate(self._choices, start=1):
+            value = json.dumps({"choice": choice, "correct": choice == self._answer})
+            elements.append(
                 {
                     "type": "button",
-                    "text": {"type": "plain_text", "text": "答え", "emoji": True},
-                    "value": self._answer,
-                    "action_id": "button-answer",
+                    "text": {"type": "plain_text", "text": f"{idx}. {choice}", "emoji": True},
+                    "value": value,
+                    "action_id": f"button-choice-{idx}",
                 }
-            ],
-        }
+            )
+        return {"type": "actions", "elements": elements}
+

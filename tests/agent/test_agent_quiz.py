@@ -17,4 +17,13 @@ def test_build_message_blocks(pytestconfig):
         }
     )
     blocks = agent.build_message_blocks(json_content)
-    assert any("2+2" in section.get("text", {}).get("text", "") for section in blocks if section.get("type") == "section")
+    assert any(
+        "2+2" in section.get("text", {}).get("text", "")
+        for section in blocks
+        if section.get("type") == "section"
+    )
+
+    actions = agent.build_action_blocks([])
+    assert len(actions.get("elements", [])) == 4
+    payloads = [json.loads(elem["value"]) for elem in actions.get("elements", [])]
+    assert any(p.get("correct") for p in payloads)
