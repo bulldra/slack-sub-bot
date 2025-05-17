@@ -8,7 +8,7 @@ PAGE_COUNT = 100
 
 def search_messages(slack_cli, query, num=10) -> List[str]:
     if not query or not num:
-        return
+        return []
     search_results = []
     page: int = int(num / PAGE_COUNT) + 2
     for i in range(1, page):
