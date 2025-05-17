@@ -1,0 +1,16 @@
+version: 1
+project: slack-sub-bot
+functional_requirements:
+  - Slack の投稿を受けて OpenAI や Google Generative AI を利用し自動応答する
+  - URL のみを含むメッセージは記事要約または YouTube 要約を実行する
+  - /gpt コマンドで通常のチャット応答を生成する
+  - /summarize コマンドで指定 URL を要約する
+  - /youtube コマンドで動画リンクを要約する
+  - /search コマンドでウェブ検索結果を含めて回答する
+  - /recommend コマンドで Slack 履歴から関連メッセージを紹介する
+  - /idea コマンドでブレインストーミング用のアイデアを提示する
+  - /mail コマンドでメール本文を要約し投稿後にブックマークを追加する
+  - /quiz コマンドで四択クイズを出題する
+  - 会話内容から最適な機能を自動選択して実行する
+  - 次の行動候補をボタン形式で生成する
+  - 検索用キーワードを抽出する機能を備える
