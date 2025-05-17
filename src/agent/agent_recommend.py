@@ -14,6 +14,7 @@ class AgentRecommend(AgentGPT):
         super().__init__(context)
         self._openai_stream = True
         self._openai_model: str = "gpt-4.1"
+
         self._openai_temperature: float = 0.5
         self._keywords: List[str] = []
 

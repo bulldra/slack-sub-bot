@@ -42,9 +42,7 @@ class AgentSlackMail(AgentGPT):
             if res.status_code == 200:
                 mail_content = res.content.decode("utf-8", errors="replace")
                 mail_content = html.unescape(mail_content)
-                subject, content = scraping_utils.Site = scraping_utils.scraping_text(
-                    mail_content
-                )
+                subject, content = scraping_utils.scraping_text(mail_content)
                 mail_content = content
 
         subject = mail.get("subject", "")
