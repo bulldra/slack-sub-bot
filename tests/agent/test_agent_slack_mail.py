@@ -3,6 +3,7 @@ import json
 import os
 
 import pytest
+from unittest import mock
 
 from agent.agent_slack_mail import AgentSlackMail
 
@@ -42,3 +43,18 @@ def test_gpt(pytestconfig: pytest.Config):
     prompt = agent.build_prompt({}, messages)
     print(prompt)
     print(agent.completion(prompt))
+
+
+def test_execute_adds_bookmark(pytestconfig: pytest.Config):
+    os.chdir(pytestconfig.getini("pythonpath")[0])
+    context = {"channel": "C123", "ts": "123.45", "thread_ts": "123.45"}
+    agent = AgentSlackMail(context)
+    messages = [
+        {
+            "role": "user",
+            "content": json.dumps({"plain_text": "body", "subject": "sub"}),
+        }
+    ]
+    with mock.patch.object(agent._slack, "api_call") as mock_call:
+        agent.execute({}, messages)
+        mock_call.assert_called()
