@@ -35,4 +35,16 @@ jobs:
           SERVICE_ACCOUNT: ${{ secrets.SERVICE_ACCOUNT }}
           SECRETS_MANAGER: ${{ secrets.SECRETS_MANAGER }}
         run: |
-          bash deploy.sh
+          gcloud -q functions deploy "$FUNCTION_NAME" \
+            --gen2 \
+            --region=asia-northeast1 \
+            --runtime=python312 \
+            --trigger-topic="$TRIGGER_TOPIC" \
+            --timeout=120s \
+            --min-instances=0 \
+            --max-instances=30 \
+            --memory=512Mi \
+            --source=src/ \
+            --entry-point=main \
+            --service-account "$SERVICE_ACCOUNT" \
+            --set-secrets SECRETS="$SECRETS_MANAGER"
