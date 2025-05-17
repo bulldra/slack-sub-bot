@@ -29,7 +29,7 @@ class AgentSlack(Agent):
     def __init__(self, context: dict[str, Any]) -> None:
         secrets: str = str(os.getenv("SECRETS"))
         if not secrets:
-            raise ValueError("envirament not define.")
+            raise ValueError("environment not defined")
         self._secrets: dict = json.loads(secrets)
         self._slack_user_id = context.get("user_id")
         self._slack: slack_sdk.WebClient = slack_sdk.WebClient(
