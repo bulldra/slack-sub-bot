@@ -14,7 +14,6 @@ with open("secrets.json", "r", encoding="utf-8") as f:
 
 
 def test_summarize(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
     result = GenerativeAgent().generate(
         None, [{"role": "user", "content": "https://www.du-soleil.com"}]
     )
@@ -25,7 +24,6 @@ def test_summarize(pytestconfig: pytest.Config):
 
 
 def test_idea(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
     result = GenerativeAgent().generate(
         None, [{"role": "user", "content": "ビールに関するアイディア"}]
     )
@@ -37,7 +35,6 @@ def test_idea(pytestconfig: pytest.Config):
 
 
 def test_recommed(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
     result = GenerativeAgent().generate(
         None, [{"role": "user", "content": "最近のおすすめ記事を教えて"}]
     )
@@ -49,7 +46,6 @@ def test_recommed(pytestconfig: pytest.Config):
 
 
 def test_recommed_keyword(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
     result = GenerativeAgent().generate(
         None,
         [
@@ -71,7 +67,6 @@ def test_recommed_keyword(pytestconfig: pytest.Config):
 
 
 def test_text(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
     result = GenerativeAgent().generate(
         None,
         [{"role": "user", "content": "こんにちわ！"}],
@@ -84,7 +79,6 @@ def test_text(pytestconfig: pytest.Config):
 
 
 def test_gpt(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
     result = GenerativeAgent().generate(
         None,
         [{"role": "user", "content": "マーケティングに関する蘊蓄を教えて"}],
@@ -97,7 +91,6 @@ def test_gpt(pytestconfig: pytest.Config):
 
 
 def test_multi(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
     result = GenerativeAgent().generate(
         None,
         [

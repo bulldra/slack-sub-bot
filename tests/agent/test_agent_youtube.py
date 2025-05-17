@@ -12,7 +12,6 @@ with open("secrets.json", "r", encoding="utf-8") as f:
 
 def test_youtube_completion(pytestconfig: pytest.Config):
     url = "https://www.youtube.com/watch?v=aW7utklZzJs"
-    os.chdir(pytestconfig.getini("pythonpath")[0])
 
     messages = [Chat(role="user", content=url)]
     context = {

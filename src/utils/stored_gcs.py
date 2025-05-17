@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
+import logging
 from google.auth.exceptions import DefaultCredentialsError
 from google.cloud import storage
 
@@ -13,10 +14,11 @@ class StoredGcs:
         self._ttl = ttl
         self._is_refresh = is_refresh
         self._blob = None
+        self._logger = logging.getLogger(__name__)
         try:
             self._blob = storage.Client().get_bucket(bucket_name).blob(blob_name)
         except DefaultCredentialsError:
-            print("crential not setttings")
+            self._logger.warning("credentials not set")
 
     def is_exists(self) -> bool:
         if not self._blob:

@@ -1,7 +1,7 @@
 source ./.env
 
 uv pip compile pyproject.toml -o src/requirements.txt
-CLOUDSDK_PYTHON=/opt/homebrew/bin/python3.11
+CLOUDSDK_PYTHON=/opt/homebrew/bin/python3.12
 gcloud -q components update
 DEPLOY_OUTPUT=$(gcloud -q functions deploy ${FUNCTION_NAME} \
 	--gen2 \

@@ -47,7 +47,7 @@ class GenerativeAgent(GenerativeBase):
             "/search": AgentSearch,
         }
 
-        execute_que: list[AgentExecute] = []
+        execute_queue: list[AgentExecute] = []
         content: str = str(chat_history[-1].get("content", ""))
 
         if command is not None and command in command_dict:
@@ -56,12 +56,12 @@ class GenerativeAgent(GenerativeBase):
         if slack_link_utils.is_only_url(content):
             url: str = slack_link_utils.extract_and_remove_tracking_url(content)
             if scraping_utils.is_allow_scraping(url):
-                execute_que.append(
+                execute_queue.append(
                     AgentExecute(command_dict["/summarize"], {"url": url})
                 )
             elif scraping_utils.is_youtube_url(url):
-                execute_que.append(AgentExecute(command_dict["/youtube"], {"url": url}))
-            return execute_que
+                execute_queue.append(AgentExecute(command_dict["/youtube"], {"url": url}))
+            return execute_queue
 
         prompt_messages: list[ChatCompletionMessageParam] = self.build_prompt(
             chat_history
@@ -186,9 +186,9 @@ class GenerativeAgent(GenerativeBase):
                         exe = command_dict[command]
                         if function_call.arguments:
                             args = json.loads(function_call.arguments)
-                            execute_que.append(AgentExecute(exe, args))
+                            execute_queue.append(AgentExecute(exe, args))
                         else:
-                            execute_que.append(AgentExecute(exe, {}))
+                            execute_queue.append(AgentExecute(exe, {}))
                 elif function_call.type == "message":
                     messages: list[ResponseOutputText | ResponseOutputRefusal] = (
                         function_call.content
@@ -196,27 +196,27 @@ class GenerativeAgent(GenerativeBase):
                     for mes in messages:
                         text: ResponseOutputText | ResponseOutputRefusal = mes
                         if hasattr(text, "text"):
-                            execute_que.append(
+                            execute_queue.append(
                                 AgentExecute(
                                     agent=command_dict["/text"],
                                     arguments={"content": text.text},
                                 ),
                             )
                         else:
-                            execute_que.append(
+                            execute_queue.append(
                                 AgentExecute(
                                     agent=command_dict["/text"],
                                     arguments={"content": str(text)},
                                 ),
                             )
-        if len(execute_que) == 0:
-            execute_que.append(AgentExecute(agent=command_dict["/gpt"], arguments={}))
-        elif len(execute_que) >= 2:
-            execute_que.append(
+        if len(execute_queue) == 0:
+            execute_queue.append(AgentExecute(agent=command_dict["/gpt"], arguments={}))
+        elif len(execute_queue) >= 2:
+            execute_queue.append(
                 AgentExecute(
                     agent=command_dict["/notification"],
                     arguments={"content": "処理が完了したよ！"},
                 )
             )
 
-        return execute_que
+        return execute_queue

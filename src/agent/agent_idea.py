@@ -47,7 +47,10 @@ class AgentIdea(AgentGPT):
                 )
             )
         if len(related_messages) >= 1:
-            with open("./conf/idea_prompt.yaml", "r", encoding="utf-8") as file:
+            from pathlib import Path
+
+            conf_path = Path(__file__).resolve().parent.parent / "conf" / "idea_prompt.yaml"
+            with open(conf_path, "r", encoding="utf-8") as file:
                 template = Template(file.read())
             replace_map = {
                 "keywords": ", ".join(keywords) if keywords else "なし",
