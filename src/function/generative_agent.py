@@ -17,6 +17,7 @@ from agent.agent_search import AgentSearch
 from agent.agent_slack_mail import AgentSlackMail
 from agent.agent_summarize import AgentSummarize
 from agent.agent_youtube import AgentYoutube
+from agent.agent_quiz import AgentQuiz
 from agent.types import Chat
 from function.generative_base import GenerativeBase
 
@@ -45,6 +46,7 @@ class GenerativeAgent(GenerativeBase):
             "/youtube": AgentYoutube,
             "/notification": AgentNotification,
             "/search": AgentSearch,
+            "/quiz": AgentQuiz,
         }
 
         execute_que: list[AgentExecute] = []
@@ -166,6 +168,23 @@ class GenerativeAgent(GenerativeBase):
                     "required": [],
                 },
             },
+            {
+                "type": "function",
+                "name": "quiz",
+                "description": "4択クイズを出題する",
+                "strict": False,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "topic": {
+                            "type": "string",
+                            "description": "クイズのトピック",
+                        },
+                    },
+                    "required": [],
+                },
+            },
+
             {
                 "type": "function",
                 "strict": False,
