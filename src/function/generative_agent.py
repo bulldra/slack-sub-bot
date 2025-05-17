@@ -52,6 +52,17 @@ class GenerativeAgent(GenerativeBase):
         execute_queue: list[AgentExecute] = []
         content: str = str(chat_history[-1].get("content", ""))
 
+        try:
+            payload = json.loads(content)
+            if isinstance(payload, dict) and {
+                "choice",
+                "correct",
+                "explanation",
+            }.issubset(payload.keys()):
+                return [AgentExecute(command_dict["/quiz"], {"choice_payload": payload})]
+        except json.JSONDecodeError:
+            pass
+
         if command is not None and command in command_dict:
             return [AgentExecute(command_dict[command], {})]
 
