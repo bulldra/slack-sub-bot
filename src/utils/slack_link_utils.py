@@ -36,10 +36,18 @@ def is_contains_url(text: str) -> bool:
 
 
 def is_only_url(text: str) -> bool:
-    if is_contains_url(text):
-        text = re.sub(r"<([^|>]+).*>$", "\\1", text)
-        return parse_url(text) == extract_url(text)
-    else:
+    """Return True if the text consists solely of a URL."""
+    if not text:
+        return False
+
+    if not is_contains_url(text):
+        return False
+
+    sanitized = re.sub(r"^<([^|>]+)(?:\|[^>]*)?>$", r"\1", text.strip())
+
+    try:
+        return parse_url(sanitized) == extract_url(text)
+    except ValueError:
         return False
 
 

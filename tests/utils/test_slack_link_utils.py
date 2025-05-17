@@ -25,6 +25,14 @@ def test_is_only_url():
             argument="<https://www.example.com/?utm_medium=1&amp;gclid=1dd|aa>",
             expected=True,
         ),
+        Case(
+            argument=" https://www.example.com/ ",
+            expected=True,
+        ),
+        Case(
+            argument="<https://www.example.com/>\n",
+            expected=True,
+        ),
         Case(argument="あいう<https://www.example.com/?a=1&a=2|aa>", expected=False),
     ]
     for case in case_list:
