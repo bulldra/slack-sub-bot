@@ -1,3 +1,6 @@
+#!/bin/bash
+set -euo pipefail
+
 source ./.env
 
 uv pip compile pyproject.toml -o src/requirements.txt
