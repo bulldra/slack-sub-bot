@@ -41,7 +41,8 @@ class StoredGcs:
             return self._blob.download_as_text()
         return None
 
-    def parsist(self, text: str, content_type="application/json") -> None:
+    def persist(self, text: str, content_type="application/json") -> None:
+        """Upload text content to the configured GCS blob."""
         if not self._blob:
             return
         self._blob.upload_from_string(text, content_type=content_type)
