@@ -1,6 +1,7 @@
 import json
+import random
 from string import Template
-from typing import Any, List, Dict
+from typing import Any, Dict, List
 
 from openai.types.chat import ChatCompletionMessageParam
 
@@ -9,7 +10,6 @@ from agent.types import Chat
 
 
 class AgentQuiz(AgentGPT):
-    """Simple quiz game agent."""
 
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
@@ -18,7 +18,6 @@ class AgentQuiz(AgentGPT):
         self._choices: List[Dict[str, Any]] = []
 
     def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
-        """Handle quiz question or evaluate answer."""
         if "choice_payload" in arguments:
             payload = arguments.get("choice_payload")
             if isinstance(payload, str):
@@ -26,6 +25,8 @@ class AgentQuiz(AgentGPT):
                     payload = json.loads(payload)
                 except json.JSONDecodeError:
                     payload = {}
+            if not isinstance(payload, dict):
+                payload = {}
 
             correct = bool(payload.get("correct"))
             explanation = str(payload.get("explanation", ""))
@@ -33,15 +34,17 @@ class AgentQuiz(AgentGPT):
             if explanation:
                 text += f" {explanation}"
 
-            blocks: List[dict] = super().build_message_blocks(text)
+            result_block = {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": text},
+            }
             result: Chat = Chat(role="assistant", content=text)
             chat_history.append(result)
-            action_blocks = self.build_action_blocks(chat_history)
-            blocks.append(action_blocks)
-            self.update_message(blocks)
+            self.update_message([result_block])
             return result
-
-        return super().execute(arguments, chat_history)
+        else:
+            self.tik_process()
+            super().execute(arguments, chat_history)
 
     def build_prompt(
         self, arguments: dict[str, Any], chat_history: List[Chat]
@@ -65,6 +68,10 @@ class AgentQuiz(AgentGPT):
         explanations = data.get("explanations", ["" for _ in choices])
         answer_text = str(data.get("answer", ""))
 
+        combined = list(zip(choices, explanations))
+        random.shuffle(combined)
+        choices, explanations = zip(*combined) if combined else ([], [])
+
         self._choices = []
         for choice, exp in zip(choices, explanations):
             self._choices.append(
@@ -78,7 +85,7 @@ class AgentQuiz(AgentGPT):
         blocks: List[dict] = [
             {
                 "type": "section",
-                "text": {"type": "mrkdwn", "text": f"*Q.* {question}"},
+                "text": {"type": "mrkdwn", "text": f"ここでクイズです。 {question}"},
             },
             {"type": "divider"},
         ]
@@ -101,7 +108,11 @@ class AgentQuiz(AgentGPT):
             elements.append(
                 {
                     "type": "button",
-                    "text": {"type": "plain_text", "text": item["choice"], "emoji": True},
+                    "text": {
+                        "type": "plain_text",
+                        "text": item["choice"],
+                        "emoji": True,
+                    },
                     "value": value,
                     "action_id": f"button-choice-{idx}",
                 }
