@@ -14,7 +14,6 @@ Case = collections.namedtuple("Case", ("argument", "expected"))
 
 
 def test_scraping(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
     messages = [
         Chat(
             role="user",

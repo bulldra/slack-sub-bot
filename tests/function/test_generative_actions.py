@@ -10,7 +10,6 @@ with open("secrets.json", "r", encoding="utf-8") as f:
 
 
 def test(pytestconfig: pytest.Config):
-    os.chdir(pytestconfig.getini("pythonpath")[0])
     next_action_generator = GenerativeActions()
     result = next_action_generator.generate(
         chat_history=[

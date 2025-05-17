@@ -27,7 +27,10 @@ class AgentYoutube(AgentGemini):
         video_id = self.extract_video_id(url)
         url = f"https://www.youtube.com/watch?v={video_id}" if video_id else url
         self._video_url = url
-        with open("./conf/youtube_prompt.yaml", "r", encoding="utf-8") as file:
+        from pathlib import Path
+
+        conf_path = Path(__file__).resolve().parent.parent / "conf" / "youtube_prompt.yaml"
+        with open(conf_path, "r", encoding="utf-8") as file:
             prompt = file.read()
         prompt_messages: list[types.Part] = [
             types.Part(file_data=types.FileData(file_uri=url, mime_type="video/mp4")),
