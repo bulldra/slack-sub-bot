@@ -1,4 +1,5 @@
 import json
+import os
 
 import requests
 from typing import Optional
@@ -12,11 +13,18 @@ class Weather:
     def __init__(self):
         from pathlib import Path
 
-        conf_path = Path(__file__).resolve().parent.parent / "conf" / "gcs_bucket.json"
-        with open(conf_path, "r", encoding="utf-8") as json_file:
-            config: dict = json.load(json_file)
-            self._gcs_bucket_name: str = config["gcs_bucket_name"]
-            self._gcs_weather_dir: str = config["gcs_weather_dir"]
+        env_json = os.getenv("GCS_BUCKET_JSON")
+        if env_json:
+            config: dict = json.loads(env_json)
+        else:
+            conf_path = (
+                Path(__file__).resolve().parent.parent / "conf" / "gcs_bucket.json"
+            )
+            with open(conf_path, "r", encoding="utf-8") as json_file:
+                config = json.load(json_file)
+
+        self._gcs_bucket_name: str = config["gcs_bucket_name"]
+        self._gcs_weather_dir: str = config["gcs_weather_dir"]
 
     def get(self, area_no: int = 130000):
         """Return weather data as a dictionary for the specified area."""
