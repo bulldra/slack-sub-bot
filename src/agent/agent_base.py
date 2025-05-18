@@ -76,18 +76,19 @@ class AgentSlack(Agent):
         return system_prompt
 
     def tik_process(self) -> None:
-        if self._collect_blocks is None:
-            self._processing_message += "."
-            blocks: list = [
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": self._processing_message,
-                    },
+        """Update Slack with a simple processing progress indicator."""
+        self._processing_message += "."
+        blocks: list = [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": self._processing_message,
                 },
-            ]
-            self.update_message(blocks)
+            },
+        ]
+        # When collect_blocks is enabled, force an update so progress is visible
+        self.update_message(blocks, force=True)
 
     def build_message_blocks(self, content: str) -> list[dict[str, Any]]:
         if not content:
@@ -113,8 +114,14 @@ class AgentSlack(Agent):
         else:
             raise ValueError("Failed to post message to Slack.")
 
-    def update_message(self, blocks: list) -> None:
-        if self._collect_blocks is not None:
+    def update_message(self, blocks: list, *, force: bool = False) -> None:
+        """Update the Slack message.
+
+        If ``collect_blocks`` is enabled this normally only collects blocks for
+        the final flush. When ``force`` is True the update is sent immediately
+        regardless of ``collect_blocks`` so progress can be shown in realtime.
+        """
+        if self._collect_blocks is not None and not force:
             self._collect_blocks.extend(blocks)
             return
         pieces: list[str] = []
