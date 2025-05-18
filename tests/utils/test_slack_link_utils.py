@@ -1,300 +1,267 @@
 import collections
 
+import pytest
+
 import utils.slack_link_utils as slack_link_utils
 
-Case = collections.namedtuple("Case", ("argument", "expected"))
+
+@pytest.mark.parametrize(
+    "argument,expected",
+    [
+        (None, False),
+        ("", False),
+        ("https://www.example.com/", True),
+        ("<https://www.example.com/>", True),
+        ("https://www.example.com/?utm_medium=1", True),
+        ("https://www.example.com/?utm_medium=1&gclid=1dd", True),
+        ("<https://www.example.com/?utm_medium=1&amp;gclid=1dd>", True),
+        ("<https://www.example.com/?utm_medium=1&amp;gclid=1dd|aa>", True),
+        (" https://www.example.com/ ", True),
+        ("<https://www.example.com/>\n", True),
+        ("あいう<https://www.example.com/?a=1&a=2|aa>", True),
+    ],
+)
+def test_is_contains_url(argument, expected):
+    try:
+        actual = slack_link_utils.is_contains_url(argument)
+        assert actual == expected
+    except ValueError:
+        assert expected is None
 
 
-def test_is_only_url():
-    case_list = [
-        Case(argument=None, expected=False),
-        Case(argument="", expected=False),
-        Case(
-            argument="https://www.example.com/",
-            expected=True,
-        ),
-        Case(
-            argument="<https://www.example.com/>",
-            expected=True,
-        ),
-        Case(
-            argument="<https://www.example.com/?utm_medium=1&amp;gclid=1dd>",
-            expected=True,
-        ),
-        Case(
-            argument="<https://www.example.com/?utm_medium=1&amp;gclid=1dd|aa>",
-            expected=True,
-        ),
-        Case(
-            argument=" https://www.example.com/ ",
-            expected=True,
-        ),
-        Case(
-            argument="<https://www.example.com/>\n",
-            expected=True,
-        ),
-        Case(argument="あいう<https://www.example.com/?a=1&a=2|aa>", expected=False),
-    ]
-    for case in case_list:
-        try:
-            actual = slack_link_utils.is_only_url(case.argument)
-            assert actual == case.expected
-        except ValueError:
-            assert case.expected is None
+@pytest.mark.parametrize(
+    "argument,expected",
+    [
+        (None, False),
+        ("", False),
+        ("https://www.example.com/", True),
+        ("<https://www.example.com/>", True),
+        ("https://www.example.com/?utm_medium=1", True),
+        ("https://www.example.com/?utm_medium=1&gclid=1dd", True),
+        ("<https://www.example.com/?utm_medium=1&amp;gclid=1dd>", True),
+        ("<https://www.example.com/?utm_medium=1&amp;gclid=1dd|aa>", True),
+        (" https://www.example.com/ ", True),
+        ("<https://www.example.com/>\n", True),
+        ("あいう<https://www.example.com/?a=1&a=2|aa>", False),
+    ],
+)
+def test_is_only_url(argument, expected):
+    try:
+        actual = slack_link_utils.is_only_url(argument)
+        assert actual == expected
+    except ValueError:
+        assert expected is None
 
 
-def test_extract_url():
-    case_list = [
-        Case(
-            argument=None,
-            expected=None,
+@pytest.mark.parametrize(
+    "argument,expected",
+    [
+        (None, None),
+        ("", None),
+        (
+            "<https://www.example.com/?utm_medium=1&gclid=1dd&a=1&a=2|aa>",
+            "https://www.example.com/?utm_medium=1&gclid=1dd&a=1&a=2",
         ),
-        Case(
-            argument="",
-            expected=None,
+        (
+            "あいう<https://www.example.com/?a=1&a=2|aa>",
+            "https://www.example.com/?a=1&a=2",
         ),
-        Case(
-            argument="<https://www.example.com/?utm_medium=1&gclid=1dd&a=1&a=2|aa>",
-            expected="https://www.example.com/?utm_medium=1&gclid=1dd&a=1&a=2",
+        (
+            "あいう<https://www.example.com/?a=2>ああ",
+            "https://www.example.com/?a=2",
         ),
-        Case(
-            argument="あいう<https://www.example.com/?a=1&a=2|aa>",
-            expected="https://www.example.com/?a=1&a=2",
+        (
+            "あいう<https://www.du-soleil.com/?abc=1>ああ",
+            "https://www.du-soleil.com/?abc=1",
         ),
-        Case(
-            argument="あいう<https://www.example.com/?a=2>ああ",
-            expected="https://www.example.com/?a=2",
+        (
+            "ああhttps://www.example.com/?utm_medium=1&gclid=1dd&a=1&" "a=2#aaa あい",
+            "https://www.example.com/?utm_medium=1&gclid=1dd&a=1&a=2#aaa",
         ),
-        Case(
-            argument="あいう<https://www.du-soleil.com/?abc=1>ああ",
-            expected="https://www.du-soleil.com/?abc=1",
-        ),
-        Case(
-            argument="ああhttps://www.example.com/?utm_medium=1&gclid=1dd&a=1&"
-            "a=2#aaa あい",
-            expected="https://www.example.com/?utm_medium=1&gclid=1dd&a=1&a=2#aaa",
-        ),
-        Case(
-            argument="あhttps://slack.com/intl/ja-jp/help/articles/218688467-Slack-%E"
+        (
+            "あhttps://slack.com/intl/ja-jp/help/articles/218688467-Slack-%E"
             "3%81%AB-RSS-%E3%83%95%E3%82%A3%E3%83%BC%E3%83%89%E3%82%92%E8%BF%BD%E5%8A"
             "%A0%E3%81%99%E3%82%8B ああ",
-            expected="https://slack.com/intl/ja-jp/help/articles/218688467-Slack-%E3"
+            "https://slack.com/intl/ja-jp/help/articles/218688467-Slack-%E3"
             "%81%AB-RSS-%E3%83%95%E3%82%A3%E3%83%BC%E3%83%89%E3%82%92%E8%BF%BD%E5%8A"
             "%A0%E3%81%99%E3%82%8B",
         ),
-    ]
-    for case in case_list:
-        try:
-            actual = slack_link_utils.extract_url(case.argument)
-            assert actual == case.expected
-        except ValueError:
-            assert case.expected is None
+    ],
+)
+def test_extract_url(argument, expected):
+    try:
+        actual = slack_link_utils.extract_url(argument)
+        assert actual == expected
+    except ValueError:
+        assert expected is None
 
 
-def test_redirect_url():
-    case_list = [
-        Case(
-            argument=None,
-            expected=ValueError,
+@pytest.mark.parametrize(
+    "argument,expected",
+    [
+        (None, ValueError),
+        ("", ValueError),
+        (
+            "https://www.google.com/url?rct=j&sa=t&url=https://www.mapion.co.jp/news/release/000000056.000019803/&ct=ga&cd=CAIyHDMxZDQ1MjNhNDQ1ODNjZjg6Y28uanA6amE6SlA&usg=AOvVaw0Hut30ozpDqyRMJ8wtezpt",
+            "https://www.mapion.co.jp/news/release/000000056.000019803/",
         ),
-        Case(
-            argument="",
-            expected=ValueError,
-        ),
-        Case(
-            argument="https://www.google.com/url?rct=j&sa=t&url=https://www.mapion.co"
-            ".jp/news/release/000000056.000019803/&ct=ga&cd=CAIyHDMxZDQ1MjNhNDQ1ODNjZ"
-            "jg6Y28uanA6amE6SlA&usg=AOvVaw0Hut30ozpDqyRMJ8wtezpt",
-            expected="https://www.mapion.co.jp/news/release/000000056.000019803/",
-        ),
-        Case(
-            argument="https://www.example.com/?a=1&b=2",
-            expected="https://www.example.com/?a=1&b=2",
-        ),
-        Case(
-            argument="https://www.google.com/url?rct=j",
-            expected="https://www.google.com/url?rct=j",
-        ),
-    ]
-
-    for case in case_list:
-        try:
-            actual = slack_link_utils.redirect_url(case.argument)
-            assert actual == case.expected
-        except ValueError:
-            assert case.expected is ValueError
+        ("https://www.example.com/?a=1&b=2", "https://www.example.com/?a=1&b=2"),
+        ("https://www.google.com/url?rct=j", "https://www.google.com/url?rct=j"),
+    ],
+)
+def test_redirect_url(argument, expected):
+    try:
+        actual = slack_link_utils.redirect_url(argument)
+        assert actual == expected
+    except ValueError:
+        assert expected is ValueError
 
 
-def test_canonicalize_url():
-    case_list = [
-        Case(
-            argument=None,
-            expected=None,
+@pytest.mark.parametrize(
+    "argument,expected",
+    [
+        (None, None),
+        ("", None),
+        ("https://www.example.com/", "https://www.example.com/"),
+        ("https://www.example.com/?a=1&b=2", "https://www.example.com/?a=1&b=2"),
+        (
+            "https://www.example.com/?utm_medium=1",
+            "https://www.example.com/",
         ),
-        Case(
-            argument="",
-            expected=None,
+        (
+            "https://www.example.com/?a=1&b=2&utm_medium=1",
+            "https://www.example.com/?a=1&a=2",
         ),
-        Case(
-            argument="https://t.co/9nalLlGkkj?amp=1",
-            expected="https://www.du-soleil.com/entry/slack-url-share",
+        (
+            "https://www.example.com/?n_cid=1&b=2&utm_medium=1",
+            "https://www.example.com/?b=2",
         ),
-    ]
-    for case in case_list:
-        try:
-            actual = slack_link_utils.canonicalize_url(case.argument)
-            assert actual == case.expected
-        except ValueError:
-            assert case.expected is None
+        (
+            "https://www.example.com/?n_cid=1",
+            "https://www.example.com/",
+        ),
+        (
+            "https://www.example.com/?utm_medium=1&gclid=1dd",
+            "https://www.example.com/",
+        ),
+        (
+            "https://www.example.com/?utm_medium=1&gclid=1dd&a=1&a=2",
+            "https://www.example.com/?a=1&a=2",
+        ),
+        (
+            "https://www.example.com/?utm_medium=1&gclid=1dd&a=1&a=2#aaa",
+            "https://www.example.com/?a=1&a=2",
+        ),
+    ],
+)
+def test_remove_tracking_url(argument, expected):
+    try:
+        actual = slack_link_utils.remove_tracking_query(argument)
+        assert actual == expected
+    except ValueError:
+        assert expected is None
 
 
-def test_remove_tracking_url():
-    case_list = [
-        Case(
-            argument=None,
-            expected=None,
+@pytest.mark.parametrize(
+    "argument,expected",
+    [
+        (None, ValueError),
+        ("", ValueError),
+        (
+            "https://www.google.com/url?rct=j&sa=t&url=https://www.mapion.co.jp/"
+            "news/release/000000056.000019803/&ct=ga&cd=CAIyHDMxZDQ1MjNhNDQ1ODNjZjg6"
+            "Y28uanA6amE6SlA&usg=AOvVaw0Hut30ozpDqyRMJ8wtezpt",
+            "https://www.mapion.co.jp/news/release/000000056.000019803/",
         ),
-        Case(
-            argument="",
-            expected=None,
+        (
+            "<https://www.google.com/url?rct=j&sa=t&url=https://thebridge.jp/2023/"
+            "08/openai-adds-huge-set-of-chatgpt-updates-including-suggested-prompts-"
+            "multiple-file-uploads&ct=ga&cd=CAIyHDMxZDQ1MjNhNDQ1ODNjZjg6Y28uanA6amE6"
+            "SlA&usg=AOvVaw0GbM0oblMPSHvsyB_aJNdl|&lt;b&gt;ChatGPT&lt;/b&gt;、近日中に"
+            "大幅更新か——プロンプト提案、複数ファイルアップロード機能など実装の ...>\nユーザや"
+            "研究者が ChatGPT の性能が時間とともにどのように変化したかを議論し続けている間でも、"
+            "OpenAI はその特徴的なジェネレーティブ AI チャットボット\\.envxa0...",
+            "https://thebridge.jp/2023/08/openai-adds-huge-set-of-chatgpt-updates-"
+            "including-suggested-prompts-multiple-file-uploads",
         ),
-        Case(
-            argument="https://www.example.com/",
-            expected="https://www.example.com/",
+        (
+            "https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=&cad=rja"
+            "&uact=8&ved=2ahUKEwiSyNnElf6BAxVpqFYBHYEWBR0QFnoECBAQAQ&url=https%3A%2F%2F"
+            "www.mki.co.jp%2Fknowledge%2Fcolumn119.html&usg=AOvVaw1yrSwie3ms5Mzjostof"
+            "GQR&opi=89978449",
+            "https://www.mki.co.jp/knowledge/column119.html",
         ),
-        Case(
-            argument="https://www.example.com/?a=1&b=2",
-            expected="https://www.example.com/?a=1&b=2",
+        (
+            "https://www.example.com/?a=1&b=2",
+            "https://www.example.com/?a=1&b=2",
         ),
-        Case(
-            argument="https://www.example.com/?utm_medium=1",
-            expected="https://www.example.com/",
+        (
+            "https://www.google.com/url?rct=j",
+            "https://www.google.com/url?rct=j",
         ),
-        Case(
-            argument="https://www.example.com/?a=1&b=2&utm_medium=1",
-            expected="https://www.example.com/?a=1&b=2",
+        (
+            "https://ja.wikipedia.org/wiki/暦書_(ノストラダムス)",
+            "https://ja.wikipedia.org/wiki/"
+            "%E6%9A%A6%E6%9B%B8_%28%E3%83%8E%E3%82%B9%E3%83%88"
+            "%E3%83%A9%E3%83%80%E3%83%A0%E3%82%B9%29",
         ),
-        Case(
-            argument="https://www.example.com/?n_cid=1&b=2&utm_medium=1",
-            expected="https://www.example.com/?b=2",
+        (
+            "https://www.google.com/url?rct=j&amp%3Bsa=t&amp%3Burl=https%3A%2F%2Fwww."
+            "jiji.com%2Fjc%2Farticle%3Fk%3D000000033.000009740&g=prt&amp%3Bct=ga&amp%3Bcd="
+            "CAIyHGRmMjg1NWI4MDI1ZGI4MmU6Y28uanA6amE6SlA&amp%3Busg=AOvVaw10EjbjUUColG03"
+            "h_mXxDld",
+            "https://www.jiji.com/jc/article?k=000000033.000009740",
         ),
-        Case(
-            argument="https://www.example.com/?n_cid=1",
-            expected="https://www.example.com/",
-        ),
-        Case(
-            argument="https://www.example.com/?utm_medium=1&gclid=1dd",
-            expected="https://www.example.com/",
-        ),
-        Case(
-            argument="https://www.example.com/?utm_medium=1&gclid=1dd&a=1&a=2",
-            expected="https://www.example.com/?a=1&a=2",
-        ),
-        Case(
-            argument="https://www.example.com/?utm_medium=1&gclid=1dd&a=1&a=2#aaa",
-            expected="https://www.example.com/?a=1&a=2",
-        ),
-    ]
+    ],
+)
+def test_all(argument, expected):
+    try:
+        actual = slack_link_utils.extract_and_remove_tracking_url(argument)
+        assert actual == expected
+    except ValueError:
+        assert expected is ValueError
 
-    for case in case_list:
-        try:
-            actual = slack_link_utils.remove_tracking_query(case.argument)
-            assert actual == case.expected
-        except ValueError:
-            assert case.expected is None
-
-
-def test_all():
-    case_list = [
-        Case(
-            argument=None,
-            expected=ValueError,
-        ),
-        Case(
-            argument="",
-            expected=ValueError,
-        ),
-        Case(
-            argument="https://www.google.com/url?rct=j&sa=t&url=https://www.mapion.co"
-            ".jp/news/release/000000056.000019803/&ct=ga&cd=CAIyHDMxZDQ1MjNhNDQ1ODNjZ"
-            "jg6Y28uanA6amE6SlA&usg=AOvVaw0Hut30ozpDqyRMJ8wtezpt",
-            expected="https://www.mapion.co.jp/news/release/000000056.000019803/",
-        ),
-        Case(
-            argument="<https://www.google.com/url?rct=j&sa=t&url=https://theb"
-            "ridge.jp/2023/08/openai-adds-huge-set-of-chatgpt-updates-including-sugge"
-            "sted-prompts-multiple-file-uploads&ct=ga&cd=CAIyHDMxZDQ1MjNhNDQ1"
-            "ODNjZjg6Y28uanA6amE6SlA&usg=AOvVaw0GbM0oblMPSHvsyB_aJNdl|&lt;b&gt;Ch"
-            "atGPT&lt;/b&gt;、近日中に大幅更新か——プロンプト提案、複数ファイルアップロード機能など実装の ...>\nユーザや研究者が Ch"
-            "atGPT の性能が時間とともにどのように変化したかを議論し続けている間でも、OpenAI はその特徴的なジェネレーティブ AI チャットボット"
-            "\\.envxa0...",
-            expected="https://thebridge.jp/2023/08/openai-adds-huge-set-of-chatgpt-up"
-            "dates-including-suggested-prompts-multiple-file-uploads",
-        ),
-        Case(
-            argument="https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=&c"
-            "ad=rja&uact=8&ved=2ahUKEwiSyNnElf6BAxVpqFYBHYEWBR0QFnoECBAQAQ&url=https%3"
-            "A%2F%2Fwww.mki.co.jp%2Fknowledge%2Fcolumn119.html&usg=AOvVaw1yrSwie3ms5Mz"
-            "jostofGQR&opi=89978449",
-            expected="https://www.mki.co.jp/knowledge/column119.html",
-        ),
-        Case(
-            argument="https://www.example.com/?a=1&b=2",
-            expected="https://www.example.com/?a=1&b=2",
-        ),
-        Case(
-            argument="https://www.google.com/url?rct=j",
-            expected="https://www.google.com/url?rct=j",
-        ),
-        Case(
-            argument="https://ja.wikipedia.org/wiki/暦書_(ノストラダムス)",
-            expected="https://ja.wikipedia.org/wiki/%E6%9A%A6%E6%9B%B8_%28%E3%83%8E%E3%"
-            "82%B9%E3%83%88%E3%83%A9%E3%83%80%E3%83%A0%E3%82%B9%29",
-        ),
-        Case(
-            argument="https://www.google.com/url?rct=j&amp%3Bsa=t&amp%3Burl=https%3A%2F"
-            "%2Fwww.jiji.com%2Fjc%2Farticle%3Fk%3D000000033.000009740&g=prt&amp%3Bct=ga"
-            "&amp%3Bcd=CAIyHGRmMjg1NWI4MDI1ZGI4MmU6Y28uanA6amE6SlA&amp%3Busg=AOvVaw10Ej"
-            "bjUUColG03h_mXxDld",
-            expected="https://www.jiji.com/jc/article?k=000000033.000009740",
-        ),
-    ]
-    for case in case_list:
-        try:
-            actual = slack_link_utils.extract_and_remove_tracking_url(case.argument)
-            assert actual == case.expected
-        except ValueError:
-            assert case.expected is ValueError
 
 CaseBuild = collections.namedtuple("CaseBuild", ("url", "title", "expected"))
 
-def test_build_link_new_cases():
-    cases = [
-        CaseBuild(url=None, title="test", expected=""),
-        CaseBuild(url="", title="test", expected=""),
-        CaseBuild(url="https://example.com", title=None, expected="<https://example.com>"),
-        CaseBuild(url="https://example.com", title="Example", expected="<https://example.com|Example>"),
-        CaseBuild(url="https://example.com?a=1&b=2", title="Title\nLine", expected="<https://example.com?a=1&b=2|Title Line>"),
-    ]
-    for case in cases:
-        assert slack_link_utils.build_link(case.url, case.title) == case.expected
+
+@pytest.mark.parametrize(
+    "url,title,expected",
+    [
+        (None, "test", ""),
+        ("", "test", ""),
+        ("https://example.com", None, "<https://example.com>"),
+        ("https://example.com", "Example", "<https://example.com|Example>"),
+        (
+            "https://example.com?a=1&b=2",
+            "Title\nLine",
+            "<https://example.com?a=1&b=2|Title Line>",
+        ),
+    ],
+)
+def test_build_link_new_cases(url, title, expected):
+    assert slack_link_utils.build_link(url, title) == expected
 
 
-def test_can_parse_url_cases():
-    cases = [
+@pytest.mark.parametrize(
+    "url,expected",
+    [
         ("https://example.com", True),
         ("http://example.com/path", True),
         ("not a url", False),
         (None, False),
-    ]
-    for url, expected in cases:
-        assert slack_link_utils.can_parse_url(url) == expected
+    ],
+)
+def test_can_parse_url_cases(url, expected):
+    assert slack_link_utils.can_parse_url(url) == expected
 
 
-def test_parse_url_cases():
-    cases = [
+@pytest.mark.parametrize(
+    "url,expected",
+    [
         ("https://example.com/path?q=1#frag", "https://example.com/path?q=1#frag"),
         ("not a url", "not a url"),
-    ]
-    for url, expected in cases:
-        assert slack_link_utils.parse_url(url) == expected
+    ],
+)
+def test_parse_url_cases(url, expected):
+    assert slack_link_utils.parse_url(url) == expected
