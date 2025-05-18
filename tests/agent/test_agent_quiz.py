@@ -18,7 +18,11 @@ def test_build_message_blocks(pytestconfig):
         }
     )
     blocks = agent.build_message_blocks(json_content)
-    assert any("2+2" in section.get("text", {}).get("text", "") for section in blocks if section.get("type") == "section")
+    assert any(
+        "2+2" in section.get("text", {}).get("text", "")
+        for section in blocks
+        if section.get("type") == "section"
+    )
 
 
 def test_build_action_blocks(pytestconfig):

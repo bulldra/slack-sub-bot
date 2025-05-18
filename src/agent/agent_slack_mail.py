@@ -79,7 +79,9 @@ class AgentSlackMail(AgentGPT):
 
         from pathlib import Path
 
-        conf_path = Path(__file__).resolve().parent.parent / "conf" / "slack_mail_prompt.yaml"
+        conf_path = (
+            Path(__file__).resolve().parent.parent / "conf" / "slack_mail_prompt.yaml"
+        )
         with open(conf_path, "r", encoding="utf-8") as file:
             prompt_template = Template(file.read())
             prompt = prompt_template.substitute(
