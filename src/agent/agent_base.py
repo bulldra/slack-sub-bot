@@ -4,7 +4,7 @@ import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from string import Template
-from typing import Any, List
+from typing import Any, List, Optional
 
 import slack_sdk
 
@@ -47,6 +47,8 @@ class AgentSlack(Agent):
         self._ts = str(context.get("ts"))
         self._thread_ts = str(context.get("thread_ts"))
         self._context: dict[str, Any] = context
+        # A list for collecting Slack blocks when batch mode is enabled
+        self._collect_blocks: Optional[list] = context.get("collect_blocks")
 
     def execute(self, arguments, chat_history) -> None:
         raise NotImplementedError
@@ -74,17 +76,18 @@ class AgentSlack(Agent):
         return system_prompt
 
     def tik_process(self) -> None:
-        self._processing_message += "."
-        blocks: list = [
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": self._processing_message,
+        if self._collect_blocks is None:
+            self._processing_message += "."
+            blocks: list = [
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": self._processing_message,
+                    },
                 },
-            },
-        ]
-        self.update_message(blocks)
+            ]
+            self.update_message(blocks)
 
     def build_message_blocks(self, content: str) -> list[dict[str, Any]]:
         if not content:
@@ -92,6 +95,8 @@ class AgentSlack(Agent):
         return [{"type": "markdown", "text": content}]
 
     def next_placeholder(self) -> str:
+        if self._collect_blocks is not None:
+            return self._ts
         res = self._slack.chat_postMessage(
             channel=self._channel,
             thread_ts=self._thread_ts,
@@ -109,6 +114,9 @@ class AgentSlack(Agent):
             raise ValueError("Failed to post message to Slack.")
 
     def update_message(self, blocks: list) -> None:
+        if self._collect_blocks is not None:
+            self._collect_blocks.extend(blocks)
+            return
         pieces: list[str] = []
         for b in blocks:
             if b["type"] == "section":
@@ -130,6 +138,32 @@ class AgentSlack(Agent):
             text=text,
             unfurl_links=True,
         )
+
+    def flush_blocks(self) -> None:
+        if self._collect_blocks is None:
+            return
+        pieces: list[str] = []
+        for b in self._collect_blocks:
+            if b["type"] == "section":
+                txt_obj = b.get("text", {})
+                if isinstance(txt_obj, dict):
+                    if txt_obj.get("type") in ("mrkdwn", "plain_text"):
+                        pieces.append(txt_obj.get("text", ""))
+            elif b["type"] == "markdown":
+                pieces.append(str(b.get("text", "")))
+        text: str = "\n".join(pieces)
+        text_byte: bytes = text.encode("utf-8")
+        if len(text_byte) > 3000:
+            text_byte = text_byte[:3000]
+        text = text_byte.decode("utf-8", errors="ignore")
+        self._slack.chat_update(
+            channel=self._channel,
+            ts=self._ts,
+            blocks=self._collect_blocks,
+            text=text,
+            unfurl_links=True,
+        )
+        self._collect_blocks.clear()
 
     def delete_message(self) -> None:
         self._slack.chat_delete(

@@ -41,8 +41,12 @@ class AgentGPT(AgentSlack):
             self.tik_process()
             content: str = ""
             if self._openai_stream:
-                for content in self.completion_stream(prompt_messages):
-                    self.update_message(self.build_message_blocks(content))
+                if self._collect_blocks is None:
+                    for content in self.completion_stream(prompt_messages):
+                        self.update_message(self.build_message_blocks(content))
+                else:
+                    for content in self.completion_stream(prompt_messages):
+                        pass
             else:
                 content = self.completion(prompt_messages)
             blocks: list[dict] = self.build_message_blocks(content)

@@ -38,13 +38,18 @@ def main(cloud_event: CloudEvent):
         context.get("command"), chat_history
     )
 
-    for idx, agent_execute in enumerate(execute_queue):
+    blocks: list = []
+    context["collect_blocks"] = blocks
+    last_agent: Agent | None = None
+
+    for agent_execute in execute_queue:
         chat_history_copy: list[Chat] = chat_history.copy()
         agent_class: type[Agent] = agent_execute.agent
         agent: Agent = agent_class(context)
+        last_agent = agent
         chat_response: Chat = agent.execute(agent_execute.arguments, chat_history_copy)
         chat_history.append(chat_response)
-        if idx < len(execute_queue) - 1:
-            ts = agent.next_placeholder()
-            context["ts"] = ts
         logger.debug("end process agent=%s", agent_class.__qualname__)
+
+    if last_agent is not None:
+        last_agent.flush_blocks()
