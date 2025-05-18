@@ -1,12 +1,6 @@
-import json
-import os
-
 import pytest
 
 from function.generative_actions import GenerativeActions
-
-with open("secrets.json", "r", encoding="utf-8") as f:
-    os.environ["SECRETS"] = json.dumps(json.load(f))
 
 
 def test(pytestconfig: pytest.Config):

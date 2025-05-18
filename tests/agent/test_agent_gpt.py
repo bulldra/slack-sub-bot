@@ -1,10 +1,4 @@
-import json
-import os
-
 import pytest
-
-with open("secrets.json", "r", encoding="utf-8") as f:
-    os.environ["SECRETS"] = json.dumps(json.load(f))
 
 from agent.agent_gpt import AgentGPT
 

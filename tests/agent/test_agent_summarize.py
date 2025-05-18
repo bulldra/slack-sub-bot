@@ -1,16 +1,8 @@
 import collections
-import json
-import os
-
 import pytest
 
 from agent.agent_summarize import AgentSummarize
 from agent.types import Chat
-
-with open("secrets.json", "r", encoding="utf-8") as f:
-    os.environ["SECRETS"] = json.dumps(json.load(f))
-
-Case = collections.namedtuple("Case", ("argument", "expected"))
 
 
 def test_scraping(pytestconfig: pytest.Config):

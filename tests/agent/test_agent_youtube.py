@@ -6,9 +6,6 @@ import pytest
 from agent.agent_youtube import AgentYoutube
 from agent.types import Chat
 
-with open("secrets.json", "r", encoding="utf-8") as f:
-    os.environ["SECRETS"] = json.dumps(json.load(f))
-
 
 def test_youtube_completion(pytestconfig: pytest.Config):
     url = "https://www.youtube.com/watch?v=aW7utklZzJs"
