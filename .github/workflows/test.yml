@@ -28,5 +28,12 @@ jobs:
                     echo '${{ secrets.SECRETS_JSON }}' > secrets.json
                   fi
 
+            - name: Create GCS bucket config
+              run: |
+                  if [ -n '${{ secrets.GCS_BUCKET_JSON }}' ]; then
+                    mkdir -p src/conf
+                    echo '${{ secrets.GCS_BUCKET_JSON }}' > src/conf/gcs_bucket.json
+                  fi
+
             - name: Run tests
               run: pytest

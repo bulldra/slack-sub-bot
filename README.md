@@ -29,6 +29,11 @@ For tests running on GitHub Actions, store the same JSON string in a repository
 secret named `SECRETS_JSON`. The `test.yml` workflow writes this value to
 `secrets.json` before executing `pytest`.
 
+Additionally, keep your Google Cloud Storage bucket name private by storing the
+GCS configuration JSON in a secret named `GCS_BUCKET_JSON`. This JSON should
+contain `gcs_bucket_name` and `gcs_weather_dir`. The workflows automatically
+write this secret to `src/conf/gcs_bucket.json`.
+
 3. Run tests
 
 ```bash
