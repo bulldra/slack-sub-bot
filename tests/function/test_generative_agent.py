@@ -1,6 +1,7 @@
 import pytest
 from agent.agent_gpt import AgentGPT
 from agent.agent_summarize import AgentSummarize
+from agent.agent_slack_history import AgentSlackHistory
 from function.generative_agent import AgentExecute, GenerativeAgent
 
 
@@ -91,3 +92,10 @@ def test_multi(pytestconfig: pytest.Config):
         ],
     )
     print(result)
+
+
+def test_slack_history():
+    url = "https://example.slack.com/archives/C999/p1700000000000000"
+    result = GenerativeAgent().generate(None, [{"role": "user", "content": url}])
+    expected = [AgentExecute(agent=AgentSlackHistory, arguments={"url": url})]
+    assert result == expected
