@@ -24,8 +24,8 @@ jobs:
 
             - name: Create secrets file
               run: |
-                  if [ -n "${{ secrets.SECRETS_JSON }}" ]; then
-                    echo "${{ secrets.SECRETS_JSON }}" > secrets.json
+                  if [ -n '${{ secrets.SECRETS_JSON }}' ]; then
+                    echo '${{ secrets.SECRETS_JSON }}' > secrets.json
                   fi
 
             - name: Run tests
