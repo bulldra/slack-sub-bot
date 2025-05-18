@@ -29,7 +29,9 @@ class AgentYoutube(AgentGemini):
         self._video_url = url
         from pathlib import Path
 
-        conf_path = Path(__file__).resolve().parent.parent / "conf" / "youtube_prompt.yaml"
+        conf_path = (
+            Path(__file__).resolve().parent.parent / "conf" / "youtube_prompt.yaml"
+        )
         with open(conf_path, "r", encoding="utf-8") as file:
             prompt = file.read()
         prompt_messages: list[types.Part] = [

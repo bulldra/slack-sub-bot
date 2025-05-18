@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 __all__ = ["Chat"]
 
+
 class Chat(BaseModel):
     role: Literal["system", "user", "assistant"]
     content: str

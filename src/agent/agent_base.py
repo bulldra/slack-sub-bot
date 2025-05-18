@@ -54,7 +54,9 @@ class AgentSlack(Agent):
     def build_system_prompt(self) -> str:
         from pathlib import Path
 
-        conf_path = Path(__file__).resolve().parent.parent / "conf" / "system_prompt.yaml"
+        conf_path = (
+            Path(__file__).resolve().parent.parent / "conf" / "system_prompt.yaml"
+        )
         with open(conf_path, "r", encoding="utf-8") as file:
             system_prompt = file.read()
 

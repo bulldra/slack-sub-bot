@@ -65,7 +65,9 @@ class GenerativeAgent(GenerativeBase):
                 "correct",
                 "explanation",
             }.issubset(payload.keys()):
-                return [AgentExecute(command_dict["/quiz"], {"choice_payload": payload})]
+                return [
+                    AgentExecute(command_dict["/quiz"], {"choice_payload": payload})
+                ]
         except json.JSONDecodeError:
             pass
 
@@ -79,7 +81,9 @@ class GenerativeAgent(GenerativeBase):
                     AgentExecute(command_dict["/summarize"], {"url": url})
                 )
             elif scraping_utils.is_youtube_url(url):
-                execute_queue.append(AgentExecute(command_dict["/youtube"], {"url": url}))
+                execute_queue.append(
+                    AgentExecute(command_dict["/youtube"], {"url": url})
+                )
             return execute_queue
 
         prompt_messages: list[ChatCompletionMessageParam] = self.build_prompt(
@@ -201,7 +205,6 @@ class GenerativeAgent(GenerativeBase):
                     "required": [],
                 },
             },
-
             {
                 "type": "function",
                 "strict": False,
