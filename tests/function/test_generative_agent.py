@@ -1,17 +1,13 @@
 import pytest
-
-from agent.agent_base import AgentText
-from agent.agent_idea import AgentIdea
-from agent.agent_recommend import AgentRecommend
+from agent.agent_gpt import AgentGPT
 from agent.agent_summarize import AgentSummarize
 from function.generative_agent import AgentExecute, GenerativeAgent
 
 
 def test_summarize(pytestconfig: pytest.Config):
-    result = GenerativeAgent().generate(
-        None, [{"role": "user", "content": "https://www.du-soleil.com"}]
-    )
-    expected = [AgentExecute(AgentSummarize, {})]
+    url = "https://www.du-soleil.com/"
+    result = GenerativeAgent().generate(None, [{"role": "user", "content": url}])
+    expected = [AgentExecute(agent=AgentSummarize, arguments={"url": url})]
     print(f"actual={result}")
     print(f"expected={expected}")
     assert expected == result
@@ -21,18 +17,18 @@ def test_idea(pytestconfig: pytest.Config):
     result = GenerativeAgent().generate(
         None, [{"role": "user", "content": "ビールに関するアイディア"}]
     )
-    expected = AgentIdea
-    expected = result = result[0].agent
+    expected = AgentGPT
+    result_elem = result[0].agent
     print(f"actual={result}")
     print(f"expected={expected}")
-    assert expected == result
+    assert expected == result_elem
 
 
 def test_recommed(pytestconfig: pytest.Config):
     result = GenerativeAgent().generate(
         None, [{"role": "user", "content": "最近のおすすめ記事を教えて"}]
     )
-    expected = AgentRecommend
+    expected = AgentGPT
     result_elem = result[0].agent
     print(f"actual={result}")
     print(f"expected={expected}")
@@ -53,7 +49,7 @@ def test_recommed_keyword(pytestconfig: pytest.Config):
             },
         ],
     )
-    expected = AgentRecommend
+    expected = AgentGPT
     result_elem = result[0].agent
     print(f"actual={result}")
     print(f"expected={expected}")
@@ -66,7 +62,7 @@ def test_text(pytestconfig: pytest.Config):
         [{"role": "user", "content": "こんにちわ！"}],
     )
     result_elem = result[0].agent
-    expected = AgentText
+    expected = AgentGPT
     print(f"actual={result}")
     print(f"expected={expected}")
     assert expected == result_elem
@@ -78,7 +74,7 @@ def test_gpt(pytestconfig: pytest.Config):
         [{"role": "user", "content": "マーケティングに関する蘊蓄を教えて"}],
     )
     result_elem = result[0].agent
-    expected = AgentText
+    expected = AgentGPT
     print(f"actual={result}")
     print(f"expected={expected}")
     assert expected == result_elem

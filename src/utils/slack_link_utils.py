@@ -11,7 +11,7 @@ _URL_PATTERN: str = r"https?://[a-zA-Z0-9_/:%#\$&;\?\(\)~\.=\+\-]+[^\s\|\>]+"
 def build_link(url: str, title: str) -> str:
     if url is None or url == "":
         return ""
-    escaped_url: str = html.escape(url)
+    escaped_url: str = url
 
     if title is None or title == "":
         return f"<{escaped_url}>"
@@ -90,6 +90,9 @@ def extract_url(text: str) -> str:
 def redirect_url(url: str) -> str:
     if url is None or url == "":
         raise ValueError("URLが見つかりませんでした。")
+
+    # HTMLエンコードをデコード
+    url = html.unescape(url)
 
     Redirect = collections.namedtuple("Redirect", ("url", "param"))
     redirect_urls: list[Redirect] = [

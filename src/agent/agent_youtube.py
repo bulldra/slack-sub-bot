@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import parse_qs, urlparse
 
@@ -25,9 +26,11 @@ class AgentYoutube(AgentGemini):
             )
 
         video_id = self.extract_video_id(url)
-        url = f"https://www.youtube.com/watch?v={video_id}" if video_id else url
+        if not video_id:
+            raise ValueError("No URL provided")
+
+        url = f"https://www.youtube.com/watch?v={video_id}"
         self._video_url = url
-        from pathlib import Path
 
         conf_path = (
             Path(__file__).resolve().parent.parent / "conf" / "youtube_prompt.yaml"
@@ -54,15 +57,14 @@ class AgentYoutube(AgentGemini):
         ]
         return blocks
 
-    def extract_video_id(self, youtube_url: str) -> str:
+    def extract_video_id(self, youtube_url: str) -> Optional[str]:
         parsed = urlparse(youtube_url)
         if parsed.hostname in ["youtu.be"]:
             return parsed.path.lstrip("/")
         if parsed.hostname in ["www.youtube.com", "youtube.com", "m.youtube.com"]:
             qs = parse_qs(parsed.query)
             return qs.get("v", [""])[0]
-        # その他の形式
         match = re.search(r"(?:v=|youtu.be/)([\w-]{11})", youtube_url)
         if match:
             return match.group(1)
-        return ""
+        return None

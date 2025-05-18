@@ -3,10 +3,9 @@ import json
 from string import Template
 from typing import Any, List
 
-from pydantic import BaseModel
-
 import requests
 from openai.types.chat import ChatCompletionMessageParam
+from pydantic import BaseModel, ConfigDict
 
 import utils.scraping_utils as scraping_utils
 from agent.agent_gpt import AgentGPT
@@ -18,8 +17,7 @@ class Mail(BaseModel):
     subject: str
     content: str
 
-    class Config:
-        allow_mutation = False
+    model_config = ConfigDict(frozen=True)
 
 
 class AgentSlackMail(AgentGPT):

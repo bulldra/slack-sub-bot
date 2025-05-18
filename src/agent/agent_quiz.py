@@ -1,5 +1,4 @@
 import json
-import random
 from string import Template
 from typing import Any, Dict, List
 
@@ -69,7 +68,6 @@ class AgentQuiz(AgentGPT):
         answer_text = str(data.get("answer", ""))
 
         combined = list(zip(choices, explanations))
-        random.shuffle(combined)
         choices, explanations = zip(*combined) if combined else ([], [])
 
         self._choices = []

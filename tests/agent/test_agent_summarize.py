@@ -1,6 +1,4 @@
-import collections
 import pytest
-
 from agent.agent_summarize import AgentSummarize
 from agent.types import Chat
 

@@ -1,7 +1,6 @@
 import collections
 
 import pytest
-
 import utils.slack_link_utils as slack_link_utils
 
 
@@ -102,7 +101,9 @@ def test_extract_url(argument, expected):
         (None, ValueError),
         ("", ValueError),
         (
-            "https://www.google.com/url?rct=j&sa=t&url=https://www.mapion.co.jp/news/release/000000056.000019803/&ct=ga&cd=CAIyHDMxZDQ1MjNhNDQ1ODNjZjg6Y28uanA6amE6SlA&usg=AOvVaw0Hut30ozpDqyRMJ8wtezpt",
+            "https://www.google.com/url?rct=j&sa=t&url=https://www.mapion.c"
+            "o.jp/news/release/000000056.000019803/&ct=ga&cd=CAIyHDMxZDQ1MjN"
+            "hNDQ1ODNjZjg6Y28uanA6amE6SlA&usg=AOvVaw0Hut30ozpDqyRMJ8wtezpt",
             "https://www.mapion.co.jp/news/release/000000056.000019803/",
         ),
         ("https://www.example.com/?a=1&b=2", "https://www.example.com/?a=1&b=2"),
@@ -130,7 +131,7 @@ def test_redirect_url(argument, expected):
         ),
         (
             "https://www.example.com/?a=1&b=2&utm_medium=1",
-            "https://www.example.com/?a=1&a=2",
+            "https://www.example.com/?a=1&b=2",
         ),
         (
             "https://www.example.com/?n_cid=1&b=2&utm_medium=1",
@@ -202,14 +203,14 @@ def test_remove_tracking_url(argument, expected):
         (
             "https://ja.wikipedia.org/wiki/暦書_(ノストラダムス)",
             "https://ja.wikipedia.org/wiki/"
-            "%E6%9A%A6%E6%9B%B8_%28%E3%83%8E%E3%82%B9%E3%83%88"
-            "%E3%83%A9%E3%83%80%E3%83%A0%E3%82%B9%29",
+            "%E6%9A%A6%E6%9B%B8_(%E3%83%8E%E3%82%B9%E3%83%88"
+            "%E3%83%A9%E3%83%80%E3%83%A0%E3%82%B9)",
         ),
         (
             "https://www.google.com/url?rct=j&amp%3Bsa=t&amp%3Burl=https%3A%2F%2Fwww."
-            "jiji.com%2Fjc%2Farticle%3Fk%3D000000033.000009740&g=prt&amp%3Bct=ga&amp%3Bcd="
-            "CAIyHGRmMjg1NWI4MDI1ZGI4MmU6Y28uanA6amE6SlA&amp%3Busg=AOvVaw10EjbjUUColG03"
-            "h_mXxDld",
+            "jiji.com%2Fjc%2Farticle%3Fk%3D000000033.000009740&g=prt&amp%3Bct=ga&amp"
+            "%3Bcd=CAIyHGRmMjg1NWI4MDI1ZGI4MmU6Y28uanA6amE6SlA&amp%3B"
+            "usg=AOvVaw10EjbjUUColG03h_mXxDld",
             "https://www.jiji.com/jc/article?k=000000033.000009740",
         ),
     ],

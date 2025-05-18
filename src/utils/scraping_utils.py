@@ -4,11 +4,10 @@ import tempfile
 import urllib
 from typing import Optional, Tuple
 
-from pydantic import BaseModel
-
 import pypdf
 import requests
 from bs4 import BeautifulSoup
+from pydantic import BaseModel, ConfigDict
 
 
 class SiteInfo(BaseModel):
@@ -16,8 +15,7 @@ class SiteInfo(BaseModel):
     title: str = ""
     content: Optional[str] = None
 
-    class Config:
-        allow_mutation = False
+    model_config = ConfigDict(frozen=True)
 
 
 def is_allow_scraping(url: str) -> bool:
