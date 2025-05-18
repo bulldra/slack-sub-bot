@@ -23,6 +23,12 @@ Example:
 export SECRETS='{"SLACK_BOT_TOKEN":"xoxb-...","SLACK_USER_TOKEN":"xoxp-...","OPENAI_API_KEY":"sk-..."}'
 ```
 
+### GitHub Actions
+
+For tests running on GitHub Actions, store the same JSON string in a repository
+secret named `SECRETS_JSON`. The `test.yml` workflow writes this value to
+`secrets.json` before executing `pytest`.
+
 3. Run tests
 
 ```bash
