@@ -26,8 +26,9 @@ class AgentGemini(AgentSlack):
         result_text = self.completion(prompt_messages)
         self.tik_process()
         blocks = self.build_message_blocks(result_text)
-        action_blocks = self.build_action_blocks(chat_history)
-        blocks.append(action_blocks)
+        if self._collect_blocks is None:
+            action_blocks = self.build_action_blocks(chat_history)
+            blocks.append(action_blocks)
         self.update_message(blocks)
         return Chat(role="assistant", content=result_text, blocks=blocks)
 

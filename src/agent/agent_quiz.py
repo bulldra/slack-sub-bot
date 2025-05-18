@@ -43,7 +43,10 @@ class AgentQuiz(AgentGPT):
             return result
         else:
             self.tik_process()
-            super().execute(arguments, chat_history)
+            result = super().execute(arguments, chat_history)
+            if self._collect_blocks is not None:
+                self._collect_blocks.append(self.build_action_blocks(chat_history))
+            return result
 
     def build_prompt(
         self, arguments: dict[str, Any], chat_history: List[Chat]
