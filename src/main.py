@@ -7,7 +7,7 @@ import functions_framework
 import google.cloud.logging
 from cloudevents.http import CloudEvent
 
-from agent.agent_base import Agent
+from agent.agent_base import Agent, AgentSlack
 from agent.types import Chat
 from function.generative_agent import AgentExecute, GenerativeAgent
 
@@ -41,12 +41,24 @@ def main(cloud_event: CloudEvent):
     blocks: list = []
     context["collect_blocks"] = blocks
     last_agent: Agent | None = None
+    total = len(execute_queue)
 
-    for agent_execute in execute_queue:
+    for idx, agent_execute in enumerate(execute_queue, start=1):
         chat_history_copy: list[Chat] = chat_history.copy()
         agent_class: type[Agent] = agent_execute.agent
         agent: Agent = agent_class(context)
         last_agent = agent
+        if isinstance(agent, AgentSlack):
+            status_blocks = [
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"*Executing {agent_class.__name__} ({idx}/{total})*",
+                    },
+                }
+            ]
+            agent.update_message(status_blocks, force=True)
         chat_response: Chat = agent.execute(agent_execute.arguments, chat_history_copy)
         chat_history.append(chat_response)
         logger.debug("end process agent=%s", agent_class.__qualname__)
