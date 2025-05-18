@@ -39,6 +39,7 @@ def test_search_thread_messages_yields_texts():
     result = slack_search_utils.search_messages(slack_cli, query, num=10)
     print(len(result))
 
+
 class DummySlackClient:
     def __init__(self, search_response, replies_response):
         self.search_response = search_response
@@ -82,7 +83,10 @@ def test_search_messages_returns_thread_texts_stub():
 
 def test_search_messages_empty_stub():
     def search_response(page):
-        return {"ok": True, "messages": {"matches": [], "pagination": {"page_count": 1}}}
+        return {
+            "ok": True,
+            "messages": {"matches": [], "pagination": {"page_count": 1}},
+        }
 
     def replies_response(channel, ts, limit):
         return {"messages": []}
