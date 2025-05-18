@@ -31,7 +31,7 @@ pytest
 
 ## Usage
 
-Deploy the Cloud Function using `deploy.sh` or invoke it locally with `functions-framework`:
+Deploy the Cloud Function using `deploy.sh`, or deploy as a Cloud Run service with `deploy_cloudrun.sh`. Deployment can also be automated through the GitHub Actions workflows. You can invoke it locally with `functions-framework`:
 
 ```bash
 functions-framework --target main --signature-type cloudevent
