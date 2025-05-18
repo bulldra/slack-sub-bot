@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict
 
 import utils.scraping_utils as scraping_utils
 import utils.slack_link_utils as slack_link_utils
+import utils.slack_message_utils as slack_message_utils
 from agent.agent_base import Agent, AgentDelete, AgentNotification, AgentText
 from agent.agent_gpt import AgentGPT
 from agent.agent_idea import AgentIdea
@@ -12,6 +13,7 @@ from agent.agent_quiz import AgentQuiz
 from agent.agent_recommend import AgentRecommend
 from agent.agent_search import AgentSearch
 from agent.agent_slack_mail import AgentSlackMail
+from agent.agent_slack_history import AgentSlackHistory
 from agent.agent_summarize import AgentSummarize
 from agent.agent_youtube import AgentYoutube
 from agent.types import Chat
@@ -76,7 +78,11 @@ class GenerativeAgent(GenerativeBase):
 
         if slack_link_utils.is_only_url(content):
             url: str = slack_link_utils.extract_and_remove_tracking_url(content)
-            if scraping_utils.is_allow_scraping(url):
+            if slack_message_utils.is_slack_message_url(url):
+                execute_queue.append(
+                    AgentExecute(agent=AgentSlackHistory, arguments={"url": url})
+                )
+            elif scraping_utils.is_allow_scraping(url):
                 execute_queue.append(
                     AgentExecute(
                         agent=command_dict["/summarize"],
