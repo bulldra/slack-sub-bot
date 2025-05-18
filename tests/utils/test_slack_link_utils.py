@@ -265,3 +265,36 @@ def test_all():
             assert actual == case.expected
         except ValueError:
             assert case.expected is ValueError
+
+CaseBuild = collections.namedtuple("CaseBuild", ("url", "title", "expected"))
+
+def test_build_link_new_cases():
+    cases = [
+        CaseBuild(url=None, title="test", expected=""),
+        CaseBuild(url="", title="test", expected=""),
+        CaseBuild(url="https://example.com", title=None, expected="<https://example.com>"),
+        CaseBuild(url="https://example.com", title="Example", expected="<https://example.com|Example>"),
+        CaseBuild(url="https://example.com?a=1&b=2", title="Title\nLine", expected="<https://example.com?a=1&b=2|Title Line>"),
+    ]
+    for case in cases:
+        assert slack_link_utils.build_link(case.url, case.title) == case.expected
+
+
+def test_can_parse_url_cases():
+    cases = [
+        ("https://example.com", True),
+        ("http://example.com/path", True),
+        ("not a url", False),
+        (None, False),
+    ]
+    for url, expected in cases:
+        assert slack_link_utils.can_parse_url(url) == expected
+
+
+def test_parse_url_cases():
+    cases = [
+        ("https://example.com/path?q=1#frag", "https://example.com/path?q=1#frag"),
+        ("not a url", "not a url"),
+    ]
+    for url, expected in cases:
+        assert slack_link_utils.parse_url(url) == expected
