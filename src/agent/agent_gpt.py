@@ -55,8 +55,9 @@ class AgentGPT(AgentSlack):
             result: Chat = Chat(role="assistant", content=content)
             chat_history.append(result)
 
-            action_blocks = self.build_action_blocks(chat_history)
-            blocks.append(action_blocks)
+            if self._collect_blocks is None:
+                action_blocks = self.build_action_blocks(chat_history)
+                blocks.append(action_blocks)
             self.update_message(blocks)
 
             return result

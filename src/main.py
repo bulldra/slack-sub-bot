@@ -52,4 +52,5 @@ def main(cloud_event: CloudEvent):
         logger.debug("end process agent=%s", agent_class.__qualname__)
 
     if last_agent is not None:
+        blocks.append(last_agent.build_action_blocks(chat_history))
         last_agent.flush_blocks()
