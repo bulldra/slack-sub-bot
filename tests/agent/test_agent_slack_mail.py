@@ -1,14 +1,11 @@
 import collections
 import json
-import os
 
 import pytest
 from unittest import mock
 
 from agent.agent_slack_mail import AgentSlackMail
 
-with open("secrets.json", "r", encoding="utf-8") as f:
-    os.environ["SECRETS"] = json.dumps(json.load(f))
 
 Case = collections.namedtuple("Case", ("argument", "expected"))
 

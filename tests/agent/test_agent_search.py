@@ -1,14 +1,9 @@
-import json
-import os
 from typing import Any
 
 import pytest
 
 from agent.agent_search import AgentSearch
 from agent.types import Chat
-
-with open("secrets.json", "r", encoding="utf-8") as f:
-    os.environ["SECRETS"] = json.dumps(json.load(f))
 
 
 def test_build_prompt_chat_history(pytestconfig: pytest.Config):

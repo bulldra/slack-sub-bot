@@ -1,6 +1,3 @@
-import json
-import os
-
 import pytest
 
 from agent.agent_base import AgentText
@@ -8,9 +5,6 @@ from agent.agent_idea import AgentIdea
 from agent.agent_recommend import AgentRecommend
 from agent.agent_summarize import AgentSummarize
 from function.generative_agent import AgentExecute, GenerativeAgent
-
-with open("secrets.json", "r", encoding="utf-8") as f:
-    os.environ["SECRETS"] = json.dumps(json.load(f))
 
 
 def test_summarize(pytestconfig: pytest.Config):

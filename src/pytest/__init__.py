@@ -4,26 +4,33 @@ from types import ModuleType
 import pathlib
 import sys
 
+
 class Config:
     """Minimal placeholder for pytest.Config."""
+
 
 class _RaisesContext:
     def __init__(self, exc_type):
         self.exc_type = exc_type
+
     def __enter__(self):
         return None
+
     def __exit__(self, exc_type, exc, tb):
         if exc_type is None:
             raise AssertionError("Did not raise")
         return issubclass(exc_type, self.exc_type)
 
+
 def raises(exc_type):
     return _RaisesContext(exc_type)
+
 
 def _iter_test_functions(module: ModuleType):
     for name, obj in inspect.getmembers(module):
         if name.startswith("test_") and callable(obj):
             yield name, obj
+
 
 def main(argv=None):
     failures = 0
@@ -52,8 +59,10 @@ def main(argv=None):
                 failures += 1
                 print("FAILED")
                 import traceback
+
                 traceback.print_exc()
     if failures:
         sys.exit(1)
+
 
 __all__ = ["Config", "raises", "main"]
