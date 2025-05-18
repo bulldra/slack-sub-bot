@@ -22,9 +22,6 @@ jobs:
                   python -m pip install --upgrade pip
                   pip install -r src/requirements.txt
 
-            - name: Set env for secrets
-              run: echo "SECRETS_JSON=${{ secrets.SECRETS_JSON }}" >> $GITHUB_ENV
-
             - name: Create secrets file
               run: |
                   if [ -n "${{ secrets.SECRETS_JSON }}" ]; then
