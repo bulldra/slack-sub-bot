@@ -4,7 +4,7 @@ Before committing any changes, run the following commands from the repository ro
 
 ```bash
 black .
-uv run pytest 
+pytest 
 ```
 
 Ensure that `black` completes with no changes required and that all tests pass.
