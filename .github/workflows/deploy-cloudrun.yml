@@ -1,0 +1,39 @@
+name: Deploy Cloud Run
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+
+      - name: Build and Deploy to Cloud Run
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          SERVICE_NAME: ${{ secrets.SERVICE_NAME }}
+          SERVICE_ACCOUNT: ${{ secrets.SERVICE_ACCOUNT }}
+          SECRETS_MANAGER: ${{ secrets.SECRETS_MANAGER }}
+        run: |
+          IMAGE_NAME=gcr.io/$GCP_PROJECT_ID/$SERVICE_NAME
+          gcloud builds submit --tag "$IMAGE_NAME" .
+          gcloud run deploy "$SERVICE_NAME" \
+            --image "$IMAGE_NAME" \
+            --region=asia-northeast1 \
+            --platform=managed \
+            --min-instances=0 \
+            --max-instances=30 \
+            --memory=512Mi \
+            --service-account "$SERVICE_ACCOUNT" \
+            --set-secrets SECRETS="$SECRETS_MANAGER" \
+            --quiet
