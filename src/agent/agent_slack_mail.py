@@ -36,7 +36,7 @@ class AgentSlackMail(AgentGPT):
                 self._slack.api_call(
                     "bookmarks.add",
                     json={
-                        "channel": self._channel,
+                        "channel_id": self._channel,
                         "title": self._mail.subject or "mail",
                         "type": "message",
                         "entity_id": self._ts,

@@ -52,4 +52,13 @@ def test_execute_adds_bookmark(pytestconfig: pytest.Config):
     ]
     with mock.patch.object(agent._slack, "api_call") as mock_call:
         agent.execute({}, messages)
-        mock_call.assert_called()
+        mock_call.assert_called_with(
+            "bookmarks.add",
+            json={
+                "channel_id": "C123",
+                "title": "sub",
+                "type": "message",
+                "entity_id": "123.45",
+                "emoji": ":email:",
+            },
+        )
