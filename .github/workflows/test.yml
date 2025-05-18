@@ -10,6 +10,15 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - uses: tj-actions/changed-files@v44
+              id: changed
+              if: ${{ github.event_name == 'push' }}
+              with:
+                  files: |
+                      tests/**/*.py
 
             - name: Set up Python
               uses: actions/setup-python@v5
@@ -36,4 +45,13 @@ jobs:
                   fi
 
             - name: Run tests
-              run: pytest
+              run: |
+                  if [ "${{ github.event_name }}" = 'pull_request' ]; then
+                      pytest
+                  else
+                      if [ -n "${{ steps.changed.outputs.all_changed_files }}" ]; then
+                          pytest ${{ steps.changed.outputs.all_changed_files }}
+                      else
+                          echo 'No changed test files.'
+                      fi
+                  fi
