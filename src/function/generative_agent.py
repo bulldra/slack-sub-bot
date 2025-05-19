@@ -80,9 +80,9 @@ class GenerativeAgent(GenerativeBase):
                 )
             ]
 
-        extract_url: str = slack_link_utils.extract_url(content)
+        extract_url: Optional[str] = slack_link_utils.extract_url(content)
         if extract_url:
-            if slack_link_utils.is_slack_message_url(extract_url):
+            if scraping_utils.is_slack_message_url(extract_url):
                 execute_queue.append(
                     AgentExecute(
                         agent=command_dict["/slack_history"],
@@ -91,22 +91,26 @@ class GenerativeAgent(GenerativeBase):
                 )
 
         if slack_link_utils.is_only_url(content):
-            url: str = slack_link_utils.extract_and_remove_tracking_url(content)
-            if scraping_utils.is_allow_scraping(url):
-                execute_queue.append(
-                    AgentExecute(
-                        agent=command_dict["/summarize"],
-                        arguments={"url": url},
+            url: Optional[str] = slack_link_utils.extract_and_remove_tracking_url(
+                content
+            )
+            if url:
+                if scraping_utils.is_allow_scraping(url):
+                    execute_queue.append(
+                        AgentExecute(
+                            agent=command_dict["/summarize"],
+                            arguments={"url": url},
+                        )
                     )
-                )
-            elif scraping_utils.is_youtube_url(url):
-                execute_queue.append(
-                    AgentExecute(
-                        agent=command_dict["/youtube"],
-                        arguments={"url": url},
+                    return execute_queue
+                elif scraping_utils.is_youtube_url(url):
+                    execute_queue.append(
+                        AgentExecute(
+                            agent=command_dict["/youtube"],
+                            arguments={"url": url},
+                        )
                     )
-                )
-            return execute_queue
+                    return execute_queue
 
         prompt_messages: list[ChatCompletionMessageParam] = self.build_prompt(
             chat_history

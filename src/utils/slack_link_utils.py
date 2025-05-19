@@ -154,19 +154,6 @@ def remove_tracking_query(url: Optional[str]) -> Optional[str]:
     return urllib.parse.urlunparse(url_obj)
 
 
-def is_slack_message_url(url: str) -> bool:
-    if not url:
-        return False
-    # 通常URLとリダイレクトURLの両方に対応
-    pattern1 = r"https://.+\.slack.com/archives/[A-Z0-9]+/p[0-9]+"
-    pattern2 = r"https://.+\.slack.com/\?redir=%2Farchives%2F[A-Z0-9]+%2Fp[0-9]+%3F"
-    if re.match(pattern1, url):
-        return True
-    if re.match(pattern2, url):
-        return True
-    return False
-
-
 def parse_message_url(url: str) -> Tuple[str, str]:
     """Return channel id and timestamp from Slack message URL."""
     if not url:

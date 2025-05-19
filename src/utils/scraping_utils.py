@@ -30,7 +30,6 @@ def is_allow_scraping(url: str) -> bool:
         "speakerdeck.com",
         "twitter.com",
         "open.spotify.com",
-        "slack.com",
     ]
     black_list_ext: list[str] = [
         ".zip",
@@ -42,7 +41,21 @@ def is_allow_scraping(url: str) -> bool:
         or os.path.splitext(urlobj.path)[1] in black_list_ext
         or is_image_url(url)
         or is_youtube_url(url)
+        or is_slack_message_url(url)
     )
+
+
+def is_slack_message_url(url: str) -> bool:
+    if not url:
+        return False
+    # 通常URLとリダイレクトURLの両方に対応
+    pattern1 = r"https://.+\.slack.com/archives/[A-Z0-9]+/p[0-9]+"
+    pattern2 = r"https://.+\.slack.com/\?redir=%2Farchives%2F[A-Z0-9]+%2Fp[0-9]+%3F"
+    if re.match(pattern1, url):
+        return True
+    if re.match(pattern2, url):
+        return True
+    return False
 
 
 def is_code_url(url: str) -> bool:

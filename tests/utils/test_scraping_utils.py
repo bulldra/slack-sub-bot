@@ -1,5 +1,6 @@
 import collections
 import os
+
 import pytest
 
 if "SECRETS" not in os.environ:
@@ -42,6 +43,12 @@ def test_is_not_scraping_url():
         Case(
             argument="https://www.du-soleil.com/entry/gentle-internet-is-a-translationk"
             "anban.jpg?__scale=w:600,h:180&_sh=06008203e0",
+            expected=False,
+        ),
+        Case(
+            argument="https://bulldra.slack.com/?redir=%2Farchives%2FC05KDQN0L75%2Fp174"
+            "7682334085859%3Fthread_ts%3D1747682332.177719%26cid%3DC05KDQN0L75%26name%3"
+            "DC05KDQN0L75%26perma%3D1747682334085859",
             expected=False,
         ),
     ]

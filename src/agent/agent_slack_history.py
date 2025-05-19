@@ -6,8 +6,6 @@ from utils import slack_link_utils
 
 
 class AgentSlackHistory(AgentSlack):
-    """Fetch Slack thread messages and return as single chat content."""
-
     def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
         url = str(arguments.get("url") or chat_history[-1].get("content", ""))
         url = slack_link_utils.sanitize_url(url)

@@ -25,7 +25,7 @@ class AgentGPT(AgentSlack):
             raise ValueError("environment not defined.")
         self._secrets: dict = json.loads(secrets)
         self._context: dict[str, Any] = context
-        self._openai_model: str = "gpt-4.1"
+        self._openai_model: str = "gpt-4.1-mini"
         self._openai_temperature: float = 0.0
         self._output_max_token: int = 30000
         self._max_token: int = 128000 // 2 - self._output_max_token
