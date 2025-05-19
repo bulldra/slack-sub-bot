@@ -1,4 +1,8 @@
+import os
 import pytest
+
+if "SECRETS" not in os.environ:
+    pytest.skip("SECRETS not set", allow_module_level=True)
 from agent.agent_gpt import AgentGPT
 from agent.agent_summarize import AgentSummarize
 from agent.agent_slack_history import AgentSlackHistory

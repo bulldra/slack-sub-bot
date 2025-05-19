@@ -1,4 +1,9 @@
 import collections
+import os
+import pytest
+
+if "SECRETS" not in os.environ:
+    pytest.skip("SECRETS not set", allow_module_level=True)
 
 import utils.scraping_utils as scraping_utils
 
