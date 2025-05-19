@@ -114,6 +114,24 @@ class AgentSlack(Agent):
         else:
             raise ValueError("Failed to post message to Slack.")
 
+    def _blocks_to_text(self, blocks: list[dict[str, Any]]) -> str:
+        pieces: list[str] = []
+        for b in blocks:
+            if b["type"] == "section":
+                txt_obj = b.get("text", {})
+                if isinstance(txt_obj, dict) and txt_obj.get("type") in (
+                    "mrkdwn",
+                    "plain_text",
+                ):
+                    pieces.append(txt_obj.get("text", ""))
+            elif b["type"] == "markdown":
+                pieces.append(str(b.get("text", "")))
+        text: str = "\n".join(pieces)
+        text_byte: bytes = text.encode("utf-8")
+        if len(text_byte) > 3000:
+            text_byte = text_byte[:3000]
+        return text_byte.decode("utf-8", errors="ignore")
+
     def update_message(self, blocks: list, *, force: bool = False) -> None:
         """Update the Slack message.
 
@@ -124,20 +142,7 @@ class AgentSlack(Agent):
         if self._collect_blocks is not None and not force:
             self._collect_blocks.extend(blocks)
             return
-        pieces: list[str] = []
-        for b in blocks:
-            if b["type"] == "section":
-                txt_obj = b.get("text", {})
-                if isinstance(txt_obj, dict):
-                    if txt_obj.get("type") in ("mrkdwn", "plain_text"):
-                        pieces.append(txt_obj.get("text", ""))
-            elif b["type"] == "markdown":
-                pieces.append(str(b.get("text", "")))
-        text: str = "\n".join(pieces)
-        text_byte: bytes = text.encode("utf-8")
-        if len(text_byte) > 3000:
-            text_byte = text_byte[:3000]
-        text = text_byte.decode("utf-8", errors="ignore")
+        text: str = self._blocks_to_text(blocks)
         self._slack.chat_update(
             channel=self._channel,
             ts=self._ts,
@@ -149,20 +154,7 @@ class AgentSlack(Agent):
     def flush_blocks(self) -> None:
         if self._collect_blocks is None:
             return
-        pieces: list[str] = []
-        for b in self._collect_blocks:
-            if b["type"] == "section":
-                txt_obj = b.get("text", {})
-                if isinstance(txt_obj, dict):
-                    if txt_obj.get("type") in ("mrkdwn", "plain_text"):
-                        pieces.append(txt_obj.get("text", ""))
-            elif b["type"] == "markdown":
-                pieces.append(str(b.get("text", "")))
-        text: str = "\n".join(pieces)
-        text_byte: bytes = text.encode("utf-8")
-        if len(text_byte) > 3000:
-            text_byte = text_byte[:3000]
-        text = text_byte.decode("utf-8", errors="ignore")
+        text: str = self._blocks_to_text(self._collect_blocks)
         self._slack.chat_update(
             channel=self._channel,
             ts=self._ts,
