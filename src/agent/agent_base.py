@@ -3,6 +3,7 @@ import logging
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from string import Template
 from typing import Any, List, Optional
 
@@ -54,7 +55,6 @@ class AgentSlack(Agent):
         raise NotImplementedError
 
     def build_system_prompt(self) -> str:
-        from pathlib import Path
 
         conf_path = (
             Path(__file__).resolve().parent.parent / "conf" / "system_prompt.yaml"

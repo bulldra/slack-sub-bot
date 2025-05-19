@@ -25,7 +25,7 @@ DEPLOY_OUTPUT=$(gcloud -q functions deploy "${FUNCTION_NAME}" \
 if [ "${DEPLOY_EXIT_CODE:-0}" -eq 0 ]; then
     echo "Deployment succeeded."
 else
-    ERROR_MESSAGE=$(echo "$DEPLOY_OUTPUT" | head -n 1)
+    ERROR_MESSAGE=$(echo "$DEPLOY_OUTPUT")
     echo "Deployment failed for ${FUNCTION_NAME}."
     echo "Error: ${ERROR_MESSAGE}"
     exit 1

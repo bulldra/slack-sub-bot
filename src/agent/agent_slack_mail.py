@@ -1,5 +1,6 @@
 import html
 import json
+from pathlib import Path
 from string import Template
 from typing import Any, List
 
@@ -25,7 +26,7 @@ class AgentSlackMail(AgentGPT):
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
         self._openai_stream = False
-        self._openai_model: str = "gpt-4.1"
+        self._openai_model: str = "gpt-4.1-mini"
         self._mail: Mail
 
     def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> Chat:
@@ -74,8 +75,6 @@ class AgentSlackMail(AgentGPT):
             subject=str(subject),
             content=mail_content,
         )
-
-        from pathlib import Path
 
         conf_path = (
             Path(__file__).resolve().parent.parent / "conf" / "slack_mail_prompt.yaml"

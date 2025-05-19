@@ -2,6 +2,7 @@ import collections
 import html
 import re
 import urllib
+from typing import Any, List, Tuple
 
 import requests
 
@@ -91,7 +92,6 @@ def redirect_url(url: str) -> str:
     if url is None or url == "":
         raise ValueError("URLが見つかりませんでした。")
 
-    # HTMLエンコードをデコード
     url = html.unescape(url)
 
     Redirect = collections.namedtuple("Redirect", ("url", "param"))
@@ -152,3 +152,58 @@ def remove_tracking_query(url: str) -> str:
         fragment="",
     )
     return urllib.parse.urlunparse(url_obj)
+
+
+def is_slack_message_url(url: str) -> bool:
+    if not url:
+        return False
+    # 通常URLとリダイレクトURLの両方に対応
+    pattern1 = r"https://.+\.slack.com/archives/[A-Z0-9]+/p[0-9]+"
+    pattern2 = r"https://.+\.slack.com/\?redir=%2Farchives%2F[A-Z0-9]+%2Fp[0-9]+%3F"
+    if re.match(pattern1, url):
+        return True
+    if re.match(pattern2, url):
+        return True
+    return False
+
+
+def parse_message_url(url: str) -> Tuple[str, str]:
+    """Return channel id and timestamp from Slack message URL."""
+    if not url:
+        raise ValueError("url is empty")
+    unescape_url = html.unescape(url)
+    # 通常URL
+    m = re.match(
+        r"https://.+\.slack.com/archives/(?P<channel>[A-Z0-9]+)/p(?P<ts>[0-9]+)",
+        unescape_url,
+    )
+    if m:
+        channel = m.group("channel")
+        ts_raw = m.group("ts")
+        ts = f"{ts_raw[:-6]}.{ts_raw[-6:]}"
+        return channel, ts
+    # リダイレクトURL
+    m = re.match(
+        r"https://.+\.slack.com/\?redir=%2Farchives%2F(?P<channel>[A-Z0-9]+)%2Fp"
+        r"(?P<ts>[0-9]+)%3F.*",
+        unescape_url,
+    )
+    if m:
+        channel = m.group("channel")
+        ts_raw = m.group("ts")
+        ts = f"{ts_raw[:-6]}.{ts_raw[-6:]}"
+        return channel, ts
+    raise ValueError("invalid slack message url")
+
+
+def fetch_thread_messages(
+    slack_cli: Any, channel: str, ts: str, limit: int = 20
+) -> List[str]:
+    history = slack_cli.conversations_replies(channel=channel, ts=ts, limit=limit)
+    messages: List[str] = []
+    for msg in history.get("messages", []):
+        if isinstance(msg, dict):
+            text = msg.get("text")
+            if text:
+                messages.append(text)
+    return messages

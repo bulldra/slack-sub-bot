@@ -23,6 +23,8 @@ def is_allow_scraping(url: str) -> bool:
         "speakerdeck.com",
         "twitter.com",
         "open.spotify.com",
+        "slack.com",
+        "www.slack.com",
     ]
     black_list_ext: list[str] = [
         ".zip",
