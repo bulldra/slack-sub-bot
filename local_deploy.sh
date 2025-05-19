@@ -6,7 +6,7 @@ gcloud -q components update
 DEPLOY_OUTPUT=$(gcloud -q functions deploy ${FUNCTION_NAME} \
 	--gen2 \
 	--region=asia-northeast1 \
-	--runtime=python312 \
+        --runtime=python311 \
 	--trigger-topic=${TRIGGER_TOPIC} \
 	--timeout=120s \
 	--min-instances=0 \
