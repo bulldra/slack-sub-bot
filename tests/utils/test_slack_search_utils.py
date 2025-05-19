@@ -93,4 +93,4 @@ def test_search_messages_empty_stub():
 
     client = DummySlackClient(search_response, replies_response)
     result = slack_search_utils.search_messages(client, "query", num=1)
-    assert result == []
+    assert not result

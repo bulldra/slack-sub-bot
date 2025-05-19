@@ -202,8 +202,6 @@ pytest==8.2.0
     # via main (pyproject.toml)
 python-dotenv==1.1.0
     # via pydantic-settings
-regex==2024.11.6
-    # via tiktoken
 requests==2.31.0
     # via
     #   main (pyproject.toml)
@@ -211,7 +209,6 @@ requests==2.31.0
     #   google-cloud-storage
     #   google-genai
     #   openai-agents
-    #   tiktoken
 rsa==4.9
     # via google-auth
 setuptools==80.7.1
@@ -232,8 +229,6 @@ starlette==0.46.2
     # via
     #   mcp
     #   sse-starlette
-tiktoken==0.9.0
-    # via main (pyproject.toml)
 tqdm==4.67.1
     # via openai
 types-beautifulsoup4==4.12.0.0

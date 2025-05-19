@@ -11,10 +11,9 @@ from pydantic import BaseModel, ConfigDict
 
 
 class SiteInfo(BaseModel):
-    url: str = ""
-    title: str = ""
-    content: Optional[str] = None
-
+    url: str
+    title: str
+    content: Optional[str]
     model_config = ConfigDict(frozen=True)
 
 
@@ -24,7 +23,6 @@ def is_allow_scraping(url: str) -> bool:
         "twitter.com",
         "open.spotify.com",
         "slack.com",
-        "www.slack.com",
     ]
     black_list_ext: list[str] = [
         ".zip",
