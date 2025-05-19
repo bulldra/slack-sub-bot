@@ -55,11 +55,6 @@ class AgentGemini(AgentSlack):
             parts.append(
                 types.Part(
                     text=history_item["content"],
-                    role=(
-                        types.Part.Role.USER
-                        if history_item["role"] == "user"
-                        else types.Part.Role.ASSISTANT
-                    ),
                 )
             )
         return parts

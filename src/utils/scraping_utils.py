@@ -9,12 +9,19 @@ import requests
 from bs4 import BeautifulSoup
 from pydantic import BaseModel, ConfigDict
 
+DEFAULT_HEADERS: dict[str, str] = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/69.0.3497.100 Safari/537.36"
+    )
+}
+
 
 class SiteInfo(BaseModel):
-    url: str = ""
-    title: str = ""
-    content: Optional[str] = None
-
+    url: str
+    title: str
+    content: Optional[str]
     model_config = ConfigDict(frozen=True)
 
 
@@ -23,6 +30,7 @@ def is_allow_scraping(url: str) -> bool:
         "speakerdeck.com",
         "twitter.com",
         "open.spotify.com",
+        "slack.com",
     ]
     black_list_ext: list[str] = [
         ".zip",
@@ -92,21 +100,13 @@ def is_youtube_url(url: str) -> bool:
 
 
 def scraping_raw(url: str) -> str:
-    headers: dict[str, str] = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6\
-) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36",
-    }
-    res = requests.get(url, timeout=(3.0, 8.0), headers=headers)
+    res = requests.get(url, timeout=(3.0, 8.0), headers=DEFAULT_HEADERS)
     res.raise_for_status()
     return res.text
 
 
 def scraping_pdf(url: str) -> SiteInfo:
-    headers: dict[str, str] = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6\
-) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36",
-    }
-    res = requests.get(url, timeout=(3.0, 8.0), headers=headers)
+    res = requests.get(url, timeout=(3.0, 8.0), headers=DEFAULT_HEADERS)
     res.raise_for_status()
     with tempfile.NamedTemporaryFile(mode="wb+", delete=True) as t:
         t.write(res.content)

@@ -1,4 +1,5 @@
 import random
+from pathlib import Path
 from string import Template
 from typing import Any, List
 
@@ -47,7 +48,6 @@ class AgentIdea(AgentGPT):
                 )
             )
         if len(related_messages) >= 1:
-            from pathlib import Path
 
             conf_path = (
                 Path(__file__).resolve().parent.parent / "conf" / "idea_prompt.yaml"

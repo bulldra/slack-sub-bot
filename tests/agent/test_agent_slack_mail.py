@@ -1,7 +1,10 @@
 import collections
 import json
-
+import os
 import pytest
+
+if "SECRETS" not in os.environ:
+    pytest.skip("SECRETS not set", allow_module_level=True)
 from unittest import mock
 
 from agent.agent_slack_mail import AgentSlackMail
@@ -52,4 +55,13 @@ def test_execute_adds_bookmark(pytestconfig: pytest.Config):
     ]
     with mock.patch.object(agent._slack, "api_call") as mock_call:
         agent.execute({}, messages)
-        mock_call.assert_called()
+        mock_call.assert_called_with(
+            "bookmarks.add",
+            json={
+                "channel_id": "C123",
+                "title": "sub",
+                "type": "message",
+                "entity_id": "123.45",
+                "emoji": ":email:",
+            },
+        )

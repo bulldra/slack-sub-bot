@@ -1,9 +1,17 @@
+import os
+
 import pytest
-from agent.agent_gpt import AgentGPT
-from agent.agent_summarize import AgentSummarize
+
+from agent.agent_base import AgentText
+from agent.agent_idea import AgentIdea
+from agent.agent_recommend import AgentRecommend
 from agent.agent_slack_history import AgentSlackHistory
 from agent.agent_marp import AgentMarp
+from agent.agent_summarize import AgentSummarize
 from function.generative_agent import AgentExecute, GenerativeAgent
+
+if "SECRETS" not in os.environ:
+    pytest.skip("SECRETS not set", allow_module_level=True)
 
 
 def test_summarize(pytestconfig: pytest.Config):
@@ -19,18 +27,18 @@ def test_idea(pytestconfig: pytest.Config):
     result = GenerativeAgent().generate(
         None, [{"role": "user", "content": "ビールに関するアイディア"}]
     )
-    expected = AgentGPT
+    expected = AgentIdea
     result_elem = result[0].agent
     print(f"actual={result}")
     print(f"expected={expected}")
     assert expected == result_elem
 
 
-def test_recommed(pytestconfig: pytest.Config):
+def test_recommend(pytestconfig: pytest.Config):
     result = GenerativeAgent().generate(
         None, [{"role": "user", "content": "最近のおすすめ記事を教えて"}]
     )
-    expected = AgentGPT
+    expected = AgentRecommend
     result_elem = result[0].agent
     print(f"actual={result}")
     print(f"expected={expected}")
@@ -51,7 +59,7 @@ def test_recommed_keyword(pytestconfig: pytest.Config):
             },
         ],
     )
-    expected = AgentGPT
+    expected = AgentRecommend
     result_elem = result[0].agent
     print(f"actual={result}")
     print(f"expected={expected}")
@@ -64,7 +72,7 @@ def test_text(pytestconfig: pytest.Config):
         [{"role": "user", "content": "こんにちわ！"}],
     )
     result_elem = result[0].agent
-    expected = AgentGPT
+    expected = AgentText
     print(f"actual={result}")
     print(f"expected={expected}")
     assert expected == result_elem
@@ -76,7 +84,7 @@ def test_gpt(pytestconfig: pytest.Config):
         [{"role": "user", "content": "マーケティングに関する蘊蓄を教えて"}],
     )
     result_elem = result[0].agent
-    expected = AgentGPT
+    expected = AgentText
     print(f"actual={result}")
     print(f"expected={expected}")
     assert expected == result_elem
@@ -95,7 +103,7 @@ def test_multi(pytestconfig: pytest.Config):
     print(result)
 
 
-def test_slack_history():
+def test_slack_history(pytestconfig: pytest.Config):
     url = "https://example.slack.com/archives/C999/p1700000000000000"
     result = GenerativeAgent().generate(None, [{"role": "user", "content": url}])
     expected = [AgentExecute(agent=AgentSlackHistory, arguments={"url": url})]

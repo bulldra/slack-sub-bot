@@ -1,3 +1,4 @@
+from pathlib import Path
 from string import Template
 from typing import Any, List, Optional
 
@@ -13,7 +14,7 @@ class AgentSummarize(AgentGPT):
 
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
-        self._openai_model: str = "gpt-4.1"
+        self._openai_model: str = "gpt-4.1-mini"
         self._openai_stream = False
         self._site: Optional[scraping_utils.SiteInfo] = None
 
@@ -32,7 +33,6 @@ class AgentSummarize(AgentGPT):
         self._site = scraping_utils.scraping(url)
         if self._site is None:
             raise ValueError("scraping failed")
-        from pathlib import Path
 
         conf_path = (
             Path(__file__).resolve().parent.parent / "conf" / "summarize_prompt.yaml"
