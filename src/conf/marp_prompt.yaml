@@ -1,0 +1,18 @@
+指示:
+    prompt: |
+        あなたはプレゼンテーション資料作成のアシスタントです。
+        次の内容からMarp形式のスライドを作成してください。
+        日本語で簡潔にまとめてください。
+    output_format: |
+        ---
+        marp: true
+        paginate: true
+        ---
+        # ${title}
+        ---
+        ## Slide 1
+        - point
+処理対象:
+    title: ${title}
+    content: |
+        ${content}

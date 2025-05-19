@@ -15,6 +15,7 @@ from agent.agent_search import AgentSearch
 from agent.agent_slack_mail import AgentSlackMail
 from agent.agent_slack_history import AgentSlackHistory
 from agent.agent_summarize import AgentSummarize
+from agent.agent_marp import AgentMarp
 from agent.agent_youtube import AgentYoutube
 from agent.types import Chat
 from function.generative_base import GenerativeBase
@@ -47,6 +48,7 @@ class GenerativeAgent(GenerativeBase):
             "/notification": AgentNotification,
             "/search": AgentSearch,
             "/quiz": AgentQuiz,
+            "/marp": AgentMarp,
         }
 
         execute_queue: list[AgentExecute] = []
