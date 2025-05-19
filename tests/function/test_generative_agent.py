@@ -6,6 +6,7 @@ from agent.agent_base import AgentText
 from agent.agent_idea import AgentIdea
 from agent.agent_recommend import AgentRecommend
 from agent.agent_slack_history import AgentSlackHistory
+from agent.agent_marp import AgentMarp
 from agent.agent_summarize import AgentSummarize
 from function.generative_agent import AgentExecute, GenerativeAgent
 
@@ -106,4 +107,10 @@ def test_slack_history(pytestconfig: pytest.Config):
     url = "https://example.slack.com/archives/C999/p1700000000000000"
     result = GenerativeAgent().generate(None, [{"role": "user", "content": url}])
     expected = [AgentExecute(agent=AgentSlackHistory, arguments={"url": url})]
+    assert result == expected
+
+
+def test_marp_command():
+    result = GenerativeAgent().generate("/marp", [{"role": "user", "content": "title"}])
+    expected = [AgentExecute(agent=AgentMarp, arguments={})]
     assert result == expected
