@@ -1,4 +1,9 @@
 import json
+import os
+import pytest
+
+if "SECRETS" not in os.environ:
+    pytest.skip("SECRETS not set", allow_module_level=True)
 
 from agent.agent_quiz import AgentQuiz
 
