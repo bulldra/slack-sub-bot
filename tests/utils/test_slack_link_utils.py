@@ -99,8 +99,8 @@ def test_extract_url(argument, expected):
 @pytest.mark.parametrize(
     "argument,expected",
     [
-        (None, ValueError),
-        ("", ValueError),
+        (None, None),
+        ("", None),
         (
             "https://www.google.com/url?rct=j&sa=t&url=https://www.mapion.c"
             "o.jp/news/release/000000056.000019803/&ct=ga&cd=CAIyHDMxZDQ1MjN"
@@ -167,8 +167,8 @@ def test_remove_tracking_url(argument, expected):
 @pytest.mark.parametrize(
     "argument,expected",
     [
-        (None, ValueError),
-        ("", ValueError),
+        (None, None),
+        ("", None),
         (
             "https://www.google.com/url?rct=j&sa=t&url=https://www.mapion.co.jp/"
             "news/release/000000056.000019803/&ct=ga&cd=CAIyHDMxZDQ1MjNhNDQ1ODNjZjg6"

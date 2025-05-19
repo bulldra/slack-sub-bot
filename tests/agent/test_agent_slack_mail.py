@@ -1,7 +1,10 @@
 import collections
 import json
-
+import os
 import pytest
+
+if "SECRETS" not in os.environ:
+    pytest.skip("SECRETS not set", allow_module_level=True)
 from unittest import mock
 
 from agent.agent_slack_mail import AgentSlackMail
