@@ -95,3 +95,15 @@ class AgentSlackMail(AgentGPT):
             current_content += line + "\n"
         blocks.append({"type": "markdown", "text": current_content})
         return blocks
+
+    def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
+        result: Chat = super().execute(arguments, chat_history)
+        self._slack.api_call(
+            "reactions.add",
+            json={
+                "channel": self._channel,
+                "name": "bookmark",
+                "timestamp": self._ts,
+            },
+        )
+        return result
