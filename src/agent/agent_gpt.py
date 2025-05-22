@@ -34,11 +34,9 @@ class AgentGPT(AgentSlack):
 
     def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> Chat:
         try:
-            self.tik_process()
             prompt_messages: list[ChatCompletionMessageParam] = self.build_prompt(
                 arguments, chat_history
             )
-            self.tik_process()
             content: str = ""
             if self._openai_stream:
                 if self._collect_blocks is None:

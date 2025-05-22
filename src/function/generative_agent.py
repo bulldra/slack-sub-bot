@@ -293,12 +293,11 @@ class GenerativeAgent(GenerativeBase):
                     arguments={},
                 )
             )
-        elif len(execute_queue) >= 2:
-            execute_queue.append(
-                AgentExecute(
-                    agent=command_dict["/notification"],
-                    arguments={"content": "処理が完了したよ！"},
-                )
+        execute_queue.append(
+            AgentExecute(
+                agent=command_dict["/notification"],
+                arguments={"content": "処理が完了したよ！"},
             )
+        )
 
         return execute_queue

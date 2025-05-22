@@ -21,9 +21,6 @@ class Agent:
     def execute(self, arguments, chat_history) -> Chat:
         raise NotImplementedError
 
-    def next_placeholder(self) -> str:
-        raise NotImplementedError
-
 
 class AgentSlack(Agent):
 
@@ -48,7 +45,6 @@ class AgentSlack(Agent):
         self._ts = str(context.get("ts"))
         self._thread_ts = str(context.get("thread_ts"))
         self._context: dict[str, Any] = context
-        # A list for collecting Slack blocks when batch mode is enabled
         self._collect_blocks: Optional[list] = context.get("collect_blocks")
 
     def execute(self, arguments, chat_history) -> None:
@@ -75,44 +71,10 @@ class AgentSlack(Agent):
         system_prompt = template.substitute(replace_map)
         return system_prompt
 
-    def tik_process(self) -> None:
-        """Update Slack with a simple processing progress indicator."""
-        self._processing_message += "."
-        blocks: list = [
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": self._processing_message,
-                },
-            },
-        ]
-        # When collect_blocks is enabled, force an update so progress is visible
-        self.update_message(blocks, force=True)
-
     def build_message_blocks(self, content: str) -> list[dict[str, Any]]:
         if not content:
             raise ValueError("Content is empty.")
         return [{"type": "markdown", "text": content}]
-
-    def next_placeholder(self) -> str:
-        if self._collect_blocks is not None:
-            return self._ts
-        res = self._slack.chat_postMessage(
-            channel=self._channel,
-            thread_ts=self._thread_ts,
-            blocks=[
-                {
-                    "type": "section",
-                    "text": {"type": "mrkdwn", "text": self._processing_message},
-                }
-            ],
-            text=self._processing_message,
-        )
-        if res.get("ok"):
-            return str(res.get("ts"))
-        else:
-            raise ValueError("Failed to post message to Slack.")
 
     def _blocks_to_text(self, blocks: list[dict[str, Any]]) -> str:
         pieces: list[str] = []
@@ -133,12 +95,6 @@ class AgentSlack(Agent):
         return text_byte.decode("utf-8", errors="ignore")
 
     def update_message(self, blocks: list, *, force: bool = False) -> None:
-        """Update the Slack message.
-
-        If ``collect_blocks`` is enabled this normally only collects blocks for
-        the final flush. When ``force`` is True the update is sent immediately
-        regardless of ``collect_blocks`` so progress can be shown in realtime.
-        """
         if self._collect_blocks is not None and not force:
             self._collect_blocks.extend(blocks)
             return
@@ -239,7 +195,8 @@ class AgentNotification(AgentSlack):
             content: str = arguments.get("content", "")
             content = f"<@{self._slack_user_id}> {content}"
             blocks: List[dict] = self.build_message_blocks(content)
-            self.update_message(blocks)
+            self._collect_blocks.extend(blocks)
+            self.flush_blocks()
             return Chat(role="assistant", content=content)
         except Exception as err:
             self.error(err)

@@ -29,25 +29,6 @@ class AgentSlackMail(AgentGPT):
         self._openai_model: str = "gpt-4.1-mini"
         self._mail: Mail
 
-    def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> Chat:
-        """Execute the agent and add a bookmark for the posted message."""
-        result = super().execute(arguments, chat_history)
-        try:
-            if self._ts:
-                self._slack.api_call(
-                    "bookmarks.add",
-                    json={
-                        "channel_id": self._channel,
-                        "title": self._mail.subject or "mail",
-                        "type": "message",
-                        "entity_id": self._ts,
-                        "emoji": ":email:",
-                    },
-                )
-        except Exception as err:  # pragma: no cover - skip test for Slack API
-            self._logger.error("failed to add bookmark: %s", err)
-        return result
-
     def build_prompt(
         self, arguments: dict[str, Any], chat_history: List[dict[str, Any]]
     ) -> List[ChatCompletionMessageParam]:

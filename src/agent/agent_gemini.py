@@ -21,10 +21,8 @@ class AgentGemini(AgentSlack):
         )
 
     def execute(self, arguments: Dict[str, Any], chat_history: List[Chat]) -> Chat:
-        self.tik_process()
         prompt_messages: list[types.Part] = self.build_prompt(arguments, chat_history)
         result_text = self.completion(prompt_messages)
-        self.tik_process()
         blocks = self.build_message_blocks(result_text)
         if self._collect_blocks is None:
             action_blocks = self.build_action_blocks(chat_history)
