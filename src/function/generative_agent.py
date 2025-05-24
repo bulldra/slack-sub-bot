@@ -13,13 +13,13 @@ import utils.slack_link_utils as slack_link_utils
 from agent.agent_base import Agent, AgentDelete, AgentNotification, AgentText
 from agent.agent_gpt import AgentGPT
 from agent.agent_idea import AgentIdea
+from agent.agent_marp import AgentMarp
 from agent.agent_quiz import AgentQuiz
 from agent.agent_recommend import AgentRecommend
 from agent.agent_search import AgentSearch
 from agent.agent_slack_history import AgentSlackHistory
 from agent.agent_slack_mail import AgentSlackMail
 from agent.agent_summarize import AgentSummarize
-from agent.agent_marp import AgentMarp
 from agent.agent_youtube import AgentYoutube
 from agent.types import Chat
 from function.generative_base import GenerativeBase
@@ -79,7 +79,11 @@ class GenerativeAgent(GenerativeBase):
                 AgentExecute(
                     agent=command_dict[command],
                     arguments={},
-                )
+                ),
+                AgentExecute(
+                    agent=command_dict["/notification"],
+                    arguments={"content": "メールを要約したよ！"},
+                ),
             ]
 
         extract_url: Optional[str] = slack_link_utils.extract_url(content)
@@ -98,21 +102,27 @@ class GenerativeAgent(GenerativeBase):
             )
             if url:
                 if scraping_utils.is_allow_scraping(url):
-                    execute_queue.append(
+                    return [
                         AgentExecute(
                             agent=command_dict["/summarize"],
                             arguments={"url": url},
-                        )
-                    )
-                    return execute_queue
+                        ),
+                        AgentExecute(
+                            agent=command_dict["/notification"],
+                            arguments={"content": "URLを要約したよ！"},
+                        ),
+                    ]
                 elif scraping_utils.is_youtube_url(url):
-                    execute_queue.append(
+                    return [
                         AgentExecute(
                             agent=command_dict["/youtube"],
                             arguments={"url": url},
-                        )
-                    )
-                    return execute_queue
+                        ),
+                        AgentExecute(
+                            agent=command_dict["/notification"],
+                            arguments={"content": "URLを要約したよ！"},
+                        ),
+                    ]
 
         prompt_messages: list[ChatCompletionMessageParam] = self.build_prompt(
             chat_history
