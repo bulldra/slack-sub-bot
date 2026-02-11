@@ -174,12 +174,7 @@ class AgentNotification(AgentSlack):
 
     def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> None:
         try:
-            content: str = arguments.get("content", "")
-            content = f"<@{self._slack_user_id}> {content}"
-            blocks: List[dict] = self.build_message_blocks(content)
-            self._collect_blocks.extend(blocks)
             self.flush_blocks()
-            return Chat(role="assistant", content=content)
         except Exception as err:
             self.error(err)
             raise err
