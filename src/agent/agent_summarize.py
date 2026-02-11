@@ -2,6 +2,7 @@ from pathlib import Path
 from string import Template
 from typing import Any, List, Optional
 
+import requests
 from openai.types.chat import ChatCompletionMessageParam
 
 import utils.scraping_utils as scraping_utils
@@ -48,10 +49,23 @@ class AgentSummarize(AgentGPT):
             return super().build_prompt(arguments, [Chat(role="user", content=prompt)])
 
     def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> Chat:
-        result = super().execute(arguments, chat_history)
+        try:
+            result = super().execute(arguments, chat_history)
+        except requests.exceptions.HTTPError as e:
+            status_code = e.response.status_code if e.response is not None else "不明"
+            content = f"Webページの取得に失敗しました（HTTPステータス: {status_code}）"
+            self.update_message(self.build_message_blocks_error(content), force=True)
+            return Chat(role="assistant", content=content)
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            content = f"Webページへの接続に失敗しました（{type(e).__name__}）"
+            self.update_message(self.build_message_blocks_error(content), force=True)
+            return Chat(role="assistant", content=content)
         if self._site and self._site.content:
             chat_history.append(Chat(role="assistant", content=self._site.content))
         return result
+
+    def build_message_blocks_error(self, content: str) -> list:
+        return [{"type": "section", "text": {"type": "mrkdwn", "text": content}}]
 
     def build_message_blocks(self, content: str) -> list:
         if self._site is None:
