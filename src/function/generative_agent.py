@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 import utils.scraping_utils as scraping_utils
 import utils.slack_link_utils as slack_link_utils
-from agent.agent_base import Agent, AgentDelete, AgentText
+from agent.agent_base import Agent, AgentDelete, AgentNotification, AgentText
 from agent.agent_gpt import AgentGPT
 from agent.agent_idea import AgentIdea
 from agent.agent_marp import AgentMarp
@@ -48,6 +48,7 @@ class GenerativeAgent(GenerativeBase):
             "/text": AgentText,
             "/youtube": AgentYoutube,
             "/search": AgentSearch,
+            "/notification": AgentNotification,
             "/marp": AgentMarp,
             "/slack_history": AgentSlackHistory,
         }
@@ -60,6 +61,10 @@ class GenerativeAgent(GenerativeBase):
                 AgentExecute(
                     agent=command_dict[command],
                     arguments={},
+                ),
+                AgentExecute(
+                    agent=command_dict["/notification"],
+                    arguments={"content": ""},
                 ),
             ]
 
@@ -84,12 +89,20 @@ class GenerativeAgent(GenerativeBase):
                             agent=command_dict["/summarize"],
                             arguments={"url": url},
                         ),
+                        AgentExecute(
+                            agent=command_dict["/notification"],
+                            arguments={"content": ""},
+                        ),
                     ]
                 elif scraping_utils.is_youtube_url(url):
                     return [
                         AgentExecute(
                             agent=command_dict["/youtube"],
                             arguments={"url": url},
+                        ),
+                        AgentExecute(
+                            agent=command_dict["/notification"],
+                            arguments={"content": ""},
                         ),
                     ]
 
@@ -256,5 +269,11 @@ class GenerativeAgent(GenerativeBase):
                     arguments={},
                 )
             )
+        execute_queue.append(
+            AgentExecute(
+                agent=command_dict["/notification"],
+                arguments={"content": ""},
+            )
+        )
 
         return execute_queue

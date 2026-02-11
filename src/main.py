@@ -61,8 +61,3 @@ def main(cloud_event: CloudEvent):
         chat_response: Chat = agent.execute(agent_execute.arguments, chat_history_copy)
         chat_history.append(chat_response)
         logger.debug("end process agent=%s", agent_class.__qualname__)
-
-    if blocks:
-        last_agent = execute_queue[-1].agent(context)
-        if isinstance(last_agent, AgentSlack):
-            last_agent.flush_blocks()
