@@ -14,7 +14,6 @@ from agent.agent_base import Agent, AgentDelete, AgentNotification, AgentText
 from agent.agent_gpt import AgentGPT
 from agent.agent_idea import AgentIdea
 from agent.agent_marp import AgentMarp
-from agent.agent_quiz import AgentQuiz
 from agent.agent_recommend import AgentRecommend
 from agent.agent_search import AgentSearch
 from agent.agent_slack_history import AgentSlackHistory
@@ -50,29 +49,12 @@ class GenerativeAgent(GenerativeBase):
             "/youtube": AgentYoutube,
             "/notification": AgentNotification,
             "/search": AgentSearch,
-            "/quiz": AgentQuiz,
             "/marp": AgentMarp,
             "/slack_history": AgentSlackHistory,
         }
 
         execute_queue: list[AgentExecute] = []
         content: str = str(chat_history[-1].get("content", ""))
-
-        try:
-            payload = json.loads(content)
-            if isinstance(payload, dict) and {
-                "choice",
-                "correct",
-                "explanation",
-            }.issubset(payload.keys()):
-                return [
-                    AgentExecute(
-                        agent=command_dict["/quiz"],
-                        arguments={"choice_payload": payload},
-                    )
-                ]
-        except json.JSONDecodeError:
-            pass
 
         if command is not None and command in command_dict:
             return [
@@ -222,22 +204,6 @@ class GenerativeAgent(GenerativeBase):
                                 "type": "string",
                                 "description": "検索用キーワード、スペース区切りはしないで1単語を指定",
                             },
-                        },
-                    },
-                    "required": [],
-                },
-            },
-            {
-                "type": "function",
-                "name": "quiz",
-                "description": "4択クイズを出題する",
-                "strict": False,
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "topic": {
-                            "type": "string",
-                            "description": "クイズのトピック",
                         },
                     },
                     "required": [],
