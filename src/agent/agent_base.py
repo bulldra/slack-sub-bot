@@ -3,8 +3,6 @@ import logging
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from string import Template
 from typing import Any, List, Optional
 
 import slack_sdk
@@ -12,6 +10,7 @@ import slack_sdk
 import utils.weather
 from agent.types import Chat
 from function.generative_actions import GenerativeActions
+from skills.skill_loader import load_skill
 
 
 class Agent:
@@ -23,7 +22,6 @@ class Agent:
 
 
 class AgentSlack(Agent):
-
     def __init__(self, context: dict[str, Any]) -> None:
         secrets: str = str(os.getenv("SECRETS"))
         if not secrets:
@@ -46,35 +44,57 @@ class AgentSlack(Agent):
         self._thread_ts = str(context.get("thread_ts"))
         self._context: dict[str, Any] = context
         self._collect_blocks: Optional[list] = context.get("collect_blocks")
+        self._use_character: bool = False
 
     def execute(self, arguments, chat_history) -> None:
         raise NotImplementedError
 
     def build_system_prompt(self) -> str:
-
-        conf_path = (
-            Path(__file__).resolve().parent.parent / "conf" / "system_prompt.yaml"
+        now_iso: str = datetime.now(timezone(timedelta(hours=9))).isoformat()
+        if self._use_character:
+            weather: dict = utils.weather.Weather().get()
+            return load_skill(
+                "system",
+                {
+                    "WEATHER_REPORT_DATETIME": weather.get("reportDatetime"),
+                    "WEATHER_REPORT_TEXT": weather.get("text"),
+                    "DATE_TIME": now_iso,
+                },
+            )
+        return load_skill(
+            "system_base",
+            {"DATE_TIME": now_iso},
         )
-        with open(conf_path, "r", encoding="utf-8") as file:
-            system_prompt = file.read()
 
-        weather: dict = utils.weather.Weather().get()
-        weather_report_datetime = weather.get("reportDatetime")
-        weather_report_text = weather.get("text")
+    @staticmethod
+    def _split_markdown_blocks(content: str, max_len: int = 3000) -> list[dict]:
+        if len(content) <= max_len:
+            return [{"type": "markdown", "text": content}]
 
-        replace_map = {
-            "WEATHER_REPORT_DATETIME": weather_report_datetime,
-            "WEATHER_REPORT_TEXT": weather_report_text,
-            "DATE_TIME": datetime.now(timezone(timedelta(hours=9))).isoformat(),
-        }
-        template = Template(system_prompt)
-        system_prompt = template.substitute(replace_map)
-        return system_prompt
+        blocks: list[dict] = []
+        remaining = content
+        while remaining:
+            if len(remaining) <= max_len:
+                blocks.append({"type": "markdown", "text": remaining})
+                break
+            # 見出し行(## )で分割を試みる
+            split_pos = -1
+            for marker in ["\n## ", "\n\n"]:
+                pos = remaining.rfind(marker, 0, max_len)
+                if pos > 0:
+                    split_pos = pos
+                    break
+            if split_pos <= 0:
+                pos = remaining.rfind("\n", 0, max_len)
+                split_pos = pos if pos > 0 else max_len
+            blocks.append({"type": "markdown", "text": remaining[:split_pos].rstrip()})
+            remaining = remaining[split_pos:].lstrip("\n")
+        return blocks
 
     def build_message_blocks(self, content: str) -> list[dict[str, Any]]:
         if not content:
             raise ValueError("Content is empty.")
-        return [{"type": "markdown", "text": content}]
+        return self._split_markdown_blocks(content)
 
     def _blocks_to_text(self, blocks: list[dict[str, Any]]) -> str:
         pieces: list[str] = []
@@ -161,7 +181,6 @@ class AgentSlack(Agent):
 
 
 class AgentDelete(AgentSlack):
-
     def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> None:
         self._logger.debug("delete")
         self._slack.chat_delete(
@@ -171,7 +190,6 @@ class AgentDelete(AgentSlack):
 
 
 class AgentNotification(AgentSlack):
-
     def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> None:
         try:
             self.flush_blocks()
@@ -181,7 +199,6 @@ class AgentNotification(AgentSlack):
 
 
 class AgentText(AgentSlack):
-
     def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> None:
         try:
             content = str(arguments.get("content", ""))
@@ -196,5 +213,3 @@ class AgentText(AgentSlack):
         except Exception as err:
             self.error(err)
             raise err
-
-

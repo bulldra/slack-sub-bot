@@ -6,7 +6,6 @@ from google.cloud import storage
 
 
 class StoredGcs:
-
     def __init__(
         self, bucket_name, blob_name, ttl=timedelta(hours=2), is_refresh=False
     ):

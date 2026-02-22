@@ -8,7 +8,6 @@ from agent.types import Chat
 
 
 class AgentSearch(AgentGemini):
-
     def build_prompt(self, arguments: Dict[str, Any], chat_history: List[Chat]) -> Chat:
         query = str(chat_history[-1]["content"])
         if arguments.get("query"):

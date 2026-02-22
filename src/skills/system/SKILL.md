@@ -1,3 +1,8 @@
+---
+name: system
+description: キャラクター定義・出力ルール
+---
+
 characters:
     lambda:
         symbol: λ

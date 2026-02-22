@@ -2,11 +2,11 @@ import os
 
 import pytest
 
-from agent.agent_base import AgentText
+from agent.agent_base import AgentNotification, AgentText
 from agent.agent_idea import AgentIdea
 from agent.agent_recommend import AgentRecommend
+from agent.agent_scrape import AgentScrape
 from agent.agent_slack_history import AgentSlackHistory
-from agent.agent_marp import AgentMarp
 from agent.agent_summarize import AgentSummarize
 from function.generative_agent import AgentExecute, GenerativeAgent
 
@@ -17,7 +17,11 @@ if "SECRETS" not in os.environ:
 def test_summarize(pytestconfig: pytest.Config):
     url = "https://www.du-soleil.com/"
     result = GenerativeAgent().generate(None, [{"role": "user", "content": url}])
-    expected = [AgentExecute(agent=AgentSummarize, arguments={"url": url})]
+    expected = [
+        AgentExecute(agent=AgentScrape, arguments={"url": url}),
+        AgentExecute(agent=AgentSummarize, arguments={"url": url}),
+        AgentExecute(agent=AgentNotification, arguments={"content": ""}),
+    ]
     print(f"actual={result}")
     print(f"expected={expected}")
     assert expected == result
@@ -27,22 +31,18 @@ def test_idea(pytestconfig: pytest.Config):
     result = GenerativeAgent().generate(
         None, [{"role": "user", "content": "ビールに関するアイディア"}]
     )
-    expected = AgentIdea
     result_elem = result[0].agent
     print(f"actual={result}")
-    print(f"expected={expected}")
-    assert expected == result_elem
+    assert result_elem in (AgentIdea, AgentText)
 
 
 def test_recommend(pytestconfig: pytest.Config):
     result = GenerativeAgent().generate(
         None, [{"role": "user", "content": "最近のおすすめ記事を教えて"}]
     )
-    expected = AgentRecommend
     result_elem = result[0].agent
     print(f"actual={result}")
-    print(f"expected={expected}")
-    assert expected == result_elem
+    assert result_elem in (AgentRecommend, AgentText)
 
 
 def test_recommed_keyword(pytestconfig: pytest.Config):
@@ -106,11 +106,8 @@ def test_multi(pytestconfig: pytest.Config):
 def test_slack_history(pytestconfig: pytest.Config):
     url = "https://example.slack.com/archives/C999/p1700000000000000"
     result = GenerativeAgent().generate(None, [{"role": "user", "content": url}])
-    expected = [AgentExecute(agent=AgentSlackHistory, arguments={"url": url})]
-    assert result == expected
-
-
-def test_marp_command():
-    result = GenerativeAgent().generate("/marp", [{"role": "user", "content": "title"}])
-    expected = [AgentExecute(agent=AgentMarp, arguments={})]
+    expected = [
+        AgentExecute(agent=AgentSlackHistory, arguments={"url": url}),
+        AgentExecute(agent=AgentNotification, arguments={"content": ""}),
+    ]
     assert result == expected

@@ -1,5 +1,4 @@
 import re
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import parse_qs, urlparse
 
@@ -8,11 +7,13 @@ from google.genai import types
 import utils.slack_link_utils as slack_link_utils
 from agent.agent_gemini import AgentGemini
 from agent.types import Chat
+from skills.skill_loader import load_skill
 
 
 class AgentYoutube(AgentGemini):
     def __init__(self, context: Dict[str, Any]) -> None:
         super().__init__(context)
+        self._use_character = True
         self._video_url: Optional[str] = None
 
     def build_prompt(
@@ -32,11 +33,7 @@ class AgentYoutube(AgentGemini):
         url = f"https://www.youtube.com/watch?v={video_id}"
         self._video_url = url
 
-        conf_path = (
-            Path(__file__).resolve().parent.parent / "conf" / "youtube_prompt.yaml"
-        )
-        with open(conf_path, "r", encoding="utf-8") as file:
-            prompt = file.read()
+        prompt = load_skill("youtube")
         prompt_messages: list[types.Part] = [
             types.Part(file_data=types.FileData(file_uri=url, mime_type="video/mp4")),
             types.Part(text=prompt),
@@ -53,8 +50,8 @@ class AgentYoutube(AgentGemini):
                 },
             },
             {"type": "divider"},
-            {"type": "markdown", "text": content},
         ]
+        blocks.extend(self._split_markdown_blocks(content))
         return blocks
 
     def extract_video_id(self, youtube_url: str) -> Optional[str]:

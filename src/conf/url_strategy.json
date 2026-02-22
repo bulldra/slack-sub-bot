@@ -1,0 +1,22 @@
+{
+	"delegate_domains": {
+		"youtu.be": "youtube",
+		"www.youtube.com": "youtube",
+		"m.youtube.com": "youtube",
+		"twitter.com": "x",
+		"x.com": "x",
+		"www.x.com": "x",
+		"www.twitter.com": "x",
+		"mobile.x.com": "x",
+		"mobile.twitter.com": "x"
+	},
+	"ignore_domains": [
+		"speakerdeck.com",
+		"open.spotify.com",
+		"www.bloomberg.com",
+		"jp.investing.com",
+		"pando.life",
+		"kossev.info"
+	],
+	"ignore_extensions": [".zip"]
+}

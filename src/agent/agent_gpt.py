@@ -17,7 +17,6 @@ from agent.types import Chat
 
 
 class AgentGPT(AgentSlack):
-
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
         secrets: str = str(os.getenv("SECRETS"))
@@ -26,11 +25,12 @@ class AgentGPT(AgentSlack):
         self._secrets: dict = json.loads(secrets)
         self._context: dict[str, Any] = context
         self._openai_model: str = "gpt-5-mini"
-        self._openai_temperature: float = 0.0
         self._output_max_token: int = 30000
         self._max_token: int = 400000 // 2 - self._output_max_token
         self._openai_stream = True
+        self._reasoning_effort: str | None = None
         self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
+        self._use_character = True
 
     def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> Chat:
         try:
@@ -92,13 +92,15 @@ class AgentGPT(AgentSlack):
         return prompt_messages
 
     def completion(self, prompt_messages: list[ChatCompletionMessageParam]) -> str:
-        response = self._openai_client.chat.completions.create(
-            messages=prompt_messages,
-            model=self._openai_model,
-            temperature=self._openai_temperature,
-            stream=False,
-            max_tokens=self._output_max_token,
-        )
+        kwargs: dict[str, Any] = {
+            "messages": prompt_messages,
+            "model": self._openai_model,
+            "stream": False,
+            "max_completion_tokens": self._output_max_token,
+        }
+        if self._reasoning_effort:
+            kwargs["reasoning_effort"] = self._reasoning_effort
+        response = self._openai_client.chat.completions.create(**kwargs)
         return str(response.choices[0].message.content)
 
     def completion_stream(
@@ -111,9 +113,8 @@ class AgentGPT(AgentSlack):
             self._openai_client.chat.completions.create(
                 messages=prompt_messages,
                 model=self._openai_model,
-                temperature=self._openai_temperature,
                 stream=True,
-                max_tokens=self._output_max_token,
+                max_completion_tokens=self._output_max_token,
             )
         )
 

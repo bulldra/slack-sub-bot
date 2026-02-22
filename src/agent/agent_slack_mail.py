@@ -1,7 +1,5 @@
 import html
 import json
-from pathlib import Path
-from string import Template
 from typing import Any, List
 
 import requests
@@ -11,6 +9,7 @@ from pydantic import BaseModel, ConfigDict
 import utils.scraping_utils as scraping_utils
 from agent.agent_gpt import AgentGPT
 from agent.types import Chat
+from skills.skill_loader import load_skill
 
 
 class Mail(BaseModel):
@@ -22,11 +21,10 @@ class Mail(BaseModel):
 
 
 class AgentSlackMail(AgentGPT):
-
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
         self._openai_stream = False
-        self._openai_model: str = "gpt-4.1-mini"
+        self._openai_model: str = "gpt-5-mini"
         self._mail: Mail
 
     def build_prompt(
@@ -57,17 +55,15 @@ class AgentSlackMail(AgentGPT):
             content=mail_content,
         )
 
-        conf_path = (
-            Path(__file__).resolve().parent.parent / "conf" / "slack_mail_prompt.yaml"
+        prompt = load_skill(
+            "slack_mail",
+            {
+                "subject": self._mail.subject,
+                "content": self._mail.content,
+            },
         )
-        with open(conf_path, "r", encoding="utf-8") as file:
-            prompt_template = Template(file.read())
-            prompt = prompt_template.substitute(
-                subject=self._mail.subject,
-                content=self._mail.content,
-            )
-            chat_history = [Chat(role="user", content=prompt.strip())]
-            return super().build_prompt(arguments, chat_history)
+        chat_history = [Chat(role="user", content=prompt.strip())]
+        return super().build_prompt(arguments, chat_history)
 
     def build_message_blocks(self, content: str) -> List[dict]:
         blocks: List[dict] = [
@@ -87,13 +83,7 @@ class AgentSlackMail(AgentGPT):
             },
             {"type": "divider"},
         ]
-        current_content: str = ""
-        for line in content.splitlines():
-            if len(current_content) + len(line) > 11900:
-                blocks.append({"type": "markdown", "text": current_content})
-                current_content = ""
-            current_content += line + "\n"
-        blocks.append({"type": "markdown", "text": current_content})
+        blocks.extend(self._split_markdown_blocks(content))
         return blocks
 
     def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:

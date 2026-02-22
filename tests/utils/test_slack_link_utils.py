@@ -203,9 +203,7 @@ def test_remove_tracking_url(argument, expected):
         ),
         (
             "https://ja.wikipedia.org/wiki/暦書_(ノストラダムス)",
-            "https://ja.wikipedia.org/wiki/"
-            "%E6%9A%A6%E6%9B%B8_(%E3%83%8E%E3%82%B9%E3%83%88"
-            "%E3%83%A9%E3%83%80%E3%83%A0%E3%82%B9)",
+            "https://ja.wikipedia.org/wiki/暦書_(ノストラダムス)",
         ),
         (
             "https://www.google.com/url?rct=j&amp%3Bsa=t&amp%3Burl=https%3A%2F%2Fwww."
@@ -278,15 +276,19 @@ def test_parse_message_url():
 
 
 def test_is_slack_message_url_1():
+    import utils.scraping_utils as scraping_utils
+
     url = "https://example.slack.com/archives/C123456/p1700000000000000"
-    assert slack_link_utils.is_slack_message_url(url)
+    assert scraping_utils.is_slack_message_url(url)
 
 
 def test_is_slack_message_url_2():
+    import utils.scraping_utils as scraping_utils
+
     url = "https://bulldra.slack.com/?redir=%2Farchives%2FC05KDQN0L75"
     url += "%2Fp1747603783436239%3Fthread_ts%3D1747603781.110429%26cid%3DC05"
     url += "KDQN0L75%26name%3DC05KDQN0L75%26perma%3D1747603783436239"
-    assert slack_link_utils.is_slack_message_url(url)
+    assert scraping_utils.is_slack_message_url(url)
 
 
 class DummySlack:

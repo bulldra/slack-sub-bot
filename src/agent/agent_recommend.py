@@ -1,5 +1,3 @@
-from pathlib import Path
-from string import Template
 from typing import Any, List
 
 from openai.types.chat import ChatCompletionMessageParam
@@ -7,16 +5,15 @@ from openai.types.chat import ChatCompletionMessageParam
 import utils.slack_search_utils as slack_search_utils
 from agent.agent_gpt import AgentGPT
 from agent.types import Chat
+from skills.skill_loader import load_skill
 
 
 class AgentRecommend(AgentGPT):
-
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
         self._openai_stream = True
-        self._openai_model: str = "gpt-4.1-mini"
+        self._openai_model: str = "gpt-5-mini"
 
-        self._openai_temperature: float = 0.5
         self._keywords: List[str] = []
 
     def build_prompt(
@@ -56,15 +53,11 @@ class AgentRecommend(AgentGPT):
             )
 
         if len(recommend_messages) >= 1:
-            conf_path = (
-                Path(__file__).resolve().parent.parent
-                / "conf"
-                / "recommend_prompt.yaml"
+            prompt = load_skill(
+                "recommend",
+                {
+                    "recommend_messages": "\n\n".join(recommend_messages),
+                },
             )
-            with open(conf_path, "r", encoding="utf-8") as file:
-                prompt_template = Template(file.read())
-                prompt = prompt_template.substitute(
-                    recommend_messages="\n\n".join(recommend_messages)
-                )
-                chat_history.append(Chat(role="user", content=prompt.strip()))
+            chat_history.append(Chat(role="user", content=prompt.strip()))
         return super().build_prompt(arguments, chat_history)

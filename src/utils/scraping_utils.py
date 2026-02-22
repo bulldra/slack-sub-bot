@@ -1,13 +1,30 @@
+import json
 import os
 import re
 import tempfile
 import urllib
+from pathlib import Path
 from typing import Optional, Tuple
 
 import pypdf
 import requests
 from bs4 import BeautifulSoup
 from pydantic import BaseModel, ConfigDict
+
+
+def _load_url_strategy() -> dict:
+    env_json = os.getenv("URL_STRATEGY_JSON")
+    if env_json:
+        return json.loads(env_json)
+    conf_path = Path(__file__).resolve().parent.parent / "conf" / "url_strategy.json"
+    with open(conf_path, "r", encoding="utf-8") as json_file:
+        return json.load(json_file)
+
+
+_STRATEGY_CONFIG: dict = _load_url_strategy()
+_DELEGATE_DOMAINS: dict[str, str] = _STRATEGY_CONFIG["delegate_domains"]
+_IGNORE_DOMAINS: list[str] = _STRATEGY_CONFIG["ignore_domains"]
+_IGNORE_EXTENSIONS: list[str] = _STRATEGY_CONFIG["ignore_extensions"]
 
 DEFAULT_HEADERS: dict[str, str] = {
     "User-Agent": (
@@ -25,24 +42,35 @@ class SiteInfo(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
-def is_allow_scraping(url: str) -> bool:
-    blacklist_domain: list[str] = [
-        "speakerdeck.com",
-        "twitter.com",
-        "open.spotify.com",
-    ]
-    black_list_ext: list[str] = [
-        ".zip",
-    ]
+def classify_url(url: str) -> str:
+    """URLをストラテジーに分類する。
+
+    Returns:
+        "scrape" - スクレイピングして要約
+        "ignore" - 処理対象外
+        エージェントコマンド名 (例: "youtube", "x") - 専用エージェントに委譲
+    """
+    if not url:
+        return "ignore"
     urlobj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
-    return not (
-        urlobj.netloc in [b"", ""]
-        or urlobj.netloc in blacklist_domain
-        or os.path.splitext(urlobj.path)[1] in black_list_ext
-        or is_image_url(url)
-        or is_youtube_url(url)
-        or is_slack_message_url(url)
-    )
+    netloc: str = urlobj.netloc
+    if not netloc:
+        return "ignore"
+    if netloc in _DELEGATE_DOMAINS:
+        return _DELEGATE_DOMAINS[netloc]
+    if is_slack_message_url(url):
+        return "slack_history"
+    if netloc in _IGNORE_DOMAINS:
+        return "ignore"
+    if os.path.splitext(urlobj.path)[1] in _IGNORE_EXTENSIONS:
+        return "ignore"
+    if is_image_url(url):
+        return "ignore"
+    return "scrape"
+
+
+def is_allow_scraping(url: str) -> bool:
+    return classify_url(url) == "scrape"
 
 
 def is_slack_message_url(url: str) -> bool:
@@ -102,14 +130,34 @@ def is_pdf_url(url: str) -> bool:
     return os.path.splitext(urlobj.path)[1] in pdf_ext
 
 
-def is_youtube_url(url: str) -> bool:
-    youtube_url_list: list[str] = [
-        "youtu.be",
-        "www.youtube.com",
-        "m.youtube.com",
+def is_x_url(url: str) -> bool:
+    x_domains: list[str] = [
+        "x.com",
+        "twitter.com",
+        "www.x.com",
+        "www.twitter.com",
+        "mobile.x.com",
+        "mobile.twitter.com",
     ]
     urlobj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
-    return urlobj.netloc in youtube_url_list
+    if urlobj.netloc not in x_domains:
+        return False
+    return re.match(r"^/[^/]+/status/\d+", urlobj.path) is not None
+
+
+def extract_x_post_id(url: str) -> Optional[str]:
+    urlobj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
+    match = re.match(r"^/[^/]+/status/(\d+)", urlobj.path)
+    if match:
+        return match.group(1)
+    return None
+
+
+def is_youtube_url(url: str) -> bool:
+    if not url:
+        return False
+    urlobj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
+    return _DELEGATE_DOMAINS.get(urlobj.netloc) == "youtube"
 
 
 def scraping_raw(url: str) -> str:

@@ -8,7 +8,6 @@ from agent.types import Chat
 
 
 class AgentGemini(AgentSlack):
-
     def __init__(self, context: Dict[str, Any]):
         super().__init__(context)
         self._project = context.get("GCP_PROJECT")

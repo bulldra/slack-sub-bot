@@ -1,3 +1,8 @@
+---
+name: recommend
+description: 記事レコメンド
+---
+
 指示:
     prompt: |
         ラムダから処理対象の記事３本を感情豊かにおすすめしてください。

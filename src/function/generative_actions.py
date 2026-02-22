@@ -10,7 +10,6 @@ from function.generative_base import GenerativeBase
 
 
 class GenerativeActions(GenerativeBase):
-
     def generate(self, chat_history: list[Chat]) -> list[dict[str, str]]:
         prompt: str = (
             "これまでの会話内容をもとに次のアクションとなる選択肢とプロンプトを生成する。"

@@ -11,14 +11,19 @@ from pydantic import BaseModel
 import utils.scraping_utils as scraping_utils
 import utils.slack_link_utils as slack_link_utils
 from agent.agent_base import Agent, AgentDelete, AgentNotification, AgentText
+from agent.agent_feed_collect import AgentFeedCollect
+from agent.agent_feed_digest import AgentFeedDigest
+from agent.agent_github import AgentGitHub
+from agent.agent_x_post import AgentXPost
 from agent.agent_gpt import AgentGPT
 from agent.agent_idea import AgentIdea
-from agent.agent_marp import AgentMarp
 from agent.agent_recommend import AgentRecommend
+from agent.agent_scrape import AgentScrape
 from agent.agent_search import AgentSearch
 from agent.agent_slack_history import AgentSlackHistory
 from agent.agent_slack_mail import AgentSlackMail
 from agent.agent_summarize import AgentSummarize
+from agent.agent_x import AgentX
 from agent.agent_youtube import AgentYoutube
 from agent.types import Chat
 from function.generative_base import GenerativeBase
@@ -34,7 +39,6 @@ class AgentExecute(BaseModel):
 
 
 class GenerativeAgent(GenerativeBase):
-
     def generate(
         self, command: Optional[str], chat_history: list[Chat]
     ) -> list[AgentExecute]:
@@ -49,12 +53,35 @@ class GenerativeAgent(GenerativeBase):
             "/youtube": AgentYoutube,
             "/search": AgentSearch,
             "/notification": AgentNotification,
-            "/marp": AgentMarp,
             "/slack_history": AgentSlackHistory,
+            "/feed_digest": AgentFeedDigest,
+            "/x": AgentX,
+            "/github": AgentGitHub,
         }
 
         execute_queue: list[AgentExecute] = []
         content: str = str(chat_history[-1].get("content", ""))
+
+        if command == "/feed_digest":
+            return [
+                AgentExecute(agent=AgentXPost, arguments={}),
+                AgentExecute(agent=AgentFeedCollect, arguments={}),
+                AgentExecute(agent=AgentFeedDigest, arguments={}),
+                AgentExecute(
+                    agent=command_dict["/notification"],
+                    arguments={"content": ""},
+                ),
+            ]
+
+        if command == "/summarize":
+            return [
+                AgentExecute(agent=AgentScrape, arguments={}),
+                AgentExecute(agent=AgentSummarize, arguments={}),
+                AgentExecute(
+                    agent=command_dict["/notification"],
+                    arguments={"content": ""},
+                ),
+            ]
 
         if command is not None and command in command_dict:
             return [
@@ -69,42 +96,50 @@ class GenerativeAgent(GenerativeBase):
             ]
 
         extract_url: Optional[str] = slack_link_utils.extract_url(content)
-        if extract_url:
-            if scraping_utils.is_slack_message_url(extract_url):
-                execute_queue.append(
-                    AgentExecute(
-                        agent=command_dict["/slack_history"],
-                        arguments={"url": extract_url},
-                    )
-                )
+        if extract_url and scraping_utils.classify_url(extract_url) == "slack_history":
+            return [
+                AgentExecute(
+                    agent=command_dict["/slack_history"],
+                    arguments={"url": extract_url},
+                ),
+                AgentExecute(
+                    agent=command_dict["/notification"],
+                    arguments={"content": ""},
+                ),
+            ]
 
+        notification = AgentExecute(
+            agent=command_dict["/notification"],
+            arguments={"content": ""},
+        )
         if slack_link_utils.is_only_url(content):
             url: Optional[str] = slack_link_utils.extract_and_remove_tracking_url(
                 content
             )
             if url:
-                if scraping_utils.is_allow_scraping(url):
+                strategy = scraping_utils.classify_url(url)
+                if strategy == "scrape":
                     return [
+                        AgentExecute(
+                            agent=AgentScrape,
+                            arguments={"url": url},
+                        ),
                         AgentExecute(
                             agent=command_dict["/summarize"],
                             arguments={"url": url},
                         ),
-                        AgentExecute(
-                            agent=command_dict["/notification"],
-                            arguments={"content": ""},
-                        ),
+                        notification,
                     ]
-                elif scraping_utils.is_youtube_url(url):
-                    return [
-                        AgentExecute(
-                            agent=command_dict["/youtube"],
-                            arguments={"url": url},
-                        ),
-                        AgentExecute(
-                            agent=command_dict["/notification"],
-                            arguments={"content": ""},
-                        ),
-                    ]
+                elif strategy not in ("ignore", "slack_history"):
+                    command = f"/{strategy}"
+                    if command in command_dict:
+                        return [
+                            AgentExecute(
+                                agent=command_dict[command],
+                                arguments={"url": url},
+                            ),
+                            notification,
+                        ]
 
         prompt_messages: list[ChatCompletionMessageParam] = self.build_prompt(
             chat_history
@@ -138,6 +173,22 @@ class GenerativeAgent(GenerativeBase):
                         "url": {
                             "type": "string",
                             "description": "要約するURL",
+                        }
+                    },
+                    "required": ["url"],
+                },
+            },
+            {
+                "type": "function",
+                "name": "x",
+                "description": "X（Twitter）のURLを受け取ったら実行。ポストの内容を分析して返す",
+                "strict": False,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "url": {
+                            "type": "string",
+                            "description": "X（Twitter）のURL",
                         }
                     },
                     "required": ["url"],
@@ -227,21 +278,16 @@ class GenerativeAgent(GenerativeBase):
                     command = f"/{function_call.name}"
                     if command in command_dict:
                         exe = command_dict[command]
-                        if function_call.arguments:
-                            args = json.loads(function_call.arguments)
+                        args = (
+                            json.loads(function_call.arguments)
+                            if function_call.arguments
+                            else {}
+                        )
+                        if command == "/summarize":
                             execute_queue.append(
-                                AgentExecute(
-                                    agent=exe,
-                                    arguments=args,
-                                )
+                                AgentExecute(agent=AgentScrape, arguments=args)
                             )
-                        else:
-                            execute_queue.append(
-                                AgentExecute(
-                                    agent=exe,
-                                    arguments={},
-                                )
-                            )
+                        execute_queue.append(AgentExecute(agent=exe, arguments=args))
                 elif function_call.type == "message":
                     messages: list[ResponseOutputText | ResponseOutputRefusal] = (
                         function_call.content

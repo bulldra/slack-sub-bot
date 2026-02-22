@@ -9,7 +9,6 @@ from function.generative_base import GenerativeBase
 
 
 class GenerativeSynonyms(GenerativeBase):
-
     def generate(self, chat_history: list[Chat]) -> list[dict[str, str]]:
         prompt_messages: list[ChatCompletionMessageParam] = self.build_prompt(
             chat_history

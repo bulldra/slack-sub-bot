@@ -1,5 +1,7 @@
 import collections
+import json
 import os
+from pathlib import Path
 
 import pytest
 
@@ -142,6 +144,73 @@ def test_is_code_url():
         "https://www.du-soleil.com/entry/gentle-internet-is-a-translation"
     )
     print(site)
+
+
+def test_url_strategy_json():
+    conf_path = (
+        Path(__file__).resolve().parent.parent.parent
+        / "src"
+        / "conf"
+        / "url_strategy.json"
+    )
+    assert conf_path.exists(), f"設定ファイルが存在しない: {conf_path}"
+    with open(conf_path, "r", encoding="utf-8") as f:
+        config = json.load(f)
+    assert "delegate_domains" in config
+    assert "ignore_domains" in config
+    assert "ignore_extensions" in config
+    assert isinstance(config["delegate_domains"], dict)
+    assert isinstance(config["ignore_domains"], list)
+    assert isinstance(config["ignore_extensions"], list)
+    assert len(config["delegate_domains"]) > 0
+    assert len(config["ignore_domains"]) > 0
+    assert len(config["ignore_extensions"]) > 0
+
+
+def test_strategy_module_constants():
+    assert isinstance(scraping_utils._DELEGATE_DOMAINS, dict)
+    assert isinstance(scraping_utils._IGNORE_DOMAINS, list)
+    assert isinstance(scraping_utils._IGNORE_EXTENSIONS, list)
+    assert scraping_utils._DELEGATE_DOMAINS.get("twitter.com") == "x"
+    assert scraping_utils._DELEGATE_DOMAINS.get("www.youtube.com") == "youtube"
+    assert "speakerdeck.com" in scraping_utils._IGNORE_DOMAINS
+    assert ".zip" in scraping_utils._IGNORE_EXTENSIONS
+
+
+def test_classify_url():
+    # delegate: youtube
+    assert (
+        scraping_utils.classify_url("https://www.youtube.com/watch?v=abc") == "youtube"
+    )
+    assert scraping_utils.classify_url("https://youtu.be/abc") == "youtube"
+    assert scraping_utils.classify_url("https://m.youtube.com/watch?v=abc") == "youtube"
+    # delegate: x
+    assert scraping_utils.classify_url("https://x.com/user/status/123") == "x"
+    assert scraping_utils.classify_url("https://twitter.com/user/status/123") == "x"
+    assert scraping_utils.classify_url("https://mobile.x.com/user/status/123") == "x"
+    # ignore: empty / invalid
+    assert scraping_utils.classify_url("") == "ignore"
+    assert scraping_utils.classify_url(None) == "ignore"
+    # ignore: domain
+    assert scraping_utils.classify_url("https://speakerdeck.com/slide") == "ignore"
+    assert scraping_utils.classify_url("https://open.spotify.com/track/abc") == "ignore"
+    # ignore: extension
+    assert scraping_utils.classify_url("https://example.com/file.zip") == "ignore"
+    # ignore: image
+    assert scraping_utils.classify_url("https://example.com/image.jpg") == "ignore"
+    assert scraping_utils.classify_url("https://example.com/image.png") == "ignore"
+    # slack_history
+    assert (
+        scraping_utils.classify_url(
+            "https://example.slack.com/archives/C999/p1700000000000000"
+        )
+        == "slack_history"
+    )
+    # scrape: normal URL
+    assert scraping_utils.classify_url("https://www.example.com/article") == "scrape"
+    assert (
+        scraping_utils.classify_url("https://www.du-soleil.com/entry/test") == "scrape"
+    )
 
 
 def test_pdf_url():
