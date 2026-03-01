@@ -1,184 +1,147 @@
-import base64
 import json
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from agent.agent_x_post import AgentXPost
+from agent.agent_x_post import DEFAULT_PICK_COUNT, AgentXPost
+
+_SECRETS_JSON = '{"GCS_BUCKET":"test-bucket","GCS_BLOB_PREFIX":"obsidian/"}'
 
 
 @pytest.fixture
 def agent():
-    return AgentXPost({})
+    with patch.dict("os.environ", {"SECRETS": _SECRETS_JSON}):
+        return AgentXPost({})
 
 
-class TestFetchLatestTweetFromGitHub:
-    def test_picks_latest_by_filename(self, agent):
-        latest_text = "最新のツイート"
-        dir_listing = [
-            {"name": "2026-02-20.md", "path": "docs/tweet/2026-02-20.md"},
-            {"name": "2026-02-22.md", "path": "docs/tweet/2026-02-22.md"},
-            {"name": "2026-02-21.md", "path": "docs/tweet/2026-02-21.md"},
+class TestParseTweets:
+    def test_splits_by_heading(self):
+        content = (
+            "## [2026-02-22 03:56](https://x.com/user/status/1)\n\n> tweet1\n\n---\n\n"
+            "## [2026-02-22 06:04](https://x.com/user/status/2)\n\n> tweet2"
+        )
+        result = AgentXPost._parse_tweets(content)
+        assert len(result) == 2
+        assert "tweet1" in result[0]
+        assert "tweet2" in result[1]
+
+    def test_skips_analytics_header(self):
+        content = (
+            "## Analytics\n\n| Posts |\n|---:|\n| 10 |\n\n---\n\n"
+            "## [2026-02-22 03:56](https://x.com/user/status/1)\n\n> tweet1"
+        )
+        result = AgentXPost._parse_tweets(content)
+        assert len(result) == 1
+        assert "tweet1" in result[0]
+
+    def test_preserves_url_in_heading(self):
+        content = "## [2026-02-22 03:56](https://x.com/user/status/123)\n\n> content"
+        result = AgentXPost._parse_tweets(content)
+        assert len(result) == 1
+        assert "https://x.com/user/status/123" in result[0]
+
+    def test_empty_content(self):
+        assert AgentXPost._parse_tweets("") == []
+
+    def test_no_tweet_headings(self):
+        content = "## Analytics\n\nsome stats"
+        assert AgentXPost._parse_tweets(content) == []
+
+
+class TestFetchTweetsFromGcs:
+    def _make_blob(self, name: str, content: str) -> MagicMock:
+        blob = MagicMock()
+        blob.name = name
+        blob.download_as_text.return_value = json.dumps(
+            {"file_path": name, "content": content}
+        )
+        return blob
+
+    def _tweet_content(self, *tweets: tuple[str, str, str]) -> str:
+        """(date, url, body) からツイートファイル形式の文字列を生成"""
+        parts = []
+        for date, url, body in tweets:
+            parts.append(f"## [{date}]({url})\n\n> {body}")
+        return "\n\n---\n\n".join(parts)
+
+    def test_fetches_latest_files_and_parses(self, agent):
+        content1 = self._tweet_content(
+            ("2026-02-20 10:00", "https://x.com/u/status/1", "tweet_a"),
+            ("2026-02-20 11:00", "https://x.com/u/status/2", "tweet_b"),
+        )
+        content2 = self._tweet_content(
+            ("2026-02-22 10:00", "https://x.com/u/status/3", "tweet_c"),
+        )
+        blobs = [
+            self._make_blob("obsidian/tweet/x-post-2026-02-20.md.json", content1),
+            self._make_blob("obsidian/tweet/x-post-2026-02-22.md.json", content2),
         ]
-        dir_resp = MagicMock()
-        dir_resp.json.return_value = dir_listing
-        dir_resp.raise_for_status = MagicMock()
+        mock_bucket = MagicMock()
+        mock_bucket.list_blobs.return_value = blobs
 
-        file_resp = MagicMock()
-        file_resp.json.return_value = {
-            "encoding": "base64",
-            "content": base64.b64encode(latest_text.encode()).decode(),
-        }
-        file_resp.raise_for_status = MagicMock()
+        with patch("agent.agent_x_post.storage.Client") as mock_client:
+            mock_client.return_value.get_bucket.return_value = mock_bucket
+            result = agent._fetch_tweets_from_gcs()
 
-        with patch(
-            "agent.agent_x_post.requests.get",
-            side_effect=[dir_resp, file_resp],
-        ) as mock_get:
-            result = agent._fetch_latest_tweet_from_github()
+        assert len(result) == 3
+        assert any("tweet_a" in t for t in result)
+        assert any("tweet_c" in t for t in result)
 
-        assert result == [latest_text]
-        # 2番目の呼び出しが最新ファイル (2026-02-22.md)
-        assert "2026-02-22.md" in mock_get.call_args_list[1][0][0]
-
-    def test_skips_non_md_files(self, agent):
-        tweet_text = "ツイート内容"
-        dir_listing = [
-            {"name": "readme.txt", "path": "docs/tweet/readme.txt"},
-            {"name": "2026-02-22.md", "path": "docs/tweet/2026-02-22.md"},
+    def test_skips_empty_content(self, agent):
+        content = self._tweet_content(
+            ("2026-02-21 10:00", "https://x.com/u/status/1", "tweet"),
+        )
+        blobs = [
+            self._make_blob("obsidian/tweet/x-post-2026-02-22.md.json", ""),
+            self._make_blob("obsidian/tweet/x-post-2026-02-21.md.json", content),
         ]
-        dir_resp = MagicMock()
-        dir_resp.json.return_value = dir_listing
-        dir_resp.raise_for_status = MagicMock()
+        mock_bucket = MagicMock()
+        mock_bucket.list_blobs.return_value = blobs
 
-        file_resp = MagicMock()
-        file_resp.json.return_value = {
-            "encoding": "base64",
-            "content": base64.b64encode(tweet_text.encode()).decode(),
-        }
-        file_resp.raise_for_status = MagicMock()
+        with patch("agent.agent_x_post.storage.Client") as mock_client:
+            mock_client.return_value.get_bucket.return_value = mock_bucket
+            result = agent._fetch_tweets_from_gcs()
 
-        with patch(
-            "agent.agent_x_post.requests.get",
-            side_effect=[dir_resp, file_resp],
-        ):
-            result = agent._fetch_latest_tweet_from_github()
+        assert len(result) == 1
+        assert "tweet" in result[0]
 
-        assert result == [tweet_text]
+    def test_no_blobs_returns_empty(self, agent):
+        mock_bucket = MagicMock()
+        mock_bucket.list_blobs.return_value = []
 
-    def test_empty_file_returns_empty(self, agent):
-        dir_listing = [
-            {"name": "2026-02-22.md", "path": "docs/tweet/2026-02-22.md"},
-        ]
-        dir_resp = MagicMock()
-        dir_resp.json.return_value = dir_listing
-        dir_resp.raise_for_status = MagicMock()
-
-        file_resp = MagicMock()
-        file_resp.json.return_value = {
-            "encoding": "base64",
-            "content": base64.b64encode(b"   ").decode(),
-        }
-        file_resp.raise_for_status = MagicMock()
-
-        with patch(
-            "agent.agent_x_post.requests.get",
-            side_effect=[dir_resp, file_resp],
-        ):
-            result = agent._fetch_latest_tweet_from_github()
+        with patch("agent.agent_x_post.storage.Client") as mock_client:
+            mock_client.return_value.get_bucket.return_value = mock_bucket
+            result = agent._fetch_tweets_from_gcs()
 
         assert result == []
 
-    def test_no_md_files_returns_empty(self, agent):
-        dir_listing = [
-            {"name": "readme.txt", "path": "docs/tweet/readme.txt"},
-        ]
-        dir_resp = MagicMock()
-        dir_resp.json.return_value = dir_listing
-        dir_resp.raise_for_status = MagicMock()
-
-        with patch("agent.agent_x_post.requests.get", return_value=dir_resp):
-            result = agent._fetch_latest_tweet_from_github()
-
-        assert result == []
-
-    def test_api_error_returns_empty(self, agent):
-        import requests
-
-        mock_resp = MagicMock()
-        mock_resp.raise_for_status.side_effect = requests.RequestException("500")
-
-        with patch("agent.agent_x_post.requests.get", return_value=mock_resp):
-            result = agent._fetch_latest_tweet_from_github()
-
-        assert result == []
-
-    def test_non_list_response_returns_empty(self, agent):
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = {"message": "Not Found"}
-        mock_resp.raise_for_status = MagicMock()
-
-        with patch("agent.agent_x_post.requests.get", return_value=mock_resp):
-            result = agent._fetch_latest_tweet_from_github()
+    def test_gcs_error_returns_empty(self, agent):
+        with patch("agent.agent_x_post.storage.Client") as mock_client:
+            mock_client.return_value.get_bucket.side_effect = Exception("auth error")
+            result = agent._fetch_tweets_from_gcs()
 
         assert result == []
 
 
 class TestExecute:
-    def test_stores_tweets_in_context(self, agent):
-        tweets = ["ツイート1"]
-        with patch.object(agent, "_fetch_my_tweets", return_value=tweets):
+    def test_picks_random_when_more_than_limit(self, agent):
+        tweets = [f"tweet{i}" for i in range(25)]
+        with patch.object(agent, "_fetch_tweets_from_gcs", return_value=tweets):
+            agent.execute({}, [])
+
+        assert len(agent._context["x_posts"]) == DEFAULT_PICK_COUNT
+
+    def test_returns_all_when_fewer_than_limit(self, agent):
+        tweets = ["tweet1", "tweet2"]
+        with patch.object(agent, "_fetch_tweets_from_gcs", return_value=tweets):
             result = agent.execute({}, [])
 
         assert agent._context["x_posts"] == tweets
-        assert "1件" in result["content"]
+        assert "2件" in result["content"]
 
     def test_empty_tweets(self, agent):
-        with patch.object(agent, "_fetch_my_tweets", return_value=[]):
+        with patch.object(agent, "_fetch_tweets_from_gcs", return_value=[]):
             result = agent.execute({}, [])
 
         assert agent._context["x_posts"] == []
         assert "0件" in result["content"]
-
-
-class TestGcsCache:
-    def test_uses_cache_when_not_expired(self, agent):
-        cached_tweets = ["cached tweet 1"]
-        mock_gcs = MagicMock()
-        mock_gcs.is_expired.return_value = False
-        mock_gcs.download_as_string.return_value = json.dumps(cached_tweets)
-
-        with patch("agent.agent_x_post.StoredGcs", return_value=mock_gcs):
-            result = agent._fetch_my_tweets()
-
-        assert result == cached_tweets
-
-    def test_fetches_from_github_when_expired(self, agent):
-        tweets = ["new tweet"]
-        mock_gcs = MagicMock()
-        mock_gcs.is_expired.return_value = True
-
-        with (
-            patch("agent.agent_x_post.StoredGcs", return_value=mock_gcs),
-            patch.object(agent, "_fetch_latest_tweet_from_github", return_value=tweets),
-        ):
-            result = agent._fetch_my_tweets()
-
-        assert result == tweets
-        mock_gcs.persist.assert_called_once()
-
-
-if "SECRETS" not in os.environ:
-    pytest.skip("SECRETS not set", allow_module_level=True)
-
-
-def test_fetch_latest_tweet_live():
-    agent = AgentXPost({})
-    tweets = agent._fetch_latest_tweet_from_github()
-    print(f"\n=== Fetched {len(tweets)} tweet(s) (latest file) ===")
-    for i, t in enumerate(tweets):
-        print(f"\n--- Tweet [{i}] ---")
-        print(t[:500])
-    assert isinstance(tweets, list)
-    assert len(tweets) > 0

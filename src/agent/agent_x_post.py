@@ -1,88 +1,76 @@
-import base64
 import json
-from datetime import timedelta
+import random
 from typing import Any, List
 
-import requests
+from google.cloud import storage
 
-from agent.agent_base import AgentSlack
-from agent.types import Chat
-from utils.stored_gcs import StoredGcs
+from agent.agent_base import Agent
+from agent.chat_types import Chat
 
-GCS_BUCKET = "bulldra-api-storage"
-GCS_TWEETS_BLOB = "x_post/my_tweets.json"
-
-GITHUB_API_BASE = "https://api.github.com"
-REPO = "du-soleil/docs"
-TWEETS_DIR = "tweet"
+DEFAULT_PICK_COUNT = 3
+DEFAULT_FETCH_FILES = 5
 
 
-class AgentXPost(AgentSlack):
-    """GitHubのdocs/tweet/から最新のX投稿ファイルを取得してコンテキストに格納する"""
+class AgentXPost(Agent):
+    """GCSからツイートファイルを取得しランダムにピックアップしてコンテキストに格納する"""
 
     def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
-        tweets = self._fetch_my_tweets()
-        self._context["x_posts"] = tweets
-        self._logger.info("XPost fetched %d tweets", len(tweets))
-        return Chat(role="assistant", content=f"X投稿を{len(tweets)}件取得しました")
+        pick_count: int = int(arguments.get("pick_count", DEFAULT_PICK_COUNT))
+        fetch_files: int = int(arguments.get("fetch_files", DEFAULT_FETCH_FILES))
+        all_tweets = self._fetch_tweets_from_gcs(fetch_files)
+        if len(all_tweets) > pick_count:
+            picked = random.sample(all_tweets, pick_count)
+        else:
+            picked = all_tweets
+        self._context["x_posts"] = picked
+        self._logger.info("XPost picked %d/%d tweets", len(picked), len(all_tweets))
+        return Chat(role="assistant", content=f"X投稿を{len(picked)}件取得しました")
 
-    def _fetch_my_tweets(self) -> list[str]:
-        gcs = StoredGcs(GCS_BUCKET, GCS_TWEETS_BLOB, ttl=timedelta(hours=12))
-        if not gcs.is_expired():
-            cached = gcs.download_as_string()
-            if cached:
-                self._logger.debug("XPost using cached tweets from GCS")
-                return json.loads(cached)
-
-        tweets = self._fetch_latest_tweet_from_github()
-        if tweets:
-            gcs.persist(json.dumps(tweets, ensure_ascii=False))
-            self._logger.debug("XPost cached %d tweets to GCS", len(tweets))
-        return tweets
-
-    def _build_headers(self) -> dict[str, str]:
-        token = self._secrets.get("GITHUB_TOKEN", "")
-        return {
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github.v3+json",
-        }
-
-    def _fetch_latest_tweet_from_github(self) -> list[str]:
-        url = f"{GITHUB_API_BASE}/repos/{REPO}/contents/{TWEETS_DIR}"
+    def _fetch_tweets_from_gcs(
+        self, fetch_files: int = DEFAULT_FETCH_FILES
+    ) -> list[str]:
+        bucket_name = self._secrets.get("GCS_BUCKET", "")
+        blob_prefix = self._secrets.get("GCS_BLOB_PREFIX", "obsidian/")
+        tweet_prefix = f"{blob_prefix}tweet/"
         try:
-            resp = requests.get(url, headers=self._build_headers())
-            resp.raise_for_status()
-        except requests.RequestException as e:
-            self._logger.error("XPost GitHub directory fetch error: %s", e)
+            client = storage.Client()
+            bucket = client.get_bucket(bucket_name)
+        except Exception as e:
+            self._logger.error("XPost GCS bucket access error: %s", e)
             return []
 
-        files = resp.json()
-        if not isinstance(files, list):
-            return []
-
-        md_files = sorted(
-            [f for f in files if f.get("name", "").endswith(".md")],
-            key=lambda f: f["name"],
+        blobs = sorted(
+            [
+                b
+                for b in bucket.list_blobs(prefix=tweet_prefix)
+                if b.name.endswith(".json")
+            ],
+            key=lambda b: b.name,
             reverse=True,
         )
-        if not md_files:
+        if not blobs:
             return []
 
-        latest = md_files[0]
-        text = self._fetch_file_content(latest.get("path", ""))
-        if text.strip():
-            return [text.strip()]
-        return []
+        all_tweets: list[str] = []
+        for blob in blobs[:fetch_files]:
+            try:
+                data = json.loads(blob.download_as_text())
+                content = data.get("content", "")
+                if content.strip():
+                    all_tweets.extend(self._parse_tweets(content))
+            except Exception as e:
+                self._logger.error("XPost blob read error %s: %s", blob.name, e)
+        return all_tweets
 
-    def _fetch_file_content(self, path: str) -> str:
-        url = f"{GITHUB_API_BASE}/repos/{REPO}/contents/{path}"
-        try:
-            resp = requests.get(url, headers=self._build_headers())
-            resp.raise_for_status()
-        except requests.RequestException as e:
-            self._logger.error("XPost GitHub file fetch error: %s", e)
-            return ""
-        data = resp.json()
-        if data.get("encoding") == "base64" and data.get("content"):
-            return base64.b64decode(data["content"]).decode("utf-8", errors="replace")
-        return ""
+    @staticmethod
+    def _parse_tweets(file_content: str) -> list[str]:
+        """## [日時](URL) 見出しで個別ツイートに分割する"""
+        import re
+
+        parts = re.split(r"(?=^## \[)", file_content, flags=re.MULTILINE)
+        tweets: list[str] = []
+        for part in parts:
+            text = part.strip()
+            if text.startswith("## ["):
+                tweets.append(text)
+        return tweets

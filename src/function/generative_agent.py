@@ -13,8 +13,6 @@ import utils.slack_link_utils as slack_link_utils
 from agent.agent_base import Agent, AgentDelete, AgentNotification, AgentText
 from agent.agent_feed_collect import AgentFeedCollect
 from agent.agent_feed_digest import AgentFeedDigest
-from agent.agent_github import AgentGitHub
-from agent.agent_x_post import AgentXPost
 from agent.agent_gpt import AgentGPT
 from agent.agent_idea import AgentIdea
 from agent.agent_recommend import AgentRecommend
@@ -24,8 +22,9 @@ from agent.agent_slack_history import AgentSlackHistory
 from agent.agent_slack_mail import AgentSlackMail
 from agent.agent_summarize import AgentSummarize
 from agent.agent_x import AgentX
+from agent.agent_x_post import AgentXPost
 from agent.agent_youtube import AgentYoutube
-from agent.types import Chat
+from agent.chat_types import Chat
 from function.generative_base import GenerativeBase
 
 
@@ -56,7 +55,6 @@ class GenerativeAgent(GenerativeBase):
             "/slack_history": AgentSlackHistory,
             "/feed_digest": AgentFeedDigest,
             "/x": AgentX,
-            "/github": AgentGitHub,
         }
 
         execute_queue: list[AgentExecute] = []
@@ -64,7 +62,9 @@ class GenerativeAgent(GenerativeBase):
 
         if command == "/feed_digest":
             return [
-                AgentExecute(agent=AgentXPost, arguments={}),
+                AgentExecute(
+                    agent=AgentXPost, arguments={"pick_count": 20, "fetch_files": 5}
+                ),
                 AgentExecute(agent=AgentFeedCollect, arguments={}),
                 AgentExecute(agent=AgentFeedDigest, arguments={}),
                 AgentExecute(

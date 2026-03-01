@@ -1,3 +1,4 @@
+from agent.chat_types import Chat
 import os
 
 import pytest
@@ -16,7 +17,7 @@ if "SECRETS" not in os.environ:
 
 def test_summarize(pytestconfig: pytest.Config):
     url = "https://www.du-soleil.com/"
-    result = GenerativeAgent().generate(None, [{"role": "user", "content": url}])
+    result = GenerativeAgent().generate(None, [Chat(role="user", content=url)])
     expected = [
         AgentExecute(agent=AgentScrape, arguments={"url": url}),
         AgentExecute(agent=AgentSummarize, arguments={"url": url}),
@@ -29,7 +30,7 @@ def test_summarize(pytestconfig: pytest.Config):
 
 def test_idea(pytestconfig: pytest.Config):
     result = GenerativeAgent().generate(
-        None, [{"role": "user", "content": "ビールに関するアイディア"}]
+        None, [Chat(role="user", content="ビールに関するアイディア")]
     )
     result_elem = result[0].agent
     print(f"actual={result}")
@@ -38,7 +39,7 @@ def test_idea(pytestconfig: pytest.Config):
 
 def test_recommend(pytestconfig: pytest.Config):
     result = GenerativeAgent().generate(
-        None, [{"role": "user", "content": "最近のおすすめ記事を教えて"}]
+        None, [Chat(role="user", content="最近のおすすめ記事を教えて")]
     )
     result_elem = result[0].agent
     print(f"actual={result}")
@@ -49,14 +50,10 @@ def test_recommed_keyword(pytestconfig: pytest.Config):
     result = GenerativeAgent().generate(
         None,
         [
-            {
-                "role": "assistant",
-                "content": "集中切れたら深呼吸、週明けの勢いを保とう。",
-            },
-            {
-                "role": "user",
-                "content": "半年前ぐらいのAI Tuberのおすすめ記事を教えて",
-            },
+            Chat(
+                role="assistant", content="集中切れたら深呼吸、週明けの勢いを保とう。"
+            ),
+            Chat(role="user", content="半年前ぐらいのAI Tuberのおすすめ記事を教えて"),
         ],
     )
     expected = AgentRecommend
@@ -69,7 +66,7 @@ def test_recommed_keyword(pytestconfig: pytest.Config):
 def test_text(pytestconfig: pytest.Config):
     result = GenerativeAgent().generate(
         None,
-        [{"role": "user", "content": "こんにちわ！"}],
+        [Chat(role="user", content="こんにちわ！")],
     )
     result_elem = result[0].agent
     expected = AgentText
@@ -81,7 +78,7 @@ def test_text(pytestconfig: pytest.Config):
 def test_gpt(pytestconfig: pytest.Config):
     result = GenerativeAgent().generate(
         None,
-        [{"role": "user", "content": "マーケティングに関する蘊蓄を教えて"}],
+        [Chat(role="user", content="マーケティングに関する蘊蓄を教えて")],
     )
     result_elem = result[0].agent
     expected = AgentText
@@ -94,10 +91,10 @@ def test_multi(pytestconfig: pytest.Config):
     result = GenerativeAgent().generate(
         None,
         [
-            {
-                "role": "user",
-                "content": "こんにちわ！ビールについてのおすすめ記事を教えてもらった後に、アイディアを検討して",
-            }
+            Chat(
+                role="user",
+                content="こんにちわ！ビールについてのおすすめ記事を教えてもらった後に、アイディアを検討して",
+            )
         ],
     )
     print(result)
@@ -105,7 +102,7 @@ def test_multi(pytestconfig: pytest.Config):
 
 def test_slack_history(pytestconfig: pytest.Config):
     url = "https://example.slack.com/archives/C999/p1700000000000000"
-    result = GenerativeAgent().generate(None, [{"role": "user", "content": url}])
+    result = GenerativeAgent().generate(None, [Chat(role="user", content=url)])
     expected = [
         AgentExecute(agent=AgentSlackHistory, arguments={"url": url}),
         AgentExecute(agent=AgentNotification, arguments={"content": ""}),
