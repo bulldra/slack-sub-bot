@@ -8,7 +8,7 @@ import slack_sdk
 import utils.slack_search_utils as slack_search_utils
 
 if os.getenv("SECRETS"):
-    secrets = json.loads(os.getenv("SECRETS"))
+    secrets = json.loads(str(os.getenv("SECRETS")))
 elif Path("secrets.json").exists():
     with open("secrets.json", "r", encoding="utf-8") as f:
         secrets = json.load(f)

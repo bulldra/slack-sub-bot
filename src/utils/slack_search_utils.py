@@ -57,7 +57,9 @@ def search_thread_messages(slack_cli, channel, timestamp) -> Generator[str, None
     for reply_message in history.get("messages", []):
         if not isinstance(reply_message, dict):
             continue
-        yield reply_message.get("text")
+        text = reply_message.get("text")
+        if text is not None:
+            yield text
 
 
 def build_past_query(channel_id, after_days=90, before_days=0, keyword=None) -> str:

@@ -7,8 +7,12 @@ from google.cloud import storage
 
 class StoredGcs:
     def __init__(
-        self, bucket_name, blob_name, ttl=timedelta(hours=2), is_refresh=False
-    ):
+        self,
+        bucket_name: str,
+        blob_name: str,
+        ttl: timedelta = timedelta(hours=2),
+        is_refresh: bool = False,
+    ) -> None:
         self._current_time: datetime = datetime.now(timezone.utc)
         self._ttl = ttl
         self._is_refresh = is_refresh
@@ -26,18 +30,21 @@ class StoredGcs:
 
     def is_expired(self) -> bool:
         if self.is_exists() and not self._is_refresh:
-            return self._current_time - self.get_updated() > self._ttl
+            updated = self.get_updated()
+            if updated is None:
+                return True
+            return self._current_time - updated > self._ttl
         return True
 
     def get_updated(self) -> datetime | None:
-        if self.is_exists():
+        if self._blob and self.is_exists():
             self._blob.reload()
-            return self._blob.updated
+            return self._blob.updated  # type: ignore[return-value]
         return None
 
     def download_as_string(self) -> str | None:
-        if self.is_exists():
-            return self._blob.download_as_text()
+        if self._blob and self.is_exists():
+            return self._blob.download_as_text()  # type: ignore[return-value]
         return None
 
     def persist(self, text: str, content_type="application/json") -> None:

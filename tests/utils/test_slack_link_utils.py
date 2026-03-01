@@ -86,6 +86,14 @@ def test_is_only_url(argument, expected):
             "%81%AB-RSS-%E3%83%95%E3%82%A3%E3%83%BC%E3%83%89%E3%82%92%E8%BF%BD%E5%8A"
             "%A0%E3%81%99%E3%82%8B",
         ),
+        (
+            "https://example.com/entry/test%7CTitle%20Text",
+            "https://example.com/entry/test",
+        ),
+        (
+            "<https://example.com/entry/test%7cTitle%20Text>",
+            "https://example.com/entry/test",
+        ),
     ],
 )
 def test_extract_url(argument, expected):

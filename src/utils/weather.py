@@ -1,10 +1,13 @@
 import json
+import logging
 import os
-
-import requests
 from typing import Optional
 
+import requests
+
 import utils.stored_gcs
+
+_logger = logging.getLogger(__name__)
 
 
 class Weather:
@@ -35,14 +38,19 @@ class Weather:
         if gcs.is_exists() and not gcs.is_expired():
             content = gcs.download_as_string()
         else:
-            response = requests.get(
-                f"{self.URL_ENDPOINT}/{area_no}.json", timeout=(3, 8)
-            )
-            if response.status_code == 200:
-                content = response.text
-                gcs.persist(content)
-            elif gcs.is_exists():
-                content = gcs.download_as_string()
+            try:
+                response = requests.get(
+                    f"{self.URL_ENDPOINT}/{area_no}.json", timeout=(3, 8)
+                )
+                if response.status_code == 200:
+                    content = response.text
+                    gcs.persist(content)
+                elif gcs.is_exists():
+                    content = gcs.download_as_string()
+            except requests.exceptions.RequestException:
+                _logger.exception("Weather API request failed for area %s", area_no)
+                if gcs.is_exists():
+                    content = gcs.download_as_string()
 
         if not content:
             return None

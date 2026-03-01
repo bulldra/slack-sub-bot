@@ -1,6 +1,8 @@
 import collections
 import html
+import ipaddress
 import re
+import socket
 import urllib
 from typing import Any, List, Optional, Tuple
 
@@ -78,11 +80,24 @@ def parse_url(url: str) -> str:
     return f"{url_obj.scheme}://{url_obj.netloc}{path}"
 
 
+def _strip_encoded_pipe(url: str) -> str:
+    """URLエンコードされたパイプ(%7C)以降を除去する。
+
+    Slackリンク形式 <URL|タイトル> の | が %7C にエンコードされた場合、
+    タイトル部分がURLに混入するのを防ぐ。
+    """
+    idx = url.lower().find("%7c")
+    if idx > 0:
+        return url[:idx]
+    return url
+
+
 def extract_url(text: str) -> Optional[str]:
     links: list[str] = re.findall(_URL_PATTERN, text or "")
     if len(links) == 0:
         return None
     for link in links:
+        link = _strip_encoded_pipe(link)
         if can_parse_url(link):
             return link
     return None
@@ -113,13 +128,44 @@ def redirect_url(url: Optional[str]) -> Optional[str]:
     return canonical_url
 
 
+def _is_safe_url(url: str) -> bool:
+    """URLがSSRF攻撃に安全かどうかを検証する。"""
+    try:
+        parsed = urllib.parse.urlparse(url)
+    except ValueError:
+        return False
+
+    if parsed.scheme not in ("http", "https"):
+        return False
+
+    hostname = parsed.hostname
+    if not hostname:
+        return False
+
+    try:
+        addr_info = socket.getaddrinfo(hostname, None)
+    except socket.gaierror:
+        return False
+
+    for _family, _type, _proto, _canonname, sockaddr in addr_info:
+        ip = ipaddress.ip_address(sockaddr[0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            return False
+
+    return True
+
+
 def canonicalize_url(url: Optional[str]) -> Optional[str]:
     if url is None or url == "":
         return None
+
+    if not _is_safe_url(url):
+        return url
+
     canonical_url: str = url
 
     try:
-        with requests.get(canonical_url, stream=True, timeout=(1.0, 2.0)) as res:
+        with requests.get(canonical_url, stream=True, timeout=(3.0, 5.0)) as res:
             if res.status_code == 200:
                 canonical_url = res.url
             else:

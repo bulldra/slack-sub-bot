@@ -38,6 +38,15 @@
 - [x] `tests/function/test_generative_agent.py` - test_summarize の expected 更新
 - [x] py_compile / ruff check / pytest 検証完了
 
+## AgentXArticle: X Article 投稿エージェント
+- [x] `src/utils/unicode_text.py` - Markdown → Unicode 装飾テキスト変換ユーティリティ
+- [x] `src/skills/feed_fact_check/SKILL.md` - ファクトチェック用スキルテンプレート
+- [x] `src/agent/agent_x_article.py` - Agent 直接継承、ファクトチェック→Unicode変換→X投稿
+- [x] `src/function/generative_agent.py` - /feed_digest パイプラインに AgentXArticle を追加
+- [x] `tests/utils/test_unicode_text.py` - Unicode 変換テスト（14 passed）
+- [x] `tests/agent/test_agent_x_article.py` - エージェントテスト（5 passed）
+- [x] ruff check / mypy / pytest 検証完了（27 passed）
+
 ## 既存テスト不具合修正
 - [x] `test_is_slack_message_url` - `slack_link_utils` → `scraping_utils` のモジュール参照修正
 - [x] `test_all[wikipedia]` - `canonicalize_url` のHTTP依存で日本語URLエンコードが不定、期待値を修正
@@ -45,3 +54,8 @@
 - [x] `test_idea` / `test_recommend` - LLM非決定性対策（AgentText も許容）
 - [x] `test_youtube_completion` - GCP 403 PERMISSION_DENIED 時に pytest.skip
 - [x] 全テスト通過（157 passed, 1 skipped）
+
+## AgentXArticle 改善: 名言多様化 + ロングポスト対応
+- [x] `src/skills/feed_digest/SKILL.md` - 処理セクションに名言選定プロセスを追加（10個列挙→最適1つ選定）
+- [x] `src/function/generative_agent.py` - 未使用 import 削除（AgentFeedReview, AgentXArticle）
+- [x] ruff check / pytest 検証完了（176 passed, 1 skipped）
