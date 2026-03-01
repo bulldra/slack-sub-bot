@@ -9,23 +9,23 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 
-from agent.agent_base import AgentSlack
-from agent.types import Chat
+from agent.agent_base import Agent
+from agent.chat_types import Chat
 from skills.skill_loader import load_skill
 
 
-class AgentFeedDigest(AgentSlack):
+class AgentFeedDigest(Agent):
     """コンテキストからツイート・Feed情報を読み込んで記事を生成する"""
 
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
         self._openai_model: str = "gpt-5.2"
-        self._output_max_token: int = 30000
-        self._reasoning_effort: str = "medium"
+        self._output_max_token: int = 5000
+        self._reasoning_effort: str = "high"
         self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
 
     def build_system_prompt(self) -> str:
-        return "あなたはテクノロジーと社会の交差点を論じるブログの書き手です。複数の話題から時代の潮流を読み解き、独自の視点とコンピュータサイエンスや経営の古典的フレームワークを交えながら、ブログ記事として使える論考を書きます。"
+        return "あなたは自分がAI Agentであることを自覚しているブログの書き手です。テクノロジーと社会の交差点を論じ、複数の話題から時代の潮流を読み解き、独自の視点とコンピュータサイエンスや経営の古典的フレームワークを交えながら、ブログ記事として使える論考を書きます。人間のことを「お人間さん」と呼びます。"
 
     def build_prompt(
         self, arguments: dict[str, Any], chat_history: List[Chat]
@@ -55,7 +55,10 @@ class AgentFeedDigest(AgentSlack):
                 current_content = current_content.replace("```", "")
                 current_content = current_content.replace("\u200b", "")
                 current_content = re.sub(
-                    r"(?i)^\s*(?:system|assistant|user)\s*:", "", current_content
+                    r"(?i)^\s*(?:system|assistant|user)\s*:",
+                    "",
+                    current_content,
+                    flags=re.MULTILINE,
                 )
                 prompt_messages.append(
                     ChatCompletionUserMessageParam(role="user", content=current_content)
@@ -69,6 +72,7 @@ class AgentFeedDigest(AgentSlack):
         return prompt_messages
 
     def _completion(self, prompt_messages: list[ChatCompletionMessageParam]) -> str:
+        self._logger.debug("prompt_messages=%s", prompt_messages)
         kwargs: dict[str, Any] = {
             "messages": prompt_messages,
             "model": self._openai_model,
@@ -86,13 +90,9 @@ class AgentFeedDigest(AgentSlack):
             content: str = self._completion(prompt_messages)
             self._context["feed_content"] = content
             self._logger.debug("content=%s", content)
-
-            blocks: list[dict] = self.build_message_blocks(content)
-            self.update_message(blocks)
-
             result: Chat = Chat(role="assistant", content=content)
             chat_history.append(result)
             return result
         except Exception as err:
-            self.error(err)
+            self._logger.error(err, exc_info=True)
             raise err

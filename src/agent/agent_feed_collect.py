@@ -2,18 +2,25 @@ import random
 from datetime import datetime, timedelta
 from typing import Any, List
 
+import slack_sdk
 from slack_sdk.errors import SlackApiError
 
-from agent.agent_base import AgentSlack
-from agent.types import Chat
+from agent.agent_base import Agent
+from agent.chat_types import Chat
 
 
-class AgentFeedCollect(AgentSlack):
+class AgentFeedCollect(Agent):
     """Slackから過去72時間のFeed情報をランダム収集しコンテキストに格納する"""
 
     FETCH_LIMIT = 200
     PICK_COUNT = 20
     HOURS_BACK = 72
+
+    def __init__(self, context: dict[str, Any]) -> None:
+        super().__init__(context)
+        self._slack_behalf_user: slack_sdk.WebClient = slack_sdk.WebClient(
+            token=self._secrets.get("SLACK_USER_TOKEN")
+        )
 
     def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
         feed_messages = self._collect_random_feeds()
@@ -47,7 +54,9 @@ class AgentFeedCollect(AgentSlack):
             if not response.get("ok"):
                 break
 
-            matches = response.get("messages", {}).get("matches", [])
+            response_data: dict[str, Any] = dict(response.data)  # type: ignore[arg-type]
+            msg_data: dict[str, Any] = response_data.get("messages") or {}
+            matches: list[dict[str, Any]] = msg_data.get("matches") or []
             if not matches:
                 break
 
@@ -91,7 +100,8 @@ class AgentFeedCollect(AgentSlack):
             except SlackApiError:
                 continue
             thread_texts: list[str] = []
-            for reply in history.get("messages", []):
+            history_data: dict[str, Any] = dict(history.data)  # type: ignore[arg-type]
+            for reply in history_data.get("messages") or []:
                 if isinstance(reply, dict) and reply.get("text"):
                     thread_texts.append(str(reply.get("text")))
             if thread_texts:
