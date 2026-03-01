@@ -1,5 +1,7 @@
 import html
 import json
+import logging
+import urllib.parse
 from typing import Any, List
 
 import requests
@@ -8,8 +10,18 @@ from pydantic import BaseModel, ConfigDict
 
 import utils.scraping_utils as scraping_utils
 from agent.agent_gpt import AgentGPT
-from agent.types import Chat
+from agent.chat_types import Chat
 from skills.skill_loader import load_skill
+
+_logger = logging.getLogger(__name__)
+
+
+def _escape_mrkdwn(text: str) -> str:
+    """Slack mrkdwn の特殊文字をエスケープする。"""
+    text = text.replace("&", "&amp;")
+    text = text.replace("<", "&lt;")
+    text = text.replace(">", "&gt;")
+    return text
 
 
 class Mail(BaseModel):
@@ -28,14 +40,20 @@ class AgentSlackMail(AgentGPT):
         self._mail: Mail
 
     def build_prompt(
-        self, arguments: dict[str, Any], chat_history: List[dict[str, Any]]
+        self, arguments: dict[str, Any], chat_history: List[Chat]
     ) -> List[ChatCompletionMessageParam]:
         mail = json.loads(chat_history[0]["content"])
         mail_content: str = mail.get("plain_text", "")
-        mail_url: str = mail.get("url_private_download")
+        mail_url: str | None = mail.get("url_private_download")
 
         if mail_url and self._slack.token:
-            self._logger.debug("Download Mail URL: %s", mail_url)
+            parsed = urllib.parse.urlparse(mail_url)
+            if not mail_url.startswith("https://files.slack.com/"):
+                _logger.warning("Unexpected mail URL domain: %s", parsed.hostname)
+                mail_url = None
+        if mail_url and self._slack.token:
+            parsed = urllib.parse.urlparse(mail_url)
+            self._logger.debug("Download Mail URL host: %s", parsed.hostname)
             res = requests.get(
                 mail_url,
                 headers={"Authorization": f"Bearer {self._slack.token}"},
@@ -71,14 +89,14 @@ class AgentSlackMail(AgentGPT):
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*From: {self._mail.from_name}*",
+                    "text": f"*From: {_escape_mrkdwn(self._mail.from_name)}*",
                 },
             },
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*{self._mail.subject}*",
+                    "text": f"*{_escape_mrkdwn(self._mail.subject)}*",
                 },
             },
             {"type": "divider"},

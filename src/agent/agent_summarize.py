@@ -5,7 +5,7 @@ from openai.types.chat import ChatCompletionMessageParam
 import utils.scraping_utils as scraping_utils
 import utils.slack_link_utils as slack_link_utils
 from agent.agent_gpt import AgentGPT
-from agent.types import Chat
+from agent.chat_types import Chat
 from skills.skill_loader import load_skill
 
 
@@ -17,36 +17,6 @@ class AgentSummarize(AgentGPT):
         self._use_character = False
         self._site: Optional[scraping_utils.SiteInfo] = None
 
-    @staticmethod
-    def _is_english(text: str) -> bool:
-        if not text:
-            return False
-        japanese_chars = sum(
-            1
-            for c in text
-            if "\u3040" <= c <= "\u309f"
-            or "\u30a0" <= c <= "\u30ff"
-            or "\u4e00" <= c <= "\u9fff"
-        )
-        return japanese_chars / max(len(text), 1) < 0.05
-
-    def _translate_content(self, content: str) -> str:
-        response = self._openai_client.chat.completions.create(
-            model=self._openai_model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "英語の文章を自然な日本語に翻訳してください。"
-                        "マークダウンの書式やリンクは維持してください。"
-                    ),
-                },
-                {"role": "user", "content": content},
-            ],
-            max_completion_tokens=self._output_max_token,
-        )
-        return str(response.choices[0].message.content)
-
     def build_prompt(
         self, arguments: dict[str, Any], chat_history: List[Chat]
     ) -> List[ChatCompletionMessageParam]:
@@ -55,10 +25,12 @@ class AgentSummarize(AgentGPT):
             self._site = scraped
         else:
             if arguments.get("url"):
-                url = str(arguments.get("url"))
+                url: str = str(arguments.get("url"))
             else:
-                url = slack_link_utils.extract_and_remove_tracking_url(
-                    str(chat_history[-1].get("content"))
+                url = str(
+                    slack_link_utils.extract_and_remove_tracking_url(
+                        str(chat_history[-1].get("content"))
+                    )
                 )
             self._logger.debug("scraping url=%s", url)
             if not scraping_utils.is_allow_scraping(url):
@@ -72,21 +44,10 @@ class AgentSummarize(AgentGPT):
             {
                 "url": self._site.url,
                 "title": self._site.title,
-                "content": self._site.content,
+                "content": self._site.content or "",
             },
         )
-        result = super().build_prompt(arguments, [Chat(role="user", content=prompt)])
-
-        if self._site and self._site.content and self._is_english(self._site.content):
-            self._logger.debug("translating english content")
-            translated = self._translate_content(self._site.content)
-            self._site = scraping_utils.SiteInfo(
-                url=self._site.url,
-                title=self._site.title,
-                content=translated,
-            )
-
-        return result
+        return super().build_prompt(arguments, [Chat(role="user", content=prompt)])
 
     def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> Chat:
         result = super().execute(arguments, chat_history)
@@ -113,5 +74,7 @@ class AgentSummarize(AgentGPT):
         blocks.extend(self._split_markdown_blocks(content))
         if self._site.content:
             blocks.append({"type": "divider"})
-            blocks.extend(self._split_markdown_blocks(self._site.content))
+            blocks.extend(
+                self._split_markdown_blocks(f"## # 本文\n{self._site.content}")
+            )
         return blocks

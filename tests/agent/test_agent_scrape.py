@@ -4,34 +4,28 @@ import pytest
 import requests
 
 from agent.agent_scrape import AgentScrape
-from agent.types import Chat
+from agent.chat_types import Chat
 from utils.scraping_utils import SiteInfo
+
+_SECRETS_JSON = '{"OPENAI_API_KEY":"sk-test"}'
 
 
 def _make_agent(context_override: dict | None = None) -> AgentScrape:
-    ctx: dict = {
-        "user_id": "U_TEST",
-        "channel": "C_TEST",
-        "ts": "1234567890.000001",
-        "thread_ts": "1234567890.000001",
-        "processing_message": "処理中",
-    }
+    ctx: dict = {}
     if context_override:
         ctx.update(context_override)
-    with patch.dict(
-        "os.environ",
-        {
-            "SECRETS": '{"SLACK_BOT_TOKEN":"x","SLACK_USER_TOKEN":"x","SHARE_CHANNEL_ID":"C","IMAGE_CHANNEL_ID":"C"}'
-        },
-    ):
+    with patch.dict("os.environ", {"SECRETS": _SECRETS_JSON}):
         return AgentScrape(ctx)
 
 
 class TestAgentScrapeExecute:
+    @patch.object(AgentScrape, "_to_markdown", return_value="# Example\nbody md")
     @patch("agent.agent_scrape.scraping_utils.scraping")
     @patch("agent.agent_scrape.scraping_utils.is_allow_scraping", return_value=True)
-    def test_execute_with_url_argument(self, mock_allow, mock_scraping):
-        site = SiteInfo(url="https://example.com", title="Example", content="body text")
+    def test_execute_with_url_argument(self, mock_allow, mock_scraping, mock_to_md):
+        site = SiteInfo(
+            url="https://example.com", title="Example", content="<p>body text</p>"
+        )
         mock_scraping.return_value = site
         agent = _make_agent()
         chat_history: list[Chat] = [Chat(role="user", content="hello")]
@@ -39,9 +33,12 @@ class TestAgentScrapeExecute:
         result = agent.execute({"url": "https://example.com"}, chat_history)
 
         mock_scraping.assert_called_once_with("https://example.com")
-        assert agent._context["scraped_site"] is site
+        mock_to_md.assert_called_once_with("<p>body text</p>")
+        stored = agent._context["scraped_site"]
+        assert stored.content == "# Example\nbody md"
         assert "Example" in str(result.get("content"))
 
+    @patch.object(AgentScrape, "_to_markdown", return_value="markdown")
     @patch("agent.agent_scrape.scraping_utils.scraping")
     @patch("agent.agent_scrape.scraping_utils.is_allow_scraping", return_value=True)
     @patch(
@@ -49,7 +46,7 @@ class TestAgentScrapeExecute:
         return_value="https://example.com/from-chat",
     )
     def test_execute_url_from_chat_history(
-        self, mock_extract, mock_allow, mock_scraping
+        self, mock_extract, mock_allow, mock_scraping, mock_to_md
     ):
         site = SiteInfo(
             url="https://example.com/from-chat", title="Chat URL", content="content"
@@ -64,7 +61,7 @@ class TestAgentScrapeExecute:
 
         mock_extract.assert_called_once()
         mock_scraping.assert_called_once_with("https://example.com/from-chat")
-        assert agent._context["scraped_site"] is site
+        assert agent._context["scraped_site"].content == "markdown"
 
     @patch("agent.agent_scrape.scraping_utils.is_allow_scraping", return_value=False)
     def test_execute_disallowed_url_raises(self, mock_allow):
@@ -94,3 +91,17 @@ class TestAgentScrapeExecute:
 
         with pytest.raises(requests.exceptions.HTTPError):
             agent.execute({"url": "https://example.com/404"}, chat_history)
+
+    @patch.object(AgentScrape, "_to_markdown", return_value="# Example\nbody md")
+    @patch("agent.agent_scrape.scraping_utils.scraping")
+    @patch("agent.agent_scrape.scraping_utils.is_allow_scraping", return_value=True)
+    def test_empty_content_skips_markdown(self, mock_allow, mock_scraping, mock_to_md):
+        site = SiteInfo(url="https://example.com", title="Empty", content="")
+        mock_scraping.return_value = site
+        agent = _make_agent()
+        chat_history: list[Chat] = [Chat(role="user", content="hello")]
+
+        agent.execute({"url": "https://example.com"}, chat_history)
+
+        mock_to_md.assert_not_called()
+        assert agent._context["scraped_site"].content == ""
