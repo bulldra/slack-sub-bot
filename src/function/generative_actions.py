@@ -5,7 +5,7 @@ from openai.types.responses.function_tool_param import FunctionToolParam
 from openai.types.responses.response_function_tool_call import ResponseFunctionToolCall
 from openai.types.responses.response_output_item import ResponseOutputItem
 
-from agent.types import Chat
+from agent.chat_types import Chat
 from function.generative_base import GenerativeBase
 
 
@@ -16,7 +16,7 @@ class GenerativeActions(GenerativeBase):
             "要約したり、出てきたキーワードの解像度を高めたり、反論したり、異なる視点を"
             "提示してボタンを押したくなるような選択肢群にしてください"
         )
-        chat_history.append({"role": "user", "content": prompt})
+        chat_history.append(Chat(role="user", content=prompt))
         prompt_messages: list[ChatCompletionMessageParam] = self.build_prompt(
             chat_history
         )

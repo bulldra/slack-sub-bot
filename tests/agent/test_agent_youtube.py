@@ -7,7 +7,7 @@ if "SECRETS" not in os.environ:
 from google.genai.errors import ClientError
 
 from agent.agent_youtube import AgentYoutube
-from agent.types import Chat
+from agent.chat_types import Chat
 
 
 def test_youtube_completion(pytestconfig: pytest.Config):

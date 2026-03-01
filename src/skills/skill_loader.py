@@ -13,5 +13,5 @@ def load_skill(skill_name: str, variables: Optional[dict[str, str]] = None) -> s
         content = f.read()
     content = _FRONTMATTER_RE.sub("", content)
     if variables:
-        content = Template(content).substitute(variables)
+        content = Template(content).safe_substitute(variables)
     return content

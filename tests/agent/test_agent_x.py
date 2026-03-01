@@ -232,7 +232,7 @@ def test_x_fetch_post_xdevelopers():
 
 def test_x_completion():
     from agent.agent_x import AgentX
-    from agent.types import Chat
+    from agent.chat_types import Chat
 
     url = "https://x.com/bulldra/status/2025454048326156335"
     messages = [Chat(role="user", content=url)]

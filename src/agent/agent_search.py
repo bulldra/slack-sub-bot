@@ -4,11 +4,11 @@ from google.genai import types
 from google.genai.types import GenerateContentConfig, GoogleSearch, Tool
 
 from agent.agent_gemini import AgentGemini
-from agent.types import Chat
+from agent.chat_types import Chat
 
 
 class AgentSearch(AgentGemini):
-    def build_prompt(self, arguments: Dict[str, Any], chat_history: List[Chat]) -> Chat:
+    def build_prompt(self, arguments: Dict[str, Any], chat_history: List[Chat]) -> list:
         query = str(chat_history[-1]["content"])
         if arguments.get("query"):
             query = str(arguments["query"])

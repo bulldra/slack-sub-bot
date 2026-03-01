@@ -5,7 +5,7 @@ from openai.types.chat import ChatCompletionMessageParam
 
 import utils.slack_search_utils as slack_search_utils
 from agent.agent_gpt import AgentGPT
-from agent.types import Chat
+from agent.chat_types import Chat
 from skills.skill_loader import load_skill
 
 

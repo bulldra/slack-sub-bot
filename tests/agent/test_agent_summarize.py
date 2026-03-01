@@ -1,7 +1,7 @@
 import os
 import pytest
 from agent.agent_summarize import AgentSummarize
-from agent.types import Chat
+from agent.chat_types import Chat
 
 if "SECRETS" not in os.environ:
     pytest.skip("SECRETS not set", allow_module_level=True)

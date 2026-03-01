@@ -4,7 +4,7 @@ from openai.types.chat import ChatCompletionMessageParam
 from openai.types.responses.function_tool_param import FunctionToolParam
 from openai.types.responses.response_output_item import ResponseOutputItem
 
-from agent.types import Chat
+from agent.chat_types import Chat
 from function.generative_base import GenerativeBase
 
 

@@ -6,7 +6,7 @@ from google.genai import types
 
 import utils.slack_link_utils as slack_link_utils
 from agent.agent_gemini import AgentGemini
-from agent.types import Chat
+from agent.chat_types import Chat
 from skills.skill_loader import load_skill
 
 

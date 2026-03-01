@@ -2,31 +2,31 @@ import json
 import logging
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
 from typing import Any, List, Optional
 
 import slack_sdk
 
-import utils.weather
-from agent.types import Chat
+from agent.chat_types import Chat
 from function.generative_actions import GenerativeActions
-from skills.skill_loader import load_skill
 
 
 class Agent:
     def __init__(self, context: dict[str, Any]) -> None:
-        raise NotImplementedError
+        secrets_raw: str | None = os.getenv("SECRETS")
+        if not secrets_raw:
+            raise ValueError("environment not defined.")
+        self._secrets: dict = json.loads(secrets_raw)
+        self._context: dict[str, Any] = context
+        self._logger: logging.Logger = logging.getLogger(self.__class__.__qualname__)
+        self._logger.setLevel(logging.DEBUG)
 
-    def execute(self, arguments, chat_history) -> Chat:
+    def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> Chat:
         raise NotImplementedError
 
 
 class AgentSlack(Agent):
     def __init__(self, context: dict[str, Any]) -> None:
-        secrets: str = str(os.getenv("SECRETS"))
-        if not secrets:
-            raise ValueError("environment not defined.")
-        self._secrets: dict = json.loads(secrets)
+        super().__init__(context)
         self._slack_user_id = context.get("user_id")
         self._slack: slack_sdk.WebClient = slack_sdk.WebClient(
             token=self._secrets.get("SLACK_BOT_TOKEN")
@@ -36,35 +36,14 @@ class AgentSlack(Agent):
         )
         self._share_channel: str = str(self._secrets.get("SHARE_CHANNEL_ID"))
         self._image_channel: str = str(self._secrets.get("IMAGE_CHANNEL_ID"))
-        self._logger: logging.Logger = logging.getLogger(__name__)
-        self._logger.setLevel(logging.DEBUG)
         self._processing_message: str = str(context.get("processing_message"))
         self._channel = str(context.get("channel"))
         self._ts = str(context.get("ts"))
         self._thread_ts = str(context.get("thread_ts"))
-        self._context: dict[str, Any] = context
         self._collect_blocks: Optional[list] = context.get("collect_blocks")
-        self._use_character: bool = False
 
-    def execute(self, arguments, chat_history) -> None:
+    def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> Chat:
         raise NotImplementedError
-
-    def build_system_prompt(self) -> str:
-        now_iso: str = datetime.now(timezone(timedelta(hours=9))).isoformat()
-        if self._use_character:
-            weather: dict = utils.weather.Weather().get()
-            return load_skill(
-                "system",
-                {
-                    "WEATHER_REPORT_DATETIME": weather.get("reportDatetime"),
-                    "WEATHER_REPORT_TEXT": weather.get("text"),
-                    "DATE_TIME": now_iso,
-                },
-            )
-        return load_skill(
-            "system_base",
-            {"DATE_TIME": now_iso},
-        )
 
     @staticmethod
     def _split_markdown_blocks(content: str, max_len: int = 3000) -> list[dict]:
@@ -128,7 +107,7 @@ class AgentSlack(Agent):
         )
 
     def flush_blocks(self) -> None:
-        if self._collect_blocks is None:
+        if not self._collect_blocks:
             return
         text: str = self._blocks_to_text(self._collect_blocks)
         self._slack.chat_update(
@@ -147,15 +126,11 @@ class AgentSlack(Agent):
         )
 
     def error(self, err: Exception) -> None:
-        self._logger.error(err)
+        self._logger.error(err, exc_info=True)
         blocks: list[dict] = [
             {
                 "type": "section",
                 "text": {"type": "mrkdwn", "text": "エラーが発生しました。"},
-            },
-            {
-                "type": "section",
-                "text": {"type": "mrkdwn", "text": f"```{err}```"},
             },
         ]
         self.update_message(blocks)
@@ -181,25 +156,35 @@ class AgentSlack(Agent):
 
 
 class AgentDelete(AgentSlack):
-    def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> None:
+    def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
         self._logger.debug("delete")
         self._slack.chat_delete(
             channel=self._channel,
             ts=self._ts,
         )
+        return Chat(role="assistant", content="deleted")
 
 
 class AgentNotification(AgentSlack):
-    def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> None:
+    def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> Chat:
         try:
+            if self._collect_blocks is not None and not self._collect_blocks:
+                for chat in reversed(chat_history):
+                    content = chat.get("content", "")
+                    if content:
+                        self._collect_blocks.extend(
+                            self.build_message_blocks(content)
+                        )
+                        break
             self.flush_blocks()
         except Exception as err:
             self.error(err)
             raise err
+        return Chat(role="assistant", content="notified")
 
 
 class AgentText(AgentSlack):
-    def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> None:
+    def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
         try:
             content = str(arguments.get("content", ""))
             blocks: List[dict] = self.build_message_blocks(content)

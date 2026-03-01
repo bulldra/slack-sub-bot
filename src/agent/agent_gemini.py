@@ -4,12 +4,14 @@ from google import genai
 from google.genai import types
 
 from agent.agent_base import AgentSlack
-from agent.types import Chat
+from agent.chat_types import Chat
+from utils.system_prompt import build_system_prompt
 
 
 class AgentGemini(AgentSlack):
     def __init__(self, context: Dict[str, Any]):
         super().__init__(context)
+        self._use_character: bool = False
         self._project = context.get("GCP_PROJECT")
         self._location = context.get("GCP_LOCATION", "us-central1")
         self._model = "gemini-2.0-flash"
@@ -27,10 +29,10 @@ class AgentGemini(AgentSlack):
             action_blocks = self.build_action_blocks(chat_history)
             blocks.append(action_blocks)
         self.update_message(blocks)
-        return Chat(role="assistant", content=result_text, blocks=blocks)
+        return Chat(role="assistant", content=result_text)
 
     def completion(self, prompt_messages: list[types.Part]) -> str:
-        system_prompt: str = self.build_system_prompt()
+        system_prompt: str = build_system_prompt(self._use_character)
         prompt_messages.insert(0, types.Part(text=system_prompt))
         response = self._client.models.generate_content(
             model=self._model,

@@ -1,3 +1,4 @@
+from agent.chat_types import Chat
 import collections
 import os
 import pytest
@@ -11,21 +12,21 @@ Case = collections.namedtuple("Case", ("argument", "expected"))
 
 
 def test_idea(pytestconfig: pytest.Config):
-    messages = [{"role": "user", "content": ""}]
+    messages = [Chat(role="user", content="")]
     agent = AgentIdea({})
     prompt = agent.build_prompt({}, messages)
     print(prompt)
 
 
 def test_idea2(pytestconfig: pytest.Config):
-    messages = [{"role": "user", "content": "AI Agentを作成する"}]
+    messages = [Chat(role="user", content="AI Agentを作成する")]
     agent = AgentIdea({})
     prompt = agent.build_prompt({}, messages)
     print(prompt)
 
 
 def test_idea3(pytestconfig: pytest.Config):
-    messages = [{"role": "user", "content": "コンサルタントの役割は？"}]
+    messages = [Chat(role="user", content="コンサルタントの役割は？")]
     agent = AgentIdea({})
     prompt = agent.build_prompt({}, messages)
     print(prompt)
@@ -35,7 +36,7 @@ def test_idea3(pytestconfig: pytest.Config):
 
 
 def test_idea4(pytestconfig: pytest.Config):
-    messages = [{"role": "user", "content": "AIチューバーとアシスタントエージェント"}]
+    messages = [Chat(role="user", content="AIチューバーとアシスタントエージェント")]
     agent = AgentIdea({})
     prompt = agent.build_prompt({}, messages)
     result = agent.completion(prompt)

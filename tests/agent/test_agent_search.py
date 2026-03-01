@@ -3,7 +3,7 @@ from typing import Any
 import os
 import pytest
 from agent.agent_search import AgentSearch
-from agent.types import Chat
+from agent.chat_types import Chat
 
 if "SECRETS" not in os.environ:
     pytest.skip("SECRETS not set", allow_module_level=True)

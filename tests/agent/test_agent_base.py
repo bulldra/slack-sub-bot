@@ -1,3 +1,4 @@
+from agent.chat_types import Chat
 import os
 import pytest
 
@@ -39,8 +40,9 @@ if "SECRETS" not in os.environ:
 
 
 def test_build_system_prompt(pytestconfig: pytest.Config):
-    agt = AgentSlack({})
-    prompt = agt.build_system_prompt()
+    from utils.system_prompt import build_system_prompt
+
+    prompt = build_system_prompt(use_character=False)
     print(prompt)
 
 
@@ -48,6 +50,6 @@ def test_build_action_blocks(pytestconfig: pytest.Config):
     agt = AgentSlack({})
     print(
         agt.build_action_blocks(
-            [{"role": "user", "content": "ラーメンコンサルタントです。"}]
+            [Chat(role="user", content="ラーメンコンサルタントです。")]
         )
     )

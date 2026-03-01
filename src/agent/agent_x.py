@@ -6,7 +6,7 @@ from openai.types.chat import ChatCompletionMessageParam
 import utils.scraping_utils as scraping_utils
 import utils.slack_link_utils as slack_link_utils
 from agent.agent_gpt import AgentGPT
-from agent.types import Chat
+from agent.chat_types import Chat
 from skills.skill_loader import load_skill
 
 

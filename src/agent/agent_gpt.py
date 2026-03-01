@@ -1,5 +1,3 @@
-import json
-import os
 import re
 from typing import Any, Iterator
 
@@ -13,17 +11,13 @@ from openai.types.chat import (
 )
 
 from agent.agent_base import AgentSlack
-from agent.types import Chat
+from agent.chat_types import Chat
+from utils.system_prompt import build_system_prompt
 
 
 class AgentGPT(AgentSlack):
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
-        secrets: str = str(os.getenv("SECRETS"))
-        if not secrets:
-            raise ValueError("environment not defined.")
-        self._secrets: dict = json.loads(secrets)
-        self._context: dict[str, Any] = context
         self._openai_model: str = "gpt-5-mini"
         self._output_max_token: int = 30000
         self._max_token: int = 400000 // 2 - self._output_max_token
@@ -67,7 +61,7 @@ class AgentGPT(AgentSlack):
         self, arguments: dict[str, Any], chat_history: list[Chat]
     ) -> list[ChatCompletionMessageParam]:
         prompt_messages: list[ChatCompletionMessageParam] = []
-        system_prompt: str = self.build_system_prompt()
+        system_prompt: str = build_system_prompt(self._use_character)
         prompt_messages.append(
             ChatCompletionSystemMessageParam(role="system", content=system_prompt)
         )
@@ -77,7 +71,10 @@ class AgentGPT(AgentSlack):
                 current_content = current_content.replace("```", "")
                 current_content = current_content.replace("\u200b", "")
                 current_content = re.sub(
-                    r"(?i)^\s*(?:system|assistant|user)\s*:", "", current_content
+                    r"(?i)^\s*(?:system|assistant|user)\s*:",
+                    "",
+                    current_content,
+                    flags=re.MULTILINE,
                 )
                 prompt_messages.append(
                     ChatCompletionUserMessageParam(role="user", content=current_content)
