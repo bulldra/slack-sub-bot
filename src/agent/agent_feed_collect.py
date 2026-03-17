@@ -23,7 +23,13 @@ class AgentFeedCollect(Agent):
         )
 
     def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
-        feed_messages = self._collect_random_feeds()
+        try:
+            feed_messages = self._collect_random_feeds()
+        except Exception:
+            self._logger.exception("FeedCollect failed")
+            return Chat(
+                role="assistant", content="Feed情報の収集中にエラーが発生しました"
+            )
         self._context["feed_messages"] = feed_messages
         self._logger.info("FeedCollect collected %d feed messages", len(feed_messages))
         return Chat(
@@ -50,6 +56,7 @@ class AgentFeedCollect(Agent):
                     sort_dir="desc",
                 )
             except SlackApiError:
+                self._logger.exception("search_messages failed at page %d", page)
                 break
             if not response.get("ok"):
                 break
@@ -98,6 +105,7 @@ class AgentFeedCollect(Agent):
                     channel=channel, ts=ts, limit=20
                 )
             except SlackApiError:
+                self._logger.exception("conversations_replies failed for ts=%s", ts)
                 continue
             thread_texts: list[str] = []
             history_data: dict[str, Any] = dict(history.data)  # type: ignore[arg-type]
