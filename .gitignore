@@ -182,3 +182,7 @@ poetry.lock
 pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/python
+
+# Node.js (tools/)
+node_modules/
+dist/

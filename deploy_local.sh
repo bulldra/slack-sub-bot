@@ -16,6 +16,12 @@ if [ -f secrets.json ]; then
 	else
 		echo "Secret '${SECRET_NAME}' is up to date. Skipping upload."
 	fi
+	# 最新バージョン以外を削除（コスト削減）
+	OLD_VERSIONS=$(gcloud secrets versions list "${SECRET_NAME}" --filter="state=enabled" --format="value(name)" | sort -n | awk 'NR>1{print prev} {prev=$0}')
+	if [ -n "${OLD_VERSIONS}" ]; then
+		echo "Destroying old secret versions: ${OLD_VERSIONS}"
+		echo "${OLD_VERSIONS}" | xargs -I{} gcloud secrets versions destroy {} --secret="${SECRET_NAME}" --quiet
+	fi
 fi
 
 DEPLOY_OUTPUT=$(gcloud -q functions deploy ${FUNCTION_NAME} \
