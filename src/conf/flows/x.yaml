@@ -1,0 +1,8 @@
+name: x
+description: "X(Twitter)のポスト内容を分析"
+command: "/x"
+steps:
+  - agent: AgentX
+    arguments: {}
+  - agent: AgentNotification
+    arguments: {}

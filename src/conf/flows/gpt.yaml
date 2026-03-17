@@ -1,0 +1,8 @@
+name: gpt
+description: "ChatGPTに会話を委譲して応答を生成"
+command: "/gpt"
+steps:
+  - agent: AgentGPT
+    arguments: {}
+  - agent: AgentNotification
+    arguments: {}

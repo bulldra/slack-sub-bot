@@ -11,18 +11,16 @@ from pydantic import BaseModel
 import utils.scraping_utils as scraping_utils
 import utils.slack_link_utils as slack_link_utils
 from agent.agent_base import Agent, AgentDelete, AgentNotification, AgentText
-from agent.agent_feed_collect import AgentFeedCollect
 from agent.agent_feed_digest import AgentFeedDigest
 from agent.agent_gpt import AgentGPT
 from agent.agent_idea import AgentIdea
 from agent.agent_recommend import AgentRecommend
-from agent.agent_scrape import AgentScrape
+from agent.agent_scrape import AgentScrape, AgentScrapeText
 from agent.agent_search import AgentSearch
 from agent.agent_slack_history import AgentSlackHistory
 from agent.agent_slack_mail import AgentSlackMail
 from agent.agent_summarize import AgentSummarize
 from agent.agent_x import AgentX
-from agent.agent_x_post import AgentXPost
 from agent.agent_youtube import AgentYoutube
 from agent.chat_types import Chat
 from function.generative_base import GenerativeBase
@@ -41,6 +39,15 @@ class GenerativeAgent(GenerativeBase):
     def generate(
         self, command: Optional[str], chat_history: list[Chat]
     ) -> list[AgentExecute]:
+        import function.flow_loader as flow_loader
+
+        # Phase 1: YAML フローの検索
+        if command is not None:
+            flow = flow_loader.get_flow(command)
+            if flow is not None:
+                return flow_loader.build_execute_queue(flow)
+
+        # Phase 2: command_dict によるフォールバック（URL分類、function calling で使用）
         command_dict: dict[str, type[Agent]] = {
             "/gpt": AgentGPT,
             "/summarize": AgentSummarize,
@@ -59,41 +66,6 @@ class GenerativeAgent(GenerativeBase):
 
         execute_queue: list[AgentExecute] = []
         content: str = str(chat_history[-1].get("content", ""))
-
-        if command == "/feed_digest":
-            return [
-                AgentExecute(
-                    agent=AgentXPost, arguments={"pick_count": 20, "fetch_files": 5}
-                ),
-                AgentExecute(agent=AgentFeedCollect, arguments={}),
-                AgentExecute(agent=AgentFeedDigest, arguments={}),
-                AgentExecute(
-                    agent=command_dict["/notification"],
-                    arguments={"content": ""},
-                ),
-            ]
-
-        if command == "/summarize":
-            return [
-                AgentExecute(agent=AgentScrape, arguments={}),
-                AgentExecute(agent=AgentSummarize, arguments={}),
-                AgentExecute(
-                    agent=command_dict["/notification"],
-                    arguments={"content": ""},
-                ),
-            ]
-
-        if command is not None and command in command_dict:
-            return [
-                AgentExecute(
-                    agent=command_dict[command],
-                    arguments={},
-                ),
-                AgentExecute(
-                    agent=command_dict["/notification"],
-                    arguments={"content": ""},
-                ),
-            ]
 
         extract_url: Optional[str] = slack_link_utils.extract_url(content)
         if extract_url and scraping_utils.classify_url(extract_url) == "slack_history":
@@ -125,8 +97,8 @@ class GenerativeAgent(GenerativeBase):
                             arguments={"url": url},
                         ),
                         AgentExecute(
-                            agent=command_dict["/summarize"],
-                            arguments={"url": url},
+                            agent=AgentScrapeText,
+                            arguments={},
                         ),
                         notification,
                     ]

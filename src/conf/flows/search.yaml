@@ -1,0 +1,8 @@
+name: search
+description: "Web検索を実行して結果を返す"
+command: "/search"
+steps:
+  - agent: AgentSearch
+    arguments: {}
+  - agent: AgentNotification
+    arguments: {}

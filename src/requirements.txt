@@ -206,6 +206,8 @@ pytest==8.2.0
     # via main (pyproject.toml)
 python-dotenv==1.1.0
     # via pydantic-settings
+pyyaml==6.0.3
+    # via main (pyproject.toml)
 requests==2.31.0
     # via
     #   main (pyproject.toml)

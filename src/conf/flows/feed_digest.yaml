@@ -1,0 +1,16 @@
+name: feed_digest
+description: "フィード情報からブログ記事を生成"
+command: "/feed_digest"
+steps:
+  - agent: AgentXPost
+    arguments:
+      pick_count: 20
+  - agent: AgentFeedCollect
+    arguments: {}
+  - agent: AgentQuotePicker
+    arguments:
+      pick_count: 5
+  - agent: AgentFeedDigest
+    arguments: {}
+  - agent: AgentNotification
+    arguments: {}

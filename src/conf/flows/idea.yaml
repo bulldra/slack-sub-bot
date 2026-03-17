@@ -1,0 +1,8 @@
+name: idea
+description: "アイディアや議論の生成・提案"
+command: "/idea"
+steps:
+  - agent: AgentIdea
+    arguments: {}
+  - agent: AgentNotification
+    arguments: {}

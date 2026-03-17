@@ -1,0 +1,6 @@
+name: notification
+description: "通知メッセージの送信"
+command: "/notification"
+steps:
+  - agent: AgentNotification
+    arguments: {}

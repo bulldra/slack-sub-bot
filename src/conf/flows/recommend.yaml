@@ -1,0 +1,8 @@
+name: recommend
+description: "おすすめの記事を検索して提案"
+command: "/recommend"
+steps:
+  - agent: AgentRecommend
+    arguments: {}
+  - agent: AgentNotification
+    arguments: {}

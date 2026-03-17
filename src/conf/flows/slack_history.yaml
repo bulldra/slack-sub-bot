@@ -1,0 +1,8 @@
+name: slack_history
+description: "Slackの履歴を取得・分析"
+command: "/slack_history"
+steps:
+  - agent: AgentSlackHistory
+    arguments: {}
+  - agent: AgentNotification
+    arguments: {}

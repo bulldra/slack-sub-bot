@@ -1,0 +1,8 @@
+name: mail
+description: "Slackメールの処理・要約"
+command: "/mail"
+steps:
+  - agent: AgentSlackMail
+    arguments: {}
+  - agent: AgentNotification
+    arguments: {}

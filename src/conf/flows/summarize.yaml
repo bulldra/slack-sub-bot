@@ -1,0 +1,10 @@
+name: summarize
+description: "URLの内容をスクレイピングして要約"
+command: "/summarize"
+steps:
+  - agent: AgentScrape
+    arguments: {}
+  - agent: AgentSummarize
+    arguments: {}
+  - agent: AgentNotification
+    arguments: {}

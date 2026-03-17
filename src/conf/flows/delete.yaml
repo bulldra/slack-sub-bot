@@ -1,0 +1,8 @@
+name: delete
+description: "メッセージの削除処理"
+command: "/delete"
+steps:
+  - agent: AgentDelete
+    arguments: {}
+  - agent: AgentNotification
+    arguments: {}

@@ -1,0 +1,8 @@
+name: text
+description: "テキストメッセージの送信"
+command: "/text"
+steps:
+  - agent: AgentText
+    arguments: {}
+  - agent: AgentNotification
+    arguments: {}

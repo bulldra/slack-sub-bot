@@ -1,0 +1,8 @@
+name: youtube
+description: "YouTube動画の内容を要約"
+command: "/youtube"
+steps:
+  - agent: AgentYoutube
+    arguments: {}
+  - agent: AgentNotification
+    arguments: {}
