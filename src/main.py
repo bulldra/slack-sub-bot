@@ -7,7 +7,7 @@ import functions_framework
 import google.cloud.logging
 from cloudevents.http import CloudEvent
 
-from agent.agent_base import Agent, AgentSlack
+from agent.agent_base import Agent, AgentNotification, AgentSlack
 from agent.chat_types import Chat
 from function.generative_agent import AgentExecute, GenerativeAgent
 
@@ -42,6 +42,7 @@ def main(cloud_event: CloudEvent):
     context["collect_blocks"] = blocks
 
     total = len(execute_queue)
+    fallback_slack_agent: AgentSlack = AgentNotification(context)
     last_slack_agent: AgentSlack | None = None
 
     for idx, agent_execute in enumerate(execute_queue, start=1):
@@ -68,6 +69,8 @@ def main(cloud_event: CloudEvent):
             logger.error(err, exc_info=True)
             if isinstance(agent, AgentSlack):
                 agent.error(err)
+            else:
+                (last_slack_agent or fallback_slack_agent).error(err)
             raise
         chat_history.append(chat_response)
         logger.debug("end process agent=%s", agent_class.__qualname__)
