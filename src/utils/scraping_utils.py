@@ -57,7 +57,10 @@ def classify_url(url: str) -> str:
     if not netloc:
         return "ignore"
     if netloc in _DELEGATE_DOMAINS:
-        return _DELEGATE_DOMAINS[netloc]
+        strategy = _DELEGATE_DOMAINS[netloc]
+        if strategy == "x" and not is_x_url(url):
+            return "ignore"
+        return strategy
     if is_slack_message_url(url):
         return "slack_history"
     if netloc in _IGNORE_DOMAINS:

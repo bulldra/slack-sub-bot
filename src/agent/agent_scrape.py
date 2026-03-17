@@ -1,10 +1,10 @@
-from typing import Any, List
+from typing import Any, List, Optional
 
 import openai
 
 import utils.scraping_utils as scraping_utils
 import utils.slack_link_utils as slack_link_utils
-from agent.agent_base import Agent
+from agent.agent_base import Agent, AgentSlack
 from agent.chat_types import Chat
 
 _SYSTEM_PROMPT = (
@@ -28,6 +28,11 @@ class AgentScrape(Agent):
     def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
         if arguments.get("url"):
             url: str = str(arguments["url"])
+            pipe_idx = url.find("%7C")
+            if pipe_idx < 0:
+                pipe_idx = url.find("%7c")
+            if pipe_idx > 0:
+                url = url[:pipe_idx]
         else:
             url = str(
                 slack_link_utils.extract_and_remove_tracking_url(
@@ -36,7 +41,8 @@ class AgentScrape(Agent):
             )
         self._logger.debug("AgentScrape scraping url=%s", url)
         if not scraping_utils.is_allow_scraping(url):
-            raise ValueError("scraping is not allowed")
+            self._logger.info("AgentScrape skipped (ignore domain): %s", url)
+            return Chat(role="assistant", content=f"スクレイピングスキップ: {url}")
         site = scraping_utils.scraping(url)
         if site is None:
             raise ValueError("scraping failed")
@@ -51,7 +57,7 @@ class AgentScrape(Agent):
 
     def _to_markdown(self, html_content: str) -> str:
         response = self._openai_client.chat.completions.create(
-            model="gpt-4.1-mini",
+            model="gpt-5.4",
             messages=[
                 {"role": "system", "content": _SYSTEM_PROMPT},
                 {"role": "user", "content": html_content},
@@ -59,3 +65,30 @@ class AgentScrape(Agent):
             max_completion_tokens=16000,
         )
         return str(response.choices[0].message.content)
+
+
+class AgentScrapeText(AgentSlack):
+    """スクレイピング結果を全文表示するエージェント（要約なし）"""
+
+    def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
+        site: Optional[scraping_utils.SiteInfo] = self._context.get("scraped_site")
+        if site is None:
+            raise ValueError("scraped_site not found in context")
+
+        blocks: List[dict] = [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": slack_link_utils.build_link(site.url, site.title),
+                },
+            },
+            {"type": "divider"},
+        ]
+        blocks.extend(self._split_markdown_blocks(site.content or ""))
+        self.update_message(blocks)
+
+        content = site.content or ""
+        result = Chat(role="assistant", content=content)
+        chat_history.append(result)
+        return result

@@ -16,7 +16,12 @@
 		"www.bloomberg.com",
 		"jp.investing.com",
 		"pando.life",
-		"kossev.info"
+		"kossev.info",
+		"openai.com",
+		"b.hatena.ne.jp",
+		"bookmark.hatenastaff.com",
+		"www.creativevillage.ne.jp",
+		"topics.smt.docomo.ne.jp"
 	],
 	"ignore_extensions": [".zip"]
 }

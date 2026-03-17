@@ -68,7 +68,7 @@ class TestAgentScrapeExecute:
         agent = _make_agent()
         chat_history: list[Chat] = [Chat(role="user", content="hello")]
 
-        with pytest.raises(ValueError, match="scraping is not allowed"):
+        with pytest.raises(ValueError, match="scraping is not allowed:"):
             agent.execute({"url": "https://blocked.example.com"}, chat_history)
 
     @patch("agent.agent_scrape.scraping_utils.scraping", return_value=None)
