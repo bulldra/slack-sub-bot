@@ -12,7 +12,7 @@ from skills.skill_loader import load_skill
 class AgentSummarize(AgentGPT):
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
-        self._openai_model: str = "gpt-5-mini"
+        self._openai_model: str = "gpt-5.4"
         self._openai_stream = False
         self._use_character = False
         self._site: Optional[scraping_utils.SiteInfo] = None
@@ -34,7 +34,7 @@ class AgentSummarize(AgentGPT):
                 )
             self._logger.debug("scraping url=%s", url)
             if not scraping_utils.is_allow_scraping(url):
-                raise ValueError("scraping is not allowed")
+                raise ValueError(f"scraping is not allowed: {url}")
             self._site = scraping_utils.scraping(url)
             if self._site is None:
                 raise ValueError("scraping failed")

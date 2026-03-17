@@ -19,8 +19,8 @@ class AgentFeedDigest(Agent):
 
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
-        self._openai_model: str = "gpt-5.2"
-        self._output_max_token: int = 5000
+        self._openai_model: str = "gpt-5.4"
+        self._output_max_token: int = 16000
         self._reasoning_effort: str = "high"
         self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
 
@@ -32,6 +32,7 @@ class AgentFeedDigest(Agent):
     ) -> List[ChatCompletionMessageParam]:
         my_tweets: list[str] = self._context.get("x_posts", [])
         feed_messages: list[str] = self._context.get("feed_messages", [])
+        picked_quotes: list[str] = self._context.get("picked_quotes", [])
 
         prompt = load_skill(
             "feed_digest",
@@ -40,6 +41,9 @@ class AgentFeedDigest(Agent):
                     "\n\n===\n\n".join(feed_messages) if feed_messages else "なし"
                 ),
                 "my_tweets": ("\n\n---\n\n".join(my_tweets) if my_tweets else "なし"),
+                "picked_quotes": (
+                    "\n".join(picked_quotes) if picked_quotes else "なし"
+                ),
             },
         )
         chat_history.append(Chat(role="user", content=prompt.strip()))
@@ -51,6 +55,8 @@ class AgentFeedDigest(Agent):
         )
         for chat in chat_history:
             current_content = chat.get("content")
+            if not current_content:
+                continue
             if chat["role"] == "user":
                 current_content = current_content.replace("```", "")
                 current_content = current_content.replace("\u200b", "")

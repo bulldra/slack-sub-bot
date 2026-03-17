@@ -13,7 +13,7 @@ class AgentIdea(AgentGPT):
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
         self._openai_stream = True
-        self._openai_model: str = "gpt-5-mini"
+        self._openai_model: str = "gpt-5.4"
 
     def build_prompt(
         self, arguments: dict[str, Any], chat_history: List[Chat]

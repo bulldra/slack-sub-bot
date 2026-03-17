@@ -36,7 +36,7 @@ class AgentSlackMail(AgentGPT):
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
         self._openai_stream = False
-        self._openai_model: str = "gpt-5-mini"
+        self._openai_model: str = "gpt-5.4"
         self._mail: Mail
 
     def build_prompt(
