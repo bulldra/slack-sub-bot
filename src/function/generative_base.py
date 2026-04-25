@@ -1,8 +1,10 @@
 import json
 import logging
 import os
+from typing import Any, cast
 
 import openai
+import conf.models as models
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
     ChatCompletionMessageParam,
@@ -18,7 +20,7 @@ class GenerativeBase:
     def __init__(self) -> None:
         self._secrets: dict = json.loads(str(os.getenv("SECRETS")))
         self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
-        self._openai_model: str = "gpt-5.4"
+        self._openai_model: str = models.openai_mini()
         self._logger: logging.Logger = logging.getLogger(__name__)
         self._logger.setLevel(logging.DEBUG)
 
@@ -63,7 +65,7 @@ class GenerativeBase:
     ) -> list[ResponseOutputItem] | None:
         response = self._openai_client.responses.create(
             model=self._openai_model,
-            input=messages,
+            input=cast(Any, messages),
             tools=tools,
             tool_choice=tool_choice,
         )

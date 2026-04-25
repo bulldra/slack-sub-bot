@@ -41,6 +41,67 @@ class GenerativeAgent(GenerativeBase):
     ) -> list[AgentExecute]:
         import function.flow_loader as flow_loader
 
+        # Phase 0a: メール JSON の自動検出
+        import json as _json
+
+        first_content: str = (
+            str(chat_history[0].get("content", "")) if chat_history else ""
+        )
+        try:
+            mail_data = _json.loads(first_content)
+            if (
+                isinstance(mail_data, dict)
+                and "subject" in mail_data
+                and "from" in mail_data
+            ):
+                mail_flow = flow_loader.get_flow("/mail")
+                if mail_flow is not None:
+                    return flow_loader.build_execute_queue(mail_flow)
+        except (_json.JSONDecodeError, TypeError):
+            pass
+
+        # Phase 0: URL のみの場合は要約せずスクレイピングのみ実行
+        content: str = str(chat_history[-1].get("content", ""))
+        if slack_link_utils.is_only_url(content):
+            # slack_historyはトラッキングURL解決前に判定（リダイレクトで別URLになるため）
+            raw_url: Optional[str] = slack_link_utils.extract_url(content)
+            if raw_url and scraping_utils.classify_url(raw_url) == "slack_history":
+                return [
+                    AgentExecute(
+                        agent=AgentSlackHistory,
+                        arguments={"url": raw_url},
+                    ),
+                    AgentExecute(
+                        agent=AgentNotification,
+                        arguments={"content": ""},
+                    ),
+                ]
+            url_only: Optional[str] = slack_link_utils.extract_and_remove_tracking_url(
+                content
+            )
+            if url_only:
+                strategy_only = scraping_utils.classify_url(url_only)
+                if strategy_only == "scrape":
+                    return [
+                        AgentExecute(
+                            agent=AgentScrape,
+                            arguments={"url": url_only},
+                        ),
+                        AgentExecute(
+                            agent=AgentScrapeText,
+                            arguments={},
+                        ),
+                        AgentExecute(
+                            agent=AgentNotification,
+                            arguments={"content": ""},
+                        ),
+                    ]
+                if strategy_only not in ("ignore",):
+                    flow_command = f"/{strategy_only}"
+                    delegate_flow = flow_loader.get_flow(flow_command)
+                    if delegate_flow is not None:
+                        return flow_loader.build_execute_queue(delegate_flow)
+
         # Phase 1: YAML フローの検索
         if command is not None:
             flow = flow_loader.get_flow(command)
@@ -65,7 +126,6 @@ class GenerativeAgent(GenerativeBase):
         }
 
         execute_queue: list[AgentExecute] = []
-        content: str = str(chat_history[-1].get("content", ""))
 
         extract_url: Optional[str] = slack_link_utils.extract_url(content)
         if extract_url and scraping_utils.classify_url(extract_url) == "slack_history":
