@@ -7,6 +7,8 @@ steps:
       pick_count: 20
   - agent: AgentFeedCollect
     arguments: {}
+  - agent: AgentRecentDigestCollect
+    arguments: {}
   - agent: AgentQuotePicker
     arguments:
       pick_count: 5

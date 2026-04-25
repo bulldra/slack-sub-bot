@@ -9,6 +9,7 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 
+import conf.models as models
 from agent.agent_base import Agent
 from agent.chat_types import Chat
 from skills.skill_loader import load_skill
@@ -19,7 +20,7 @@ class AgentFeedDigest(Agent):
 
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
-        self._openai_model: str = "gpt-5.4"
+        self._openai_model: str = models.openai_standard()
         self._output_max_token: int = 16000
         self._reasoning_effort: str = "high"
         self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
@@ -33,6 +34,7 @@ class AgentFeedDigest(Agent):
         my_tweets: list[str] = self._context.get("x_posts", [])
         feed_messages: list[str] = self._context.get("feed_messages", [])
         picked_quotes: list[str] = self._context.get("picked_quotes", [])
+        recent_digest_posts: list[str] = self._context.get("recent_digest_posts", [])
 
         prompt = load_skill(
             "feed_digest",
@@ -43,6 +45,11 @@ class AgentFeedDigest(Agent):
                 "my_tweets": ("\n\n---\n\n".join(my_tweets) if my_tweets else "なし"),
                 "picked_quotes": (
                     "\n".join(picked_quotes) if picked_quotes else "なし"
+                ),
+                "recent_digest_posts": (
+                    "\n\n===\n\n".join(recent_digest_posts)
+                    if recent_digest_posts
+                    else "なし"
                 ),
             },
         )

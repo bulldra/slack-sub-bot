@@ -17,6 +17,7 @@ from agent.agent_slack_mail import AgentSlackMail
 from agent.agent_summarize import AgentSummarize
 from agent.agent_x import AgentX
 from agent.agent_quote_picker import AgentQuotePicker
+from agent.agent_recent_digest_collect import AgentRecentDigestCollect
 from agent.agent_x_post import AgentXPost
 from agent.agent_youtube import AgentYoutube
 from function.generative_agent import AgentExecute
@@ -40,6 +41,7 @@ AGENT_REGISTRY: dict[str, type[Agent]] = {
     "AgentXPost": AgentXPost,
     "AgentScrape": AgentScrape,
     "AgentQuotePicker": AgentQuotePicker,
+    "AgentRecentDigestCollect": AgentRecentDigestCollect,
 }
 
 
