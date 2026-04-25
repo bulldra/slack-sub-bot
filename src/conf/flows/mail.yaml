@@ -1,5 +1,5 @@
 name: mail
-description: "Slackメールの処理・要約"
+description: "Slackメールの処理・全文Markdown変換"
 command: "/mail"
 steps:
   - agent: AgentSlackMail

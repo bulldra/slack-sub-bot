@@ -46,7 +46,26 @@ class AgentSlack(Agent):
         raise NotImplementedError
 
     @staticmethod
+    def _strip_markdown_tables(text: str) -> str:
+        """Slackのonly_one_table_allowed制限を回避するためテーブルをプレーンテキストに変換する"""
+        import re
+
+        lines = text.split("\n")
+        result = []
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("|") and stripped.endswith("|"):
+                if re.match(r"^\|[\s\-:|]+\|", stripped):
+                    continue
+                cells = [c.strip() for c in stripped[1:-1].split("|")]
+                result.append("  ".join(cells))
+            else:
+                result.append(line)
+        return "\n".join(result)
+
+    @staticmethod
     def _split_markdown_blocks(content: str, max_len: int = 3000) -> list[dict]:
+        content = AgentSlack._strip_markdown_tables(content)
         if len(content) <= max_len:
             return [{"type": "markdown", "text": content}]
 
@@ -172,9 +191,7 @@ class AgentNotification(AgentSlack):
                 for chat in reversed(chat_history):
                     content = chat.get("content", "")
                     if content:
-                        self._collect_blocks.extend(
-                            self.build_message_blocks(content)
-                        )
+                        self._collect_blocks.extend(self.build_message_blocks(content))
                         break
             self.flush_blocks()
         except Exception as err:

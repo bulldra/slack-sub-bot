@@ -2,6 +2,7 @@ from typing import Any, List, Optional
 
 import openai
 
+import conf.models as models
 import utils.scraping_utils as scraping_utils
 import utils.slack_link_utils as slack_link_utils
 from agent.agent_base import Agent, AgentSlack
@@ -10,11 +11,24 @@ from agent.chat_types import Chat
 _SYSTEM_PROMPT = (
     "あなたはWebページの本文をMarkdownに変換するアシスタントです。\n"
     "与えられたHTMLテキストから本文のみを抽出し、綺麗なMarkdownに変換してください。\n"
-    "- 見出し・リスト・リンク・強調などの構造はMarkdown記法で保持\n"
-    "- ナビゲーション・広告・フッター・著者紹介欄・関連記事等のノイズは除去\n"
+    "\n"
+    "【必ず除去するもの】\n"
+    "- ナビゲーション・メニュー・パンくずリスト\n"
+    "- ヘッダー・フッター・サイドバー\n"
+    "- 広告・バナー・プロモーション\n"
+    "- 著者紹介・プロフィール欄\n"
+    "- 関連記事・おすすめ記事\n"
+    "- SNSシェアボタン・ソーシャルリンク\n"
+    "- コメント欄・評価ウィジェット\n"
+    "- ニュースレター登録フォーム・CTA\n"
+    "- スクリプト・スタイル・メタ情報\n"
+    "\n"
+    "【出力ルール】\n"
+    "- 本文の見出し・リスト・強調などの構造はMarkdown記法で保持\n"
     "- HTMLタグは全て除去し、純粋なMarkdownのみ出力\n"
-    "- 内容の要約や省略はせず、本文を忠実に変換\n"
-    "- 英語の記事の場合は日本語に翻訳して出力"
+    "- 本文の内容を忠実に変換し、要約・省略・追記は行わない\n"
+    "- 英語の記事は日本語に翻訳して出力\n"
+    "- 出力は本文テキストのみとし、説明文や前置きは付けない"
 )
 
 
@@ -55,16 +69,34 @@ class AgentScrape(Agent):
         self._logger.info("AgentScrape stored scraped_site: %s", site.url)
         return Chat(role="assistant", content=f"スクレイピング完了: {site.title}")
 
+    _MAX_INPUT_CHARS = 10_000
+    _MAX_OUTPUT_CHARS = 5_000
+
     def _to_markdown(self, html_content: str) -> str:
+        if len(html_content) > self._MAX_INPUT_CHARS:
+            self._logger.warning(
+                "AgentScrape truncating html_content %d -> %d chars",
+                len(html_content),
+                self._MAX_INPUT_CHARS,
+            )
+            html_content = html_content[: self._MAX_INPUT_CHARS]
         response = self._openai_client.chat.completions.create(
-            model="gpt-5.4",
+            model=models.openai_mini(),
             messages=[
                 {"role": "system", "content": _SYSTEM_PROMPT},
                 {"role": "user", "content": html_content},
             ],
             max_completion_tokens=16000,
         )
-        return str(response.choices[0].message.content)
+        content = str(response.choices[0].message.content)
+        if len(content) > self._MAX_OUTPUT_CHARS:
+            self._logger.warning(
+                "AgentScrape truncating output %d -> %d chars",
+                len(content),
+                self._MAX_OUTPUT_CHARS,
+            )
+            content = content[: self._MAX_OUTPUT_CHARS]
+        return content
 
 
 class AgentScrapeText(AgentSlack):

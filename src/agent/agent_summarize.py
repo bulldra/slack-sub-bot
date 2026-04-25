@@ -2,6 +2,7 @@ from typing import Any, List, Optional
 
 from openai.types.chat import ChatCompletionMessageParam
 
+import conf.models as models
 import utils.scraping_utils as scraping_utils
 import utils.slack_link_utils as slack_link_utils
 from agent.agent_gpt import AgentGPT
@@ -12,7 +13,7 @@ from skills.skill_loader import load_skill
 class AgentSummarize(AgentGPT):
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
-        self._openai_model: str = "gpt-5.4"
+        self._openai_model: str = models.openai_mini()
         self._openai_stream = False
         self._use_character = False
         self._site: Optional[scraping_utils.SiteInfo] = None
@@ -50,6 +51,16 @@ class AgentSummarize(AgentGPT):
         return super().build_prompt(arguments, [Chat(role="user", content=prompt)])
 
     def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> Chat:
+        if not self._context.get("scraped_site"):
+            url = str(
+                arguments.get("url")
+                or slack_link_utils.extract_and_remove_tracking_url(
+                    str(chat_history[-1].get("content"))
+                )
+            )
+            if not scraping_utils.is_allow_scraping(url):
+                self._logger.info("AgentSummarize skipped (ignore domain): %s", url)
+                return Chat(role="assistant", content=f"スクレイピングスキップ: {url}")
         result = super().execute(arguments, chat_history)
         if self._site and self._site.content:
             chat_history.append(Chat(role="assistant", content=self._site.content))

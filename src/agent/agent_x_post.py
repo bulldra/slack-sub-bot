@@ -37,9 +37,15 @@ class AgentXPost(Agent):
             picked = all_tweets
         self._context["x_posts"] = picked
         self._logger.info(
-            "XPost picked %d/%d tweets for %s", len(picked), len(all_tweets), target_date
+            "XPost picked %d/%d tweets for %s",
+            len(picked),
+            len(all_tweets),
+            target_date,
         )
-        return Chat(role="assistant", content=f"X投稿を{len(picked)}件取得しました（{target_date}）")
+        return Chat(
+            role="assistant",
+            content=f"X投稿を{len(picked)}件取得しました（{target_date}）",
+        )
 
     def _fetch_tweets_from_gcs(self, target_date: str) -> list[str]:
         bucket_name = self._secrets.get("GCS_BUCKET", "")
