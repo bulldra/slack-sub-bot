@@ -64,12 +64,12 @@ class TestAgentScrapeExecute:
         assert agent._context["scraped_site"].content == "markdown"
 
     @patch("agent.agent_scrape.scraping_utils.is_allow_scraping", return_value=False)
-    def test_execute_disallowed_url_raises(self, mock_allow):
+    def test_execute_disallowed_url_skips(self, mock_allow):
         agent = _make_agent()
         chat_history: list[Chat] = [Chat(role="user", content="hello")]
 
-        with pytest.raises(ValueError, match="scraping is not allowed:"):
-            agent.execute({"url": "https://blocked.example.com"}, chat_history)
+        result = agent.execute({"url": "https://blocked.example.com"}, chat_history)
+        assert "スクレイピングスキップ" in str(result.get("content", ""))
 
     @patch("agent.agent_scrape.scraping_utils.scraping", return_value=None)
     @patch("agent.agent_scrape.scraping_utils.is_allow_scraping", return_value=True)

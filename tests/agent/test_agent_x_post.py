@@ -81,7 +81,7 @@ class TestFetchTweetsFromGcs:
 
         with patch("agent.agent_x_post.storage.Client") as mock_client:
             mock_client.return_value.get_bucket.return_value = mock_bucket
-            result = agent._fetch_tweets_from_gcs()
+            result = agent._fetch_tweets_from_gcs("")
 
         assert len(result) == 3
         assert any("tweet_a" in t for t in result)
@@ -100,7 +100,7 @@ class TestFetchTweetsFromGcs:
 
         with patch("agent.agent_x_post.storage.Client") as mock_client:
             mock_client.return_value.get_bucket.return_value = mock_bucket
-            result = agent._fetch_tweets_from_gcs()
+            result = agent._fetch_tweets_from_gcs("")
 
         assert len(result) == 1
         assert "tweet" in result[0]
@@ -111,14 +111,14 @@ class TestFetchTweetsFromGcs:
 
         with patch("agent.agent_x_post.storage.Client") as mock_client:
             mock_client.return_value.get_bucket.return_value = mock_bucket
-            result = agent._fetch_tweets_from_gcs()
+            result = agent._fetch_tweets_from_gcs("")
 
         assert result == []
 
     def test_gcs_error_returns_empty(self, agent):
         with patch("agent.agent_x_post.storage.Client") as mock_client:
             mock_client.return_value.get_bucket.side_effect = Exception("auth error")
-            result = agent._fetch_tweets_from_gcs()
+            result = agent._fetch_tweets_from_gcs("")
 
         assert result == []
 

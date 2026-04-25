@@ -47,7 +47,7 @@ def test_x_routing():
 
     url = "https://x.com/bulldra/status/2025454048326156335"
     result = GenerativeAgent().generate(None, [{"role": "user", "content": url}])
-    assert result[0] == AgentExecute(agent=AgentX, arguments={"url": url})
+    assert result[0] == AgentExecute(agent=AgentX, arguments={})
 
 
 def test_expand_urls():

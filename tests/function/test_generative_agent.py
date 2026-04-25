@@ -8,7 +8,6 @@ from agent.agent_idea import AgentIdea
 from agent.agent_recommend import AgentRecommend
 from agent.agent_scrape import AgentScrape
 from agent.agent_slack_history import AgentSlackHistory
-from agent.agent_summarize import AgentSummarize
 from function.generative_agent import AgentExecute, GenerativeAgent
 
 if "SECRETS" not in os.environ:
@@ -16,11 +15,13 @@ if "SECRETS" not in os.environ:
 
 
 def test_summarize(pytestconfig: pytest.Config):
+    from agent.agent_scrape import AgentScrapeText
+
     url = "https://www.du-soleil.com/"
     result = GenerativeAgent().generate(None, [Chat(role="user", content=url)])
     expected = [
         AgentExecute(agent=AgentScrape, arguments={"url": url}),
-        AgentExecute(agent=AgentSummarize, arguments={"url": url}),
+        AgentExecute(agent=AgentScrapeText, arguments={}),
         AgentExecute(agent=AgentNotification, arguments={"content": ""}),
     ]
     print(f"actual={result}")
