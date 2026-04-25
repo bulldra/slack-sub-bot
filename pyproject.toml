@@ -27,6 +27,7 @@ dependencies = [
     "google-genai>=1.14.0",
     "tweepy>=4.16.0",
     "pyyaml>=6.0",
+    "types-pyyaml>=6.0.12.20260408",
 ]
 
 [tool.pytest.ini_options]

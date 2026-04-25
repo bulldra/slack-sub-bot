@@ -3,6 +3,7 @@ from typing import Any, List, Optional
 import tweepy
 from openai.types.chat import ChatCompletionMessageParam
 
+import conf.models as models
 import utils.scraping_utils as scraping_utils
 import utils.slack_link_utils as slack_link_utils
 from agent.agent_gpt import AgentGPT
@@ -13,7 +14,7 @@ from skills.skill_loader import load_skill
 class AgentX(AgentGPT):
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
-        self._openai_model: str = "gpt-5.4"
+        self._openai_model: str = models.openai_standard()
         self._openai_stream = False
         self._use_character = False
         self._post_url: str = ""

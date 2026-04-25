@@ -2,6 +2,7 @@ from typing import Any, List
 
 from openai.types.chat import ChatCompletionMessageParam
 
+import conf.models as models
 import utils.slack_search_utils as slack_search_utils
 from agent.agent_gpt import AgentGPT
 from agent.chat_types import Chat
@@ -12,7 +13,7 @@ class AgentRecommend(AgentGPT):
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
         self._openai_stream = True
-        self._openai_model: str = "gpt-5.4"
+        self._openai_model: str = models.openai_standard()
 
         self._keywords: List[str] = []
 

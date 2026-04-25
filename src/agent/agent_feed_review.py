@@ -8,6 +8,7 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 
+import conf.models as models
 from agent.agent_base import Agent
 from agent.chat_types import Chat
 from skills.skill_loader import load_skill
@@ -28,7 +29,7 @@ class AgentFeedReview(Agent):
 
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
-        self._openai_model: str = "gpt-5.4"
+        self._openai_model: str = models.openai_standard()
         self._output_max_token: int = 5000
         self._reasoning_effort: str = "medium"
         self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
