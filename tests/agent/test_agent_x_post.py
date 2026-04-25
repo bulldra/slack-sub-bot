@@ -132,8 +132,10 @@ class TestExecute:
         assert len(agent._context["x_posts"]) == DEFAULT_PICK_COUNT
 
     def test_returns_all_when_fewer_than_limit(self, agent):
+        # 7日分呼ばれるが1日分だけツイートあり → 合計2件 < pick_count(3) なので全件返す
         tweets = ["tweet1", "tweet2"]
-        with patch.object(agent, "_fetch_tweets_from_gcs", return_value=tweets):
+        side_effects = [tweets] + [[]] * 6
+        with patch.object(agent, "_fetch_tweets_from_gcs", side_effect=side_effects):
             result = agent.execute({}, [])
 
         assert agent._context["x_posts"] == tweets

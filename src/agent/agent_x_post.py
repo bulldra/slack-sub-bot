@@ -16,20 +16,21 @@ JST = timezone(timedelta(hours=9))
 class AgentXPost(Agent):
     """GCSからツイートファイルを取得しランダムにピックアップしてコンテキストに格納する"""
 
-    MAX_FALLBACK_DAYS = 7
+    COLLECT_DAYS = 7
 
     def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
         pick_count: int = int(arguments.get("pick_count", DEFAULT_PICK_COUNT))
         base_date = datetime.now(JST) - timedelta(days=1)
 
         all_tweets: list[str] = []
-        target_date = ""
-        for days_back in range(self.MAX_FALLBACK_DAYS):
+        for days_back in range(self.COLLECT_DAYS):
             target_date = (base_date - timedelta(days=days_back)).strftime("%Y-%m-%d")
-            all_tweets = self._fetch_tweets_from_gcs(target_date)
-            if all_tweets:
-                break
-            self._logger.info("XPost no tweets for %s, falling back", target_date)
+            tweets = self._fetch_tweets_from_gcs(target_date)
+            if tweets:
+                all_tweets.extend(tweets)
+            else:
+                self._logger.info("XPost no tweets for %s", target_date)
+        target_date = base_date.strftime("%Y-%m-%d")
 
         if len(all_tweets) > pick_count:
             picked = random.sample(all_tweets, pick_count)
