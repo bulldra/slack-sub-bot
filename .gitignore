@@ -40,6 +40,12 @@ gcs_bucket.json
 src/requirements.txt
 uv.lock
 
+# Temporary scratch directory & analysis reports
+scratch/
+*report*.json
+*report*.txt
+*report*.csv
+
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
 

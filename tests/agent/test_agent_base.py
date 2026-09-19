@@ -35,6 +35,22 @@ def test_split_markdown_blocks_multiple():
     assert len(result) == 3
 
 
+def test_limit_blocks_under_max():
+    blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": f"item {i}"}} for i in range(30)]
+    result = AgentSlack._limit_blocks(blocks)
+    assert len(result) == 30
+    assert result == blocks
+
+
+def test_limit_blocks_over_max():
+    blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": f"item {i}"}} for i in range(60)]
+    result = AgentSlack._limit_blocks(blocks)
+    assert len(result) == 50
+    assert result[:49] == blocks[:49]
+    assert result[49]["type"] == "context"
+    assert "省略" in result[49]["elements"][0]["text"]
+
+
 if "SECRETS" not in os.environ:
     pytest.skip("SECRETS not set", allow_module_level=True)
 

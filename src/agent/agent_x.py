@@ -152,7 +152,7 @@ class AgentX(AgentChat):
     def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> Chat:
         try:
             return super().execute(arguments, chat_history)
-        except tweepy.TweepyException as e:
+        except (tweepy.TweepyException, ValueError) as e:
             content = f"Xポストの取得に失敗しました（{e}）"
             self.update_message(self._build_error_blocks(content), force=True)
             return Chat(role="assistant", content=content)

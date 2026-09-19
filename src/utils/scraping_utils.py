@@ -2,7 +2,7 @@ import json
 import os
 import re
 import tempfile
-import urllib
+import urllib.parse
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -26,13 +26,36 @@ _DELEGATE_DOMAINS: dict[str, str] = _STRATEGY_CONFIG["delegate_domains"]
 _IGNORE_DOMAINS: list[str] = _STRATEGY_CONFIG["ignore_domains"]
 _IGNORE_EXTENSIONS: list[str] = _STRATEGY_CONFIG["ignore_extensions"]
 
-DEFAULT_HEADERS: dict[str, str] = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/69.0.3497.100 Safari/537.36"
-    )
-}
+def _build_default_headers(config: dict) -> dict[str, str]:
+    headers: dict[str, str] = {
+        "Accept": (
+            "text/html,application/xhtml+xml,application/xml;q=0.9,"
+            "image/avif,image/webp,image/apng,*/*;q=0.8"
+        ),
+        "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+        "Sec-Ch-Ua": '"Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"macOS"',
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
+    }
+    if "headers" in config and isinstance(config["headers"], dict):
+        headers.update(config["headers"])
+    if "user_agent" in config and config["user_agent"]:
+        headers["User-Agent"] = config["user_agent"]
+    elif "User-Agent" not in headers:
+        headers["User-Agent"] = (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/133.0.0.0 Safari/537.36"
+        )
+    return headers
+
+
+DEFAULT_HEADERS: dict[str, str] = _build_default_headers(_STRATEGY_CONFIG)
 
 
 class SiteInfo(BaseModel):
@@ -42,7 +65,7 @@ class SiteInfo(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
-def classify_url(url: str) -> str:
+def classify_url(url: Optional[str]) -> str:
     """URLをストラテジーに分類する。
 
     Returns:
@@ -72,11 +95,11 @@ def classify_url(url: str) -> str:
     return "scrape"
 
 
-def is_allow_scraping(url: str) -> bool:
+def is_allow_scraping(url: Optional[str]) -> bool:
     return classify_url(url) == "scrape"
 
 
-def is_slack_message_url(url: str) -> bool:
+def is_slack_message_url(url: Optional[str]) -> bool:
     if not url:
         return False
     # 通常URLとリダイレクトURLの両方に対応
@@ -89,7 +112,9 @@ def is_slack_message_url(url: str) -> bool:
     return False
 
 
-def is_code_url(url: str) -> bool:
+def is_code_url(url: Optional[str]) -> bool:
+    if not url:
+        return False
     ext: list[str] = [
         ".py",
         ".c",
@@ -114,7 +139,9 @@ def is_code_url(url: str) -> bool:
     return os.path.splitext(urlobj.path)[1] in ext
 
 
-def is_image_url(url: str) -> bool:
+def is_image_url(url: Optional[str]) -> bool:
+    if not url:
+        return False
     image_ext: list[str] = [
         ".jpg",
         ".png",
@@ -125,7 +152,9 @@ def is_image_url(url: str) -> bool:
     return os.path.splitext(urlobj.path)[1] in image_ext
 
 
-def is_pdf_url(url: str) -> bool:
+def is_pdf_url(url: Optional[str]) -> bool:
+    if not url:
+        return False
     pdf_ext: list[str] = [
         ".pdf",
     ]
@@ -133,7 +162,9 @@ def is_pdf_url(url: str) -> bool:
     return os.path.splitext(urlobj.path)[1] in pdf_ext
 
 
-def is_x_url(url: str) -> bool:
+def is_x_url(url: Optional[str]) -> bool:
+    if not url:
+        return False
     x_domains: list[str] = [
         "x.com",
         "twitter.com",
@@ -148,7 +179,9 @@ def is_x_url(url: str) -> bool:
     return re.match(r"^/[^/]+/status/\d+", urlobj.path) is not None
 
 
-def extract_x_post_id(url: str) -> Optional[str]:
+def extract_x_post_id(url: Optional[str]) -> Optional[str]:
+    if not url:
+        return None
     urlobj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
     match = re.match(r"^/[^/]+/status/(\d+)", urlobj.path)
     if match:
@@ -156,7 +189,7 @@ def extract_x_post_id(url: str) -> Optional[str]:
     return None
 
 
-def is_youtube_url(url: str) -> bool:
+def is_youtube_url(url: Optional[str]) -> bool:
     if not url:
         return False
     urlobj: urllib.parse.ParseResult = urllib.parse.urlparse(url)

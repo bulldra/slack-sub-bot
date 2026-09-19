@@ -112,15 +112,36 @@ class AgentSlack(Agent):
             text_byte = text_byte[:3000]
         return text_byte.decode("utf-8", errors="ignore")
 
+    _MAX_SLACK_BLOCKS: int = 50
+
+    @classmethod
+    def _limit_blocks(cls, blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        if len(blocks) <= cls._MAX_SLACK_BLOCKS:
+            return blocks
+        truncated = list(blocks[: cls._MAX_SLACK_BLOCKS - 1])
+        truncated.append(
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": "⚠️ メッセージが長すぎるため、50ブロック以降は省略されました。",
+                    }
+                ],
+            }
+        )
+        return truncated
+
     def update_message(self, blocks: list, *, force: bool = False) -> None:
         if self._collect_blocks is not None and not force:
             self._collect_blocks.extend(blocks)
             return
-        text: str = self._blocks_to_text(blocks)
+        safe_blocks = self._limit_blocks(blocks)
+        text: str = self._blocks_to_text(safe_blocks)
         self._slack.chat_update(
             channel=self._channel,
             ts=self._ts,
-            blocks=blocks,
+            blocks=safe_blocks,
             text=text,
             unfurl_links=True,
         )
@@ -128,11 +149,12 @@ class AgentSlack(Agent):
     def flush_blocks(self) -> None:
         if not self._collect_blocks:
             return
-        text: str = self._blocks_to_text(self._collect_blocks)
+        safe_blocks = self._limit_blocks(self._collect_blocks)
+        text: str = self._blocks_to_text(safe_blocks)
         self._slack.chat_update(
             channel=self._channel,
             ts=self._ts,
-            blocks=self._collect_blocks,
+            blocks=safe_blocks,
             text=text,
             unfurl_links=True,
         )

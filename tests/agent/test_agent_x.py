@@ -43,10 +43,11 @@ def test_classify_url_x():
 
 def test_x_routing():
     from agent.agent_x import AgentX
+    from agent.chat_types import Chat
     from function.generative_agent import AgentExecute, GenerativeAgent
 
     url = "https://x.com/bulldra/status/2025454048326156335"
-    result = GenerativeAgent().generate(None, [{"role": "user", "content": url}])
+    result = GenerativeAgent().generate(None, [Chat(role="user", content=url)])
     assert result[0] == AgentExecute(agent=AgentX, arguments={})
 
 
@@ -193,6 +194,18 @@ def test_extract_referenced_articles_scraping_failure():
     ):
         result = agent._extract_referenced_articles(tweet)
     assert result == ""
+
+
+def test_agent_x_execute_handles_value_error():
+    from agent.agent_x import AgentX
+    from agent.chat_types import Chat
+
+    agent = AgentX({})
+    with patch.object(agent, "update_message") as mock_update:
+        # Invalid X URL
+        result = agent.execute({"url": "https://togetter.com/li/2746597"}, [Chat(role="user", content="hello")])
+        assert "Xポストの取得に失敗しました" in str(result.get("content"))
+        assert mock_update.call_count >= 1
 
 
 if "SECRETS" not in os.environ:
