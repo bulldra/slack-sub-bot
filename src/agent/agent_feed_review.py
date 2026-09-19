@@ -1,17 +1,13 @@
 import re
 from typing import Any
 
-import openai
-from openai.types.chat import (
-    ChatCompletionMessageParam,
-    ChatCompletionSystemMessageParam,
-    ChatCompletionUserMessageParam,
-)
+from google.genai import types
 
 import conf.models as models
 from agent.agent_base import Agent
 from agent.chat_types import Chat
 from skills.skill_loader import load_skill
+from utils.gemini_client import get_gemini_client
 
 
 class AgentFeedReview(Agent):
@@ -29,23 +25,19 @@ class AgentFeedReview(Agent):
 
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
-        self._openai_model: str = models.openai_standard()
-        self._output_max_token: int = 5000
-        self._reasoning_effort: str = "medium"
-        self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
+        self._model: str = models.gemini_standard()
+        self._client = get_gemini_client(context=context)
 
-    def _completion(self, prompt_messages: list[ChatCompletionMessageParam]) -> str:
-        self._logger.debug("prompt_messages=%s", prompt_messages)
-        kwargs: dict[str, Any] = {
-            "messages": prompt_messages,
-            "model": self._openai_model,
-            "stream": False,
-            "max_completion_tokens": self._output_max_token,
-        }
-        if self._reasoning_effort:
-            kwargs["reasoning_effort"] = self._reasoning_effort
-        response = self._openai_client.chat.completions.create(**kwargs)
-        return str(response.choices[0].message.content)
+    def _completion(self, user_content: str) -> str:
+        config = types.GenerateContentConfig(
+            system_instruction=self._MARKDOWN_CHECK_SYSTEM_PROMPT,
+        )
+        response = self._client.models.generate_content(
+            model=self._model,
+            contents=user_content,
+            config=config,
+        )
+        return response.text or ""
 
     @staticmethod
     def _has_bare_urls(content: str) -> bool:
@@ -54,13 +46,7 @@ class AgentFeedReview(Agent):
 
     def _fix_markdown(self, content: str) -> str:
         prompt = load_skill("feed_digest_markdown_check", {"article": content})
-        messages: list[ChatCompletionMessageParam] = [
-            ChatCompletionSystemMessageParam(
-                role="system", content=self._MARKDOWN_CHECK_SYSTEM_PROMPT
-            ),
-            ChatCompletionUserMessageParam(role="user", content=prompt),
-        ]
-        return self._completion(messages)
+        return self._completion(prompt)
 
     def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> Chat:
         try:

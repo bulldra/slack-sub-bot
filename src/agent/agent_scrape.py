@@ -1,12 +1,13 @@
 from typing import Any, List, Optional
 
-import openai
+from google.genai import types
 
 import conf.models as models
 import utils.scraping_utils as scraping_utils
 import utils.slack_link_utils as slack_link_utils
 from agent.agent_base import Agent, AgentSlack
 from agent.chat_types import Chat
+from utils.gemini_client import get_gemini_client
 
 _SYSTEM_PROMPT = (
     "あなたはWebページの本文をMarkdownに変換するアシスタントです。\n"
@@ -37,7 +38,8 @@ class AgentScrape(Agent):
 
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
-        self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
+        self._client = get_gemini_client(context=context)
+        self._model = models.gemini_mini()
 
     def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
         if arguments.get("url"):
@@ -80,15 +82,16 @@ class AgentScrape(Agent):
                 self._MAX_INPUT_CHARS,
             )
             html_content = html_content[: self._MAX_INPUT_CHARS]
-        response = self._openai_client.chat.completions.create(
-            model=models.openai_mini(),
-            messages=[
-                {"role": "system", "content": _SYSTEM_PROMPT},
-                {"role": "user", "content": html_content},
-            ],
-            max_completion_tokens=16000,
+
+        config = types.GenerateContentConfig(
+            system_instruction=_SYSTEM_PROMPT,
         )
-        content = str(response.choices[0].message.content)
+        response = self._client.models.generate_content(
+            model=self._model,
+            contents=html_content,
+            config=config,
+        )
+        content = response.text or ""
         if len(content) > self._MAX_OUTPUT_CHARS:
             self._logger.warning(
                 "AgentScrape truncating output %d -> %d chars",

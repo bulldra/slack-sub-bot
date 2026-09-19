@@ -38,9 +38,9 @@ export const agentRegistry: Record<string, AgentMeta> = {
     contextInputs: [],
     contextOutputs: [],
   },
-  AgentGPT: {
-    name: 'GPT',
-    description: 'ChatGPTに会話を委譲',
+  AgentChat: {
+    name: 'Chat',
+    description: 'AIに会話を委譲',
     category: 'processing',
     color: '#4CAF50',
     defaultArguments: {},

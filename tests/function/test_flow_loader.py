@@ -51,7 +51,7 @@ def test_build_execute_queue_feed_digest():
 
 
 def test_build_execute_queue_single_command():
-    flow = get_flow("/gpt")
+    flow = get_flow("/chat")
     assert flow is not None
     queue = build_execute_queue(flow)
     assert len(queue) == 2
@@ -60,7 +60,7 @@ def test_build_execute_queue_single_command():
 
 def test_agent_registry_complete():
     expected_agents = [
-        "AgentGPT",
+        "AgentChat",
         "AgentSummarize",
         "AgentIdea",
         "AgentRecommend",

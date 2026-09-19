@@ -76,7 +76,7 @@ def test_text(pytestconfig: pytest.Config):
     assert expected == result_elem
 
 
-def test_gpt(pytestconfig: pytest.Config):
+def test_chat(pytestconfig: pytest.Config):
     result = GenerativeAgent().generate(
         None,
         [Chat(role="user", content="マーケティングに関する蘊蓄を教えて")],

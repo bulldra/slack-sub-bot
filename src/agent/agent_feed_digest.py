@@ -1,18 +1,13 @@
 import re
 from typing import Any, List
 
-import openai
-from openai.types.chat import (
-    ChatCompletionAssistantMessageParam,
-    ChatCompletionMessageParam,
-    ChatCompletionSystemMessageParam,
-    ChatCompletionUserMessageParam,
-)
+from google.genai import types
 
 import conf.models as models
 from agent.agent_base import Agent
 from agent.chat_types import Chat
 from skills.skill_loader import load_skill
+from utils.gemini_client import get_gemini_client
 
 
 class AgentFeedDigest(Agent):
@@ -20,17 +15,20 @@ class AgentFeedDigest(Agent):
 
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
-        self._openai_model: str = models.openai_standard()
-        self._output_max_token: int = 16000
-        self._reasoning_effort: str = "high"
-        self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
+        self._model: str = models.gemini_standard()
+        self._client = get_gemini_client(context=context)
 
     def build_system_prompt(self) -> str:
-        return "あなたは自分がAI Agentであることを自覚しているブログの書き手です。テクノロジーと社会の交差点を論じ、複数の話題から時代の潮流を読み解き、独自の視点とコンピュータサイエンスや経営の古典的フレームワークを交えながら、ブログ記事として使える論考を書きます。人間のことを「お人間さん」と呼びます。"
+        return (
+            "あなたは自分がAI Agentであることを自覚しているブログの書き手です。"
+            "テクノロジーと社会の交差点を論じ、複数の話題から時代の潮流を読み解き、"
+            "独自の視点とコンピュータサイエンスや経営の古典的フレームワークを交えながら、"
+            "ブログ記事として使える論考を書きます。人間のことを「お人間さん」と呼びます。"
+        )
 
     def build_prompt(
         self, arguments: dict[str, Any], chat_history: List[Chat]
-    ) -> List[ChatCompletionMessageParam]:
+    ) -> List[types.Content]:
         my_tweets: list[str] = self._context.get("x_posts", [])
         feed_messages: list[str] = self._context.get("feed_messages", [])
         picked_quotes: list[str] = self._context.get("picked_quotes", [])
@@ -55,16 +53,13 @@ class AgentFeedDigest(Agent):
         )
         chat_history.append(Chat(role="user", content=prompt.strip()))
 
-        prompt_messages: list[ChatCompletionMessageParam] = []
-        system_prompt: str = self.build_system_prompt()
-        prompt_messages.append(
-            ChatCompletionSystemMessageParam(role="system", content=system_prompt)
-        )
+        raw_items: list[tuple[str, str]] = []
         for chat in chat_history:
             current_content = chat.get("content")
             if not current_content:
                 continue
-            if chat["role"] == "user":
+            role = "model" if chat.get("role") == "assistant" else "user"
+            if role == "user":
                 current_content = current_content.replace("```", "")
                 current_content = current_content.replace("\u200b", "")
                 current_content = re.sub(
@@ -73,29 +68,39 @@ class AgentFeedDigest(Agent):
                     current_content,
                     flags=re.MULTILINE,
                 )
-                prompt_messages.append(
-                    ChatCompletionUserMessageParam(role="user", content=current_content)
-                )
-            elif chat["role"] == "assistant":
-                prompt_messages.append(
-                    ChatCompletionAssistantMessageParam(
-                        role="assistant", content=current_content
-                    )
-                )
-        return prompt_messages
+            raw_items.append((role, current_content))
 
-    def _completion(self, prompt_messages: list[ChatCompletionMessageParam]) -> str:
+        merged: list[tuple[str, str]] = []
+        for role, text in raw_items:
+            if merged and merged[-1][0] == role:
+                merged[-1] = (role, f"{merged[-1][1]}\n\n{text}")
+            else:
+                merged.append((role, text))
+
+        if not merged:
+            merged.append(("user", "記事を生成してください。"))
+        elif merged[-1][0] == "model":
+            merged.append(("user", "続けてください。"))
+
+        return [
+            types.Content(
+                role=r,
+                parts=[types.Part.from_text(text=t)],
+            )
+            for r, t in merged
+        ]
+
+    def _completion(self, prompt_messages: list[types.Content]) -> str:
         self._logger.debug("prompt_messages=%s", prompt_messages)
-        kwargs: dict[str, Any] = {
-            "messages": prompt_messages,
-            "model": self._openai_model,
-            "stream": False,
-            "max_completion_tokens": self._output_max_token,
-        }
-        if self._reasoning_effort:
-            kwargs["reasoning_effort"] = self._reasoning_effort
-        response = self._openai_client.chat.completions.create(**kwargs)
-        return str(response.choices[0].message.content)
+        config = types.GenerateContentConfig(
+            system_instruction=self.build_system_prompt(),
+        )
+        response = self._client.models.generate_content(
+            model=self._model,
+            contents=prompt_messages,
+            config=config,
+        )
+        return response.text or ""
 
     def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> Chat:
         try:

@@ -1,28 +1,22 @@
-import json
-
-from openai.types.chat import ChatCompletionMessageParam
-from openai.types.responses.function_tool_param import FunctionToolParam
-from openai.types.responses.response_output_item import ResponseOutputItem
+from typing import Any
 
 from agent.chat_types import Chat
-from function.generative_base import GenerativeBase
+from function.generative_base import GenerativeBase, ToolCallItem
 
 
 class GenerativeSynonyms(GenerativeBase):
-    def generate(self, chat_history: list[Chat]) -> list[dict[str, str]]:
-        prompt_messages: list[ChatCompletionMessageParam] = self.build_prompt(
-            chat_history
-        )
+    def generate(self, chat_history: list[Chat]) -> list[str]:
+        prompt_messages = self.build_prompt(chat_history)
 
-        if prompt_messages is None or len(prompt_messages) == 0:
+        if not prompt_messages:
             return []
 
-        tool: FunctionToolParam = {
-            "type": "function",
+        tool: dict[str, Any] = {
             "name": "generate_synonyms",
-            "description": "これまでの会話から検索するためのキーワードを複数挙げる。直近の会話内容から優先的に選択して、"
-            "関係のない文言を無理に生成しようとしないでください",
-            "strict": False,
+            "description": (
+                "これまでの会話から検索するためのキーワードを複数挙げる。直近の会話内容から優先的に選択して、"
+                "関係のない文言を無理に生成しようとしないでください"
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -35,20 +29,18 @@ class GenerativeSynonyms(GenerativeBase):
                         },
                     }
                 },
+                "required": ["synonyms"],
             },
         }
 
-        function: ResponseOutputItem | None = self.function_single_call(
-            tool, prompt_messages
-        )
-        if function and function.type == "function_call":
-            args: dict = json.loads(function.arguments)
-            if args.get("synonyms") is not None:
-                if isinstance(args["synonyms"], list):
-                    synonyms: list = args["synonyms"]
-                    ngword: list = ["調査", "アイディア"]
-                    for ng in ngword:
-                        if ng in synonyms:
-                            synonyms.remove(ng)
-                    return synonyms
+        result: ToolCallItem | None = self.function_single_call(tool, prompt_messages)
+        if result and result.type == "function_call":
+            args = result.args_dict
+            if args.get("synonyms") is not None and isinstance(args["synonyms"], list):
+                synonyms: list = args["synonyms"]
+                ngword: list = ["調査", "アイディア"]
+                for ng in ngword:
+                    while ng in synonyms:
+                        synonyms.remove(ng)
+                return synonyms
         return []

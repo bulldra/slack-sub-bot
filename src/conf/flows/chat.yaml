@@ -1,0 +1,8 @@
+name: chat
+description: "AIに会話を委譲して応答を生成"
+command: "/chat"
+steps:
+  - agent: AgentChat
+    arguments: {}
+  - agent: AgentNotification
+    arguments: {}

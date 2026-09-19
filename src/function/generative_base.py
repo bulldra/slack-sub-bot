@@ -1,74 +1,160 @@
 import json
 import logging
-import os
-from typing import Any, cast
+from typing import Any
 
-import openai
+from google.genai import types
+
 import conf.models as models
-from openai.types.chat import (
-    ChatCompletionAssistantMessageParam,
-    ChatCompletionMessageParam,
-    ChatCompletionUserMessageParam,
-)
-from openai.types.responses.function_tool_param import FunctionToolParam
-from openai.types.responses.response_output_item import ResponseOutputItem
-
 from agent.chat_types import Chat
+from utils.gemini_client import get_gemini_client
+
+
+class ToolCallItem:
+    """Function call または テキスト返答を表すアイテム"""
+
+    def __init__(
+        self,
+        type: str,
+        name: str = "",
+        arguments: Any = None,
+        content: str = "",
+    ):
+        self.type = type  # "function_call" または "message"
+        self.name = name
+        self._arguments = arguments if arguments is not None else {}
+        self.content = content
+
+    @property
+    def arguments(self) -> str:
+        if isinstance(self._arguments, str):
+            return self._arguments
+        return json.dumps(self._arguments, ensure_ascii=False)
+
+    @property
+    def args_dict(self) -> dict[str, Any]:
+        if isinstance(self._arguments, dict):
+            return self._arguments
+        try:
+            return json.loads(str(self._arguments))
+        except Exception:
+            return {}
+
+    def __repr__(self) -> str:
+        return (
+            f"ToolCallItem(type={self.type!r}, name={self.name!r}, "
+            f"arguments={self._arguments!r}, content={self.content!r})"
+        )
 
 
 class GenerativeBase:
     def __init__(self) -> None:
-        self._secrets: dict = json.loads(str(os.getenv("SECRETS")))
-        self._openai_client = openai.OpenAI(api_key=self._secrets.get("OPENAI_API_KEY"))
-        self._openai_model: str = models.openai_mini()
+        self._client = get_gemini_client()
+        self._model: str = models.gemini_mini()
         self._logger: logging.Logger = logging.getLogger(__name__)
         self._logger.setLevel(logging.DEBUG)
 
     def build_prompt(
         self, chat_history: list[Chat]
-    ) -> list[ChatCompletionMessageParam]:
-        prompt_messages: list[ChatCompletionMessageParam] = []
+    ) -> list[types.Content]:
+        raw_items: list[tuple[str, str]] = []
         if chat_history:
             for message in chat_history:
-                if message.get("role") == "user":
-                    prompt_messages.append(
-                        ChatCompletionUserMessageParam(
-                            role="user", content=message.get("content", "")
-                        )
-                    )
-                elif message.get("role") == "assistant":
-                    prompt_messages.append(
-                        ChatCompletionAssistantMessageParam(
-                            role="assistant", content=message.get("content", "")
-                        )
-                    )
+                content = str(message.get("content", ""))
+                if not content:
+                    continue
+                role = "model" if message.get("role") == "assistant" else "user"
+                raw_items.append((role, content))
+
+        # 同一ロールが連続した場合は統合
+        merged: list[tuple[str, str]] = []
+        for role, text in raw_items:
+            if merged and merged[-1][0] == role:
+                merged[-1] = (role, f"{merged[-1][1]}\n\n{text}")
+            else:
+                merged.append((role, text))
+
+        # Gemini API の要件: 最後のターンは必ず user でなければならない
+        if not merged:
+            merged.append(("user", "処理を実行してください。"))
+        elif merged[-1][0] == "model":
+            merged.append(("user", "続けてください。"))
+
+        prompt_messages: list[types.Content] = [
+            types.Content(
+                role=r,
+                parts=[types.Part.from_text(text=t)],
+            )
+            for r, t in merged
+        ]
         return prompt_messages
 
     def function_single_call(
-        self, tool: FunctionToolParam, messages: list[ChatCompletionMessageParam]
-    ) -> ResponseOutputItem | None:
-        function_calls = self.function_call([tool], messages)
+        self, tool: dict[str, Any], messages: list[types.Content]
+    ) -> ToolCallItem | None:
+        function_calls = self.function_call([tool], messages, tool_choice="required")
         if function_calls is not None:
-            for function_call in function_calls:
-                if (
-                    function_call.type == "function_call"
-                    and function_call.name == tool["name"]
-                ):
-                    return function_call
+            tool_name = tool.get("name") or tool.get("function", {}).get("name")
+            for fc in function_calls:
+                if fc.type == "function_call" and fc.name == tool_name:
+                    return fc
         return None
 
     def function_call(
         self,
-        tools: list[FunctionToolParam],
-        messages: list[ChatCompletionMessageParam],
-        tool_choice="required",
-    ) -> list[ResponseOutputItem] | None:
-        response = self._openai_client.responses.create(
-            model=self._openai_model,
-            input=cast(Any, messages),
-            tools=tools,
-            tool_choice=tool_choice,
+        tools: list[dict[str, Any]],
+        messages: list[types.Content],
+        tool_choice: str = "required",
+    ) -> list[ToolCallItem] | None:
+        function_declarations: list[dict[str, Any]] = []
+        for t in tools:
+            tool_info = t.get("function", t)
+            decl: dict[str, Any] = {
+                "name": tool_info.get("name"),
+                "description": tool_info.get("description", ""),
+            }
+            if "parameters" in tool_info and tool_info["parameters"]:
+                decl["parameters"] = tool_info["parameters"]
+            else:
+                decl["parameters"] = {"type": "object", "properties": {}}
+            function_declarations.append(decl)
+
+        if tool_choice == "required":
+            mode = types.FunctionCallingConfigMode.ANY
+        elif tool_choice == "none":
+            mode = types.FunctionCallingConfigMode.NONE
+        else:
+            mode = types.FunctionCallingConfigMode.AUTO
+
+        config = types.GenerateContentConfig(
+            tools=[types.Tool(function_declarations=function_declarations)],
+            tool_config=types.ToolConfig(
+                function_calling_config=types.FunctionCallingConfig(mode=mode)
+            ),
         )
-        function_calls: list[ResponseOutputItem] = response.output
-        self._logger.debug("function_calls=%s", function_calls)
-        return function_calls
+
+        response = self._client.models.generate_content(
+            model=self._model,
+            contents=messages,
+            config=config,
+        )
+
+        items: list[ToolCallItem] = []
+        if response.function_calls:
+            for fc in response.function_calls:
+                items.append(
+                    ToolCallItem(
+                        type="function_call",
+                        name=fc.name or "",
+                        arguments=fc.args or {},
+                    )
+                )
+        elif response.text:
+            items.append(
+                ToolCallItem(
+                    type="message",
+                    content=response.text,
+                )
+            )
+
+        self._logger.debug("function_calls items=%s", items)
+        return items if items else None

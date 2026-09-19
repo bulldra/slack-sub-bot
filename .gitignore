@@ -1,9 +1,44 @@
-slack_app_manifest.json
+### Sensitive Files & Secrets ###
+# Environment variables and local configs
+.env
+.env.*
+.env*.local
+!.env.sample
+
+# Secrets and credentials
 secrets.json
+*secrets*.json
+!secrets.json.sample
+!secrets.*.sample.json
+token.json
+*token*.json
+auth.json
+oauth*.json
+
+# GCP Service Account Keys & Credentials
+*credential*.json
+*service_account*.json
+*service-account*.json
+*gcp-key*.json
+*.key.json
+*.sa.json
+
+# Private Keys & Certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.cer
+*.crt
+
+# Slack & Cloud configurations
+slack_app_manifest.json
+src/conf/gcs_bucket.json
+gcs_bucket.json
+
 .DS_Store
 src/requirements.txt
 uv.lock
-src/conf/gcs_bucket.json
 
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python

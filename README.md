@@ -15,12 +15,12 @@ pip install -r src/requirements.txt
 2. Prepare environment variables
 
 Set the `SECRETS` environment variable with a JSON string containing:
-`SLACK_BOT_TOKEN`, `SLACK_USER_TOKEN`, `OPENAI_API_KEY` and other tokens used by the bot.
+`SLACK_BOT_TOKEN`, `SLACK_USER_TOKEN`, `GCP_PROJECT` and other tokens used by the bot.
 
 Example:
 
 ```bash
-export SECRETS='{"SLACK_BOT_TOKEN":"xoxb-...","SLACK_USER_TOKEN":"xoxp-...","OPENAI_API_KEY":"sk-..."}'
+export SECRETS='{"SLACK_BOT_TOKEN":"xoxb-...","SLACK_USER_TOKEN":"xoxp-...","GCP_PROJECT":"your-project-id"}'
 ```
 
 ### GitHub Actions
@@ -57,7 +57,7 @@ Publish a Pub/Sub message with the following format:
 }
 ```
 
-The bot detects URLs or commands from the message, generates a reply with OpenAI and posts the result back to Slack.
+The bot detects URLs or commands from the message, generates a reply with Gemini (Vertex AI) and posts the result back to Slack.
 
 ## Sequence Diagram
 
@@ -67,12 +67,11 @@ sequenceDiagram
     participant S as Slack
     participant P as Pub/Sub
     participant F as Cloud Function
-    participant O as OpenAI
+    participant G as Gemini (Vertex AI)
     U->>S: Post message/mail
     S-->>P: Publish event
     P-->>F: Trigger function
-    F->>O: Generate response
-    O-->>F: AI output
-    F-->>S: Reply to Slack
+    F->>G: Generate response
+    G-->>F: AI output
+    F->>S: Update Slack message
 ```
-

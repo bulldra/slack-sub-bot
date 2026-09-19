@@ -1,25 +1,22 @@
 from typing import Any, List
 
-from openai.types.chat import ChatCompletionMessageParam
-
 import conf.models as models
 import utils.slack_search_utils as slack_search_utils
-from agent.agent_gpt import AgentGPT
+from agent.agent_chat import AgentChat
 from agent.chat_types import Chat
 from skills.skill_loader import load_skill
 
 
-class AgentRecommend(AgentGPT):
+class AgentRecommend(AgentChat):
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
-        self._openai_stream = True
-        self._openai_model: str = models.openai_standard()
-
+        self._stream = True
+        self._model: str = models.gemini_standard()
         self._keywords: List[str] = []
 
     def build_prompt(
         self, arguments: dict[str, Any], chat_history: List[Chat]
-    ) -> List[ChatCompletionMessageParam]:
+    ) -> Any:
         days_ago_start = arguments.get("start_days_ago", 365)
         days_ago_end = arguments.get("end_days_ago", 0)
         days_ago_end = min(days_ago_start, days_ago_end)

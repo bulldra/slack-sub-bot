@@ -1,18 +1,12 @@
-import json
 from typing import Any, Optional
 
-from openai.types.chat import ChatCompletionMessageParam
-from openai.types.responses.function_tool_param import FunctionToolParam
-from openai.types.responses.response_output_item import ResponseOutputItem
-from openai.types.responses.response_output_refusal import ResponseOutputRefusal
-from openai.types.responses.response_output_text import ResponseOutputText
 from pydantic import BaseModel
 
 import utils.scraping_utils as scraping_utils
 import utils.slack_link_utils as slack_link_utils
 from agent.agent_base import Agent, AgentDelete, AgentNotification, AgentText
+from agent.agent_chat import AgentChat
 from agent.agent_feed_digest import AgentFeedDigest
-from agent.agent_gpt import AgentGPT
 from agent.agent_idea import AgentIdea
 from agent.agent_recommend import AgentRecommend
 from agent.agent_scrape import AgentScrape, AgentScrapeText
@@ -23,7 +17,7 @@ from agent.agent_summarize import AgentSummarize
 from agent.agent_x import AgentX
 from agent.agent_youtube import AgentYoutube
 from agent.chat_types import Chat
-from function.generative_base import GenerativeBase
+from function.generative_base import GenerativeBase, ToolCallItem
 
 
 class AgentExecute(BaseModel):
@@ -110,7 +104,7 @@ class GenerativeAgent(GenerativeBase):
 
         # Phase 2: command_dict によるフォールバック（URL分類、function calling で使用）
         command_dict: dict[str, type[Agent]] = {
-            "/gpt": AgentGPT,
+            "/chat": AgentChat,
             "/summarize": AgentSummarize,
             "/idea": AgentIdea,
             "/recommend": AgentRecommend,
@@ -173,16 +167,12 @@ class GenerativeAgent(GenerativeBase):
                             notification,
                         ]
 
-        prompt_messages: list[ChatCompletionMessageParam] = self.build_prompt(
-            chat_history
-        )
+        prompt_messages = self.build_prompt(chat_history)
 
-        tools: list[FunctionToolParam] = [
+        tools: list[dict[str, Any]] = [
             {
-                "type": "function",
                 "name": "summarize",
-                "description": "Youtubeの以外のURLを受け取ったら実行。URLの内容を要約して返す",
-                "strict": False,
+                "description": "Youtube以外のURLを受け取ったら実行。URLの内容を要約して返す",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -195,10 +185,8 @@ class GenerativeAgent(GenerativeBase):
                 },
             },
             {
-                "type": "function",
                 "name": "youtube",
                 "description": "YoutubeのURLを受け取ったら実行。URLの内容を要約して返す",
-                "strict": False,
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -211,10 +199,8 @@ class GenerativeAgent(GenerativeBase):
                 },
             },
             {
-                "type": "function",
                 "name": "x",
                 "description": "X（Twitter）のURLを受け取ったら実行。ポストの内容を分析して返す",
-                "strict": False,
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -227,10 +213,8 @@ class GenerativeAgent(GenerativeBase):
                 },
             },
             {
-                "type": "function",
                 "name": "search",
                 "description": "調査や検索を依頼された場合に実行",
-                "strict": False,
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -243,10 +227,8 @@ class GenerativeAgent(GenerativeBase):
                 },
             },
             {
-                "type": "function",
                 "name": "recommend",
                 "description": "おすすめの記事を依頼されたら実行。時期を指定されたら引数に指定",
-                "strict": False,
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -272,10 +254,8 @@ class GenerativeAgent(GenerativeBase):
                 },
             },
             {
-                "type": "function",
                 "name": "idea",
                 "description": "アイディアや議論を求められたら実行",
-                "strict": False,
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -293,15 +273,16 @@ class GenerativeAgent(GenerativeBase):
                 },
             },
             {
-                "type": "function",
-                "strict": False,
-                "name": "gpt",
-                "description": "ChatGPTに会話を委譲する場合に実行",
-                "parameters": {},
+                "name": "chat",
+                "description": "AIに会話を委譲する場合に実行",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                },
             },
         ]
 
-        function_calls: list[ResponseOutputItem] | None = self.function_call(
+        function_calls: list[ToolCallItem] | None = self.function_call(
             tools, prompt_messages, tool_choice="auto"
         )
         if function_calls:
@@ -310,40 +291,23 @@ class GenerativeAgent(GenerativeBase):
                     command = f"/{function_call.name}"
                     if command in command_dict:
                         exe = command_dict[command]
-                        args = (
-                            json.loads(function_call.arguments)
-                            if function_call.arguments
-                            else {}
-                        )
+                        args = function_call.args_dict
                         if command == "/summarize":
                             execute_queue.append(
                                 AgentExecute(agent=AgentScrape, arguments=args)
                             )
                         execute_queue.append(AgentExecute(agent=exe, arguments=args))
                 elif function_call.type == "message":
-                    messages: list[ResponseOutputText | ResponseOutputRefusal] = (
-                        function_call.content
+                    execute_queue.append(
+                        AgentExecute(
+                            agent=command_dict["/text"],
+                            arguments={"content": function_call.content},
+                        )
                     )
-                    for mes in messages:
-                        text: ResponseOutputText | ResponseOutputRefusal = mes
-                        if hasattr(text, "text"):
-                            execute_queue.append(
-                                AgentExecute(
-                                    agent=command_dict["/text"],
-                                    arguments={"content": text.text},
-                                ),
-                            )
-                        else:
-                            execute_queue.append(
-                                AgentExecute(
-                                    agent=command_dict["/text"],
-                                    arguments={"content": str(text)},
-                                ),
-                            )
         if len(execute_queue) == 0:
             execute_queue.append(
                 AgentExecute(
-                    agent=command_dict["/gpt"],
+                    agent=command_dict["/chat"],
                     arguments={},
                 )
             )

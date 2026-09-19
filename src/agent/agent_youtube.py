@@ -36,7 +36,7 @@ class AgentYoutube(AgentGemini):
         prompt = load_skill("youtube")
         prompt_messages: list[types.Part] = [
             types.Part(file_data=types.FileData(file_uri=url, mime_type="video/mp4")),
-            types.Part(text=prompt),
+            types.Part.from_text(text=prompt),
         ]
         return prompt_messages
 

@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from agent.agent_base import Agent, AgentDelete, AgentNotification, AgentText
 from agent.agent_feed_collect import AgentFeedCollect
 from agent.agent_feed_digest import AgentFeedDigest
-from agent.agent_gpt import AgentGPT
+from agent.agent_chat import AgentChat
 from agent.agent_idea import AgentIdea
 from agent.agent_recommend import AgentRecommend
 from agent.agent_scrape import AgentScrape
@@ -24,7 +24,7 @@ from function.generative_agent import AgentExecute
 
 
 AGENT_REGISTRY: dict[str, type[Agent]] = {
-    "AgentGPT": AgentGPT,
+    "AgentChat": AgentChat,
     "AgentSummarize": AgentSummarize,
     "AgentIdea": AgentIdea,
     "AgentRecommend": AgentRecommend,

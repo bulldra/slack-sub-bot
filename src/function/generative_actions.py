@@ -1,12 +1,7 @@
-import json
-
-from openai.types.chat import ChatCompletionMessageParam
-from openai.types.responses.function_tool_param import FunctionToolParam
-from openai.types.responses.response_function_tool_call import ResponseFunctionToolCall
-from openai.types.responses.response_output_item import ResponseOutputItem
+from typing import Any
 
 from agent.chat_types import Chat
-from function.generative_base import GenerativeBase
+from function.generative_base import GenerativeBase, ToolCallItem
 
 
 class GenerativeActions(GenerativeBase):
@@ -16,16 +11,13 @@ class GenerativeActions(GenerativeBase):
             "要約したり、出てきたキーワードの解像度を高めたり、反論したり、異なる視点を"
             "提示してボタンを押したくなるような選択肢群にしてください"
         )
-        chat_history.append(Chat(role="user", content=prompt))
-        prompt_messages: list[ChatCompletionMessageParam] = self.build_prompt(
-            chat_history
-        )
+        chat_history_copy = list(chat_history)
+        chat_history_copy.append(Chat(role="user", content=prompt))
+        prompt_messages = self.build_prompt(chat_history_copy)
 
-        tool: FunctionToolParam = {
-            "type": "function",
+        tool: dict[str, Any] = {
             "name": "generate_actions",
             "description": prompt,
-            "strict": False,
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -41,10 +33,10 @@ class GenerativeActions(GenerativeBase):
                                 },
                                 "action_prompt": {
                                     "type": "string",
-                                    "description": "生成されたアクションの実行方法をChatGPTに問いかける\
-ためのプロンプトをステップ・バイ・ステップで生成",
+                                    "description": "生成されたアクションの実行方法をAIに問いかけるためのプロンプトをステップ・バイ・ステップで生成",
                                 },
                             },
+                            "required": ["action_label", "action_prompt"],
                         },
                     }
                 },
@@ -59,16 +51,10 @@ class GenerativeActions(GenerativeBase):
             },
         ]
 
-        result: ResponseOutputItem | None = self.function_single_call(
-            tool, prompt_messages
-        )
-        if result and result.type != "function_call":
-            return actions
-
-        function: ResponseFunctionToolCall = result  # type: ignore[arg-type]
-        if function is not None and function.arguments is not None:
-            args: dict = json.loads(function.arguments)
-            if args.get("actions") is not None:
+        result: ToolCallItem | None = self.function_single_call(tool, prompt_messages)
+        if result and result.type == "function_call":
+            args = result.args_dict
+            if args.get("actions") is not None and isinstance(args["actions"], list):
                 actions.extend(args["actions"])
 
         return [

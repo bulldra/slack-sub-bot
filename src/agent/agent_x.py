@@ -1,21 +1,20 @@
 from typing import Any, List, Optional
 
 import tweepy
-from openai.types.chat import ChatCompletionMessageParam
 
 import conf.models as models
 import utils.scraping_utils as scraping_utils
 import utils.slack_link_utils as slack_link_utils
-from agent.agent_gpt import AgentGPT
+from agent.agent_chat import AgentChat
 from agent.chat_types import Chat
 from skills.skill_loader import load_skill
 
 
-class AgentX(AgentGPT):
+class AgentX(AgentChat):
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
-        self._openai_model: str = models.openai_standard()
-        self._openai_stream = False
+        self._model: str = models.gemini_standard()
+        self._stream = False
         self._use_character = False
         self._post_url: str = ""
         self._author_name: str = ""
@@ -111,7 +110,7 @@ class AgentX(AgentGPT):
 
     def build_prompt(
         self, arguments: dict[str, Any], chat_history: List[Chat]
-    ) -> List[ChatCompletionMessageParam]:
+    ) -> Any:
         if arguments.get("url"):
             url = str(arguments["url"])
         else:

@@ -12,17 +12,22 @@ class AgentSearch(AgentGemini):
         query = str(chat_history[-1]["content"])
         if arguments.get("query"):
             query = str(arguments["query"])
-        prompt_messages: list[types.Part] = [types.Part(text=query)]
+        prompt_messages: list[types.Part] = [types.Part.from_text(text=query)]
         return prompt_messages
 
-    def completion(self, prompt_messages: list[types.Part]) -> str:
-        google_search_tool = Tool(google_search=GoogleSearch())
-        config = GenerateContentConfig(
-            tools=[google_search_tool],
-        )
+    def completion(
+        self,
+        prompt_messages: Any,
+        config: GenerateContentConfig | None = None,
+    ) -> str:
+        if config is None:
+            google_search_tool = Tool(google_search=GoogleSearch())
+            config = GenerateContentConfig(
+                tools=[google_search_tool],
+            )
         response = self._client.models.generate_content(
             model=self._model,
-            contents=prompt_messages,
+            contents=self._normalize_contents(prompt_messages),
             config=config,
         )
 
