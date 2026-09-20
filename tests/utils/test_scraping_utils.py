@@ -269,3 +269,21 @@ def test_scraping_other_http_error_raises(monkeypatch):
     with pytest.raises(requests.exceptions.HTTPError):
         scraping_utils.scraping("https://example.com/server-error")
 
+
+def test_scraping_raw_apparent_encoding(monkeypatch):
+    from unittest.mock import MagicMock
+    import requests
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.encoding = "ISO-8859-1"
+    mock_resp.apparent_encoding = "utf-8"
+    mock_resp.text = "日本語テキスト"
+
+    monkeypatch.setattr(requests, "get", MagicMock(return_value=mock_resp))
+
+    result = scraping_utils.scraping_raw("https://example.com/japanese")
+    assert mock_resp.encoding == "utf-8"
+    assert result == "日本語テキスト"
+
+

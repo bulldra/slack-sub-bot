@@ -204,6 +204,8 @@ def scraping_raw(url: str) -> Optional[str]:
     try:
         res = requests.get(url, timeout=(3.0, 8.0), headers=DEFAULT_HEADERS)
         res.raise_for_status()
+        if res.encoding is None or res.encoding.lower() == "iso-8859-1":
+            res.encoding = res.apparent_encoding or "utf-8"
         return res.text
     except requests.exceptions.HTTPError as err:
         if err.response is not None and err.response.status_code == 404:

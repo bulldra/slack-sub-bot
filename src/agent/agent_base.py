@@ -67,13 +67,15 @@ class AgentSlack(Agent):
     def _split_markdown_blocks(content: str, max_len: int = 3000) -> list[dict]:
         content = AgentSlack._strip_markdown_tables(content)
         if len(content) <= max_len:
-            return [{"type": "markdown", "text": content}]
+            return [{"type": "section", "text": {"type": "mrkdwn", "text": content}}]
 
         blocks: list[dict] = []
         remaining = content
         while remaining:
             if len(remaining) <= max_len:
-                blocks.append({"type": "markdown", "text": remaining})
+                blocks.append(
+                    {"type": "section", "text": {"type": "mrkdwn", "text": remaining}}
+                )
                 break
             # 見出し行(## )で分割を試みる
             split_pos = -1
@@ -85,7 +87,12 @@ class AgentSlack(Agent):
             if split_pos <= 0:
                 pos = remaining.rfind("\n", 0, max_len)
                 split_pos = pos if pos > 0 else max_len
-            blocks.append({"type": "markdown", "text": remaining[:split_pos].rstrip()})
+            blocks.append(
+                {
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": remaining[:split_pos].rstrip()},
+                }
+            )
             remaining = remaining[split_pos:].lstrip("\n")
         return blocks
 
