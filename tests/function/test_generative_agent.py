@@ -29,6 +29,21 @@ def test_summarize(pytestconfig: pytest.Config):
     assert expected == result
 
 
+def test_multi_url_rss_post_routes_to_scraping(pytestconfig: pytest.Config):
+    from agent.agent_scrape import AgentScrapeText
+
+    content = "<https://www.du-soleil.com/entry/test|テスト記事> <https://b.hatena.ne.jp/entry/s/www.du-soleil.com/entry/test|はてなブックマーク>"
+    result = GenerativeAgent().generate(None, [Chat(role="user", content=content)])
+    expected = [
+        AgentExecute(
+            agent=AgentScrape, arguments={"url": "https://www.du-soleil.com/entry/test"}
+        ),
+        AgentExecute(agent=AgentScrapeText, arguments={}),
+        AgentExecute(agent=AgentNotification, arguments={"content": ""}),
+    ]
+    assert result == expected
+
+
 def test_idea(pytestconfig: pytest.Config):
     result = GenerativeAgent().generate(
         None, [Chat(role="user", content="ビールに関するアイディア")]

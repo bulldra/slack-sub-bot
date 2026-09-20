@@ -1,6 +1,7 @@
 ---
 name: feed_digest_markdown_check
 description: ブログ記事のMarkdown形式を検証・修正するスキル
+routable: false
 ---
 
 以下の記事のMarkdown形式を検証し、修正した記事全文のみを出力せよ。説明やコメントは不要。

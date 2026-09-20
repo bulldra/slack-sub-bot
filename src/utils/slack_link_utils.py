@@ -45,16 +45,48 @@ def sanitize_url(text: str) -> str:
     return sanitized
 
 
-def is_only_url(text: str) -> bool:
+_META_TEXT_PATTERN = re.compile(
+    r"^(?:[\s\|\-–—:：/／\(\)\[\]・\d]|配信元|元記事|source|via|users|user|はてなブックマーク|はてブ|PR)*$",
+    re.IGNORECASE,
+)
+
+
+def is_secondary_url(url: str) -> bool:
+    """はてなブックマーク等の副次的/除外URLかどうかを判定する。"""
+    try:
+        parsed = urllib.parse.urlparse(url)
+        netloc = parsed.netloc.lower()
+        from utils.scraping_utils import _IGNORE_DOMAINS, _SECONDARY_DOMAINS
+
+        return netloc in _SECONDARY_DOMAINS or netloc in _IGNORE_DOMAINS
+    except Exception:
+        return False
+
+
+# 後方互換性のためのエイリアス
+is_ignore_url = is_secondary_url
+
+
+def is_only_url(text: Optional[str]) -> bool:
     if not text or not is_contains_url(text):
         return False
 
+    # 単一の <URL|タイトル> または 単一の URL の場合（従来パターン）
     sanitized: str = re.sub(r"^<([^|>]+)(?:\|[^>]*)?>$", r"\1", text.strip())
-
     try:
-        return sanitized == extract_url(text)
+        if sanitized == extract_url(text):
+            return True
     except ValueError:
-        return False
+        pass
+
+    # 複数URLまたはSlackリンク群の場合：
+    # リンク以外のテキストが空、またはRSSメタ情報（配信元、はてブ、区切り記号等）のみならTrue
+    remaining = re.sub(r"<https?://[^>]+>", "", text)
+    remaining = re.sub(_URL_PATTERN, "", remaining).strip()
+    if not remaining or _META_TEXT_PATTERN.match(remaining):
+        return True
+
+    return False
 
 
 def can_parse_url(url):
@@ -92,15 +124,28 @@ def _strip_encoded_pipe(url: str) -> str:
     return url
 
 
-def extract_url(text: str) -> Optional[str]:
+def extract_urls(text: Optional[str]) -> list[str]:
+    """テキストからすべての有効なURLを抽出してリストで返す。"""
     links: list[str] = re.findall(_URL_PATTERN, text or "")
-    if len(links) == 0:
-        return None
+    urls: list[str] = []
     for link in links:
         link = _strip_encoded_pipe(link)
         if can_parse_url(link):
-            return link
-    return None
+            urls.append(link)
+    return urls
+
+
+def extract_url(text: Optional[str]) -> Optional[str]:
+    """テキストから主たるURLを抽出する。はてブ等の副次的URLを除外し元記事URLを優先する。"""
+    urls = extract_urls(text)
+    if not urls:
+        return None
+    # 1. はてブ等のignore対象でないURLを優先
+    for u in urls:
+        if not is_ignore_url(u):
+            return u
+    # 2. すべてignore対象だった場合は先頭のURL
+    return urls[0]
 
 
 def redirect_url(url: Optional[str]) -> Optional[str]:

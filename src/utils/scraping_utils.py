@@ -25,6 +25,7 @@ _STRATEGY_CONFIG: dict = _load_url_strategy()
 _DELEGATE_DOMAINS: dict[str, str] = _STRATEGY_CONFIG["delegate_domains"]
 _IGNORE_DOMAINS: list[str] = _STRATEGY_CONFIG["ignore_domains"]
 _IGNORE_EXTENSIONS: list[str] = _STRATEGY_CONFIG["ignore_extensions"]
+_SECONDARY_DOMAINS: list[str] = _STRATEGY_CONFIG.get("secondary_domains", [])
 
 def _build_default_headers(config: dict) -> dict[str, str]:
     headers: dict[str, str] = {

@@ -38,5 +38,11 @@
 		"markezine.jp",
 		"codezine.jp"
 	],
-	"ignore_extensions": [".zip"]
+	"ignore_extensions": [".zip"],
+	"secondary_domains": [
+		"b.hatena.ne.jp",
+		"bookmark.hatenastaff.com",
+		"feedly.com",
+		"getpocket.com"
+	]
 }

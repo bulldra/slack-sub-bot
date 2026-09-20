@@ -159,6 +159,7 @@ def test_url_strategy_json():
     assert "delegate_domains" in config
     assert "ignore_domains" in config
     assert "ignore_extensions" in config
+    assert "secondary_domains" in config
     assert "user_agent" in config
     assert isinstance(config["user_agent"], str)
     assert len(config["user_agent"]) > 0
@@ -167,19 +168,23 @@ def test_url_strategy_json():
     assert isinstance(config["delegate_domains"], dict)
     assert isinstance(config["ignore_domains"], list)
     assert isinstance(config["ignore_extensions"], list)
+    assert isinstance(config["secondary_domains"], list)
     assert len(config["delegate_domains"]) > 0
     assert len(config["ignore_domains"]) > 0
     assert len(config["ignore_extensions"]) > 0
+    assert len(config["secondary_domains"]) > 0
 
 
 def test_strategy_module_constants():
     assert isinstance(scraping_utils._DELEGATE_DOMAINS, dict)
     assert isinstance(scraping_utils._IGNORE_DOMAINS, list)
     assert isinstance(scraping_utils._IGNORE_EXTENSIONS, list)
+    assert isinstance(scraping_utils._SECONDARY_DOMAINS, list)
     assert scraping_utils._DELEGATE_DOMAINS.get("twitter.com") == "x"
     assert scraping_utils._DELEGATE_DOMAINS.get("www.youtube.com") == "youtube"
     assert "speakerdeck.com" in scraping_utils._IGNORE_DOMAINS
     assert ".zip" in scraping_utils._IGNORE_EXTENSIONS
+    assert "b.hatena.ne.jp" in scraping_utils._SECONDARY_DOMAINS
     assert scraping_utils.DEFAULT_HEADERS["User-Agent"] == scraping_utils._STRATEGY_CONFIG["user_agent"]
 
 

@@ -5,6 +5,7 @@ from google.genai.types import GenerateContentConfig, GoogleSearch, Tool
 
 from agent.agent_gemini import AgentGemini
 from agent.chat_types import Chat
+from utils.system_prompt import build_system_prompt
 
 
 class AgentSearch(AgentGemini):
@@ -20,11 +21,16 @@ class AgentSearch(AgentGemini):
         prompt_messages: Any,
         config: GenerateContentConfig | None = None,
     ) -> str:
+        system_prompt: str = build_system_prompt(self._use_character)
         if config is None:
             google_search_tool = Tool(google_search=GoogleSearch())
             config = GenerateContentConfig(
                 tools=[google_search_tool],
+                system_instruction=system_prompt if system_prompt else None,
             )
+        elif config.system_instruction is None:
+            if system_prompt:
+                config.system_instruction = system_prompt
         response = self._client.models.generate_content(
             model=self._model,
             contents=self._normalize_contents(prompt_messages),

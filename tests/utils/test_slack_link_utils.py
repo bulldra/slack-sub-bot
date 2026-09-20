@@ -43,6 +43,18 @@ def test_is_contains_url(argument, expected):
         (" https://www.example.com/ ", True),
         ("<https://www.example.com/>\n", True),
         ("あいう<https://www.example.com/?a=1&a=2|aa>", False),
+        (
+            "<https://example.com/entry|タイトル> <https://b.hatena.ne.jp/entry/s/example.com/entry|はてなブックマーク>",
+            True,
+        ),
+        (
+            "<https://example.com/entry|タイトル>\n<https://b.hatena.ne.jp/entry/...|35 users>",
+            True,
+        ),
+        (
+            "<https://example.com/entry|タイトル>\n配信元: <https://source.example.com>",
+            True,
+        ),
     ],
 )
 def test_is_only_url(argument, expected):
@@ -93,6 +105,14 @@ def test_is_only_url(argument, expected):
         (
             "<https://example.com/entry/test%7cTitle%20Text>",
             "https://example.com/entry/test",
+        ),
+        (
+            "<https://example.com/entry|タイトル> <https://b.hatena.ne.jp/entry/s/example.com/entry|はてなブックマーク>",
+            "https://example.com/entry",
+        ),
+        (
+            "<https://b.hatena.ne.jp/entry/s/example.com/entry|はてブ> <https://example.com/entry|タイトル>",
+            "https://example.com/entry",
         ),
     ],
 )
