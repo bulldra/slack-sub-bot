@@ -101,9 +101,10 @@ class AgentX(AgentChat):
                 continue
             try:
                 site_info = scraping_utils.scraping(expanded_url)
-                articles.append(
-                    f"URL: {expanded_url}\nタイトル: {site_info.title}\n内容:\n{site_info.content}"
-                )
+                if site_info and site_info.content:
+                    articles.append(
+                        f"URL: {expanded_url}\nタイトル: {site_info.title}\n内容:\n{site_info.content}"
+                    )
             except Exception:
                 continue
         return "\n\n---\n\n".join(articles)

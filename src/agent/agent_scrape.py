@@ -58,10 +58,13 @@ class AgentScrape(Agent):
         self._logger.debug("AgentScrape scraping url=%s", url)
         if not scraping_utils.is_allow_scraping(url):
             self._logger.info("AgentScrape skipped (ignore domain): %s", url)
+            self._context["scrape_skipped"] = True
             return Chat(role="assistant", content=f"スクレイピングスキップ: {url}")
         site = scraping_utils.scraping(url)
         if site is None:
-            raise ValueError("scraping failed")
+            self._logger.info("AgentScrape skipped (not found / 404): %s", url)
+            self._context["scrape_skipped"] = True
+            return Chat(role="assistant", content=f"スクレイピングスキップ (404 Not Found): {url}")
 
         markdown_content = self._to_markdown(site.content) if site.content else ""
         site = scraping_utils.SiteInfo(
@@ -106,9 +109,15 @@ class AgentScrapeText(AgentSlack):
     """スクレイピング結果を全文表示するエージェント（要約なし）"""
 
     def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
+        if self._context.get("scrape_skipped"):
+            self._logger.info("AgentScrapeText skipped: scrape was skipped")
+            msg = chat_history[-1].get("content", "スクレイピングスキップ") if chat_history else "スクレイピングスキップ"
+            return Chat(role="assistant", content=msg)
+
         site: Optional[scraping_utils.SiteInfo] = self._context.get("scraped_site")
         if site is None:
-            raise ValueError("scraped_site not found in context")
+            self._logger.info("AgentScrapeText skipped: scraped_site not found in context")
+            return Chat(role="assistant", content="スクレイピングスキップ: コンテンツがありません")
 
         blocks: List[dict] = [
             {

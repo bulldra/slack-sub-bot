@@ -73,24 +73,26 @@ class TestAgentScrapeExecute:
 
     @patch("agent.agent_scrape.scraping_utils.scraping", return_value=None)
     @patch("agent.agent_scrape.scraping_utils.is_allow_scraping", return_value=True)
-    def test_execute_scraping_returns_none_raises(self, mock_allow, mock_scraping):
+    def test_execute_scraping_returns_none_skips(self, mock_allow, mock_scraping):
         agent = _make_agent()
         chat_history: list[Chat] = [Chat(role="user", content="hello")]
 
-        with pytest.raises(ValueError, match="scraping failed"):
-            agent.execute({"url": "https://example.com"}, chat_history)
+        result = agent.execute({"url": "https://example.com/not-found"}, chat_history)
+        assert "スクレイピングスキップ" in str(result.get("content", ""))
+        assert agent._context.get("scrape_skipped") is True
+        assert "scraped_site" not in agent._context
 
     @patch("agent.agent_scrape.scraping_utils.scraping")
     @patch("agent.agent_scrape.scraping_utils.is_allow_scraping", return_value=True)
-    def test_execute_http_error_propagates(self, mock_allow, mock_scraping):
+    def test_execute_other_http_error_propagates(self, mock_allow, mock_scraping):
         resp = MagicMock()
-        resp.status_code = 404
+        resp.status_code = 500
         mock_scraping.side_effect = requests.exceptions.HTTPError(response=resp)
         agent = _make_agent()
         chat_history: list[Chat] = [Chat(role="user", content="hello")]
 
         with pytest.raises(requests.exceptions.HTTPError):
-            agent.execute({"url": "https://example.com/404"}, chat_history)
+            agent.execute({"url": "https://example.com/500"}, chat_history)
 
     @patch.object(AgentScrape, "_to_markdown", return_value="# Example\nbody md")
     @patch("agent.agent_scrape.scraping_utils.scraping")
@@ -105,3 +107,26 @@ class TestAgentScrapeExecute:
 
         mock_to_md.assert_not_called()
         assert agent._context["scraped_site"].content == ""
+
+
+class TestAgentScrapeTextExecute:
+    def test_execute_with_scrape_skipped(self):
+        from agent.agent_scrape import AgentScrapeText
+
+        ctx = {"scrape_skipped": True}
+        agent = AgentScrapeText(ctx)
+        chat_history = [Chat(role="assistant", content="スクレイピングスキップ (404 Not Found): https://example.com")]
+
+        result = agent.execute({}, chat_history)
+        assert "スクレイピングスキップ" in str(result.get("content", ""))
+
+    def test_execute_with_no_scraped_site(self):
+        from agent.agent_scrape import AgentScrapeText
+
+        ctx = {}
+        agent = AgentScrapeText(ctx)
+        chat_history = []
+
+        result = agent.execute({}, chat_history)
+        assert "スクレイピングスキップ" in str(result.get("content", ""))
+

@@ -229,3 +229,43 @@ def test_classify_url():
 def test_pdf_url():
     site = scraping_utils.scraping("https://www.soumu.go.jp/main_content/000998475.pdf")
     print(site)
+
+
+def test_scraping_404_returns_none(monkeypatch):
+    from unittest.mock import MagicMock
+    import requests
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 404
+    http_error_404 = requests.exceptions.HTTPError(response=mock_resp)
+    mock_resp.raise_for_status.side_effect = http_error_404
+
+    monkeypatch.setattr(requests, "get", MagicMock(return_value=mock_resp))
+
+    # scraping_raw
+    assert scraping_utils.scraping_raw("https://example.com/not-found") is None
+
+    # scraping_web / scraping
+    assert scraping_utils.scraping("https://example.com/not-found") is None
+
+    # scraping_pdf
+    assert scraping_utils.scraping_pdf("https://example.com/not-found.pdf") is None
+
+
+def test_scraping_other_http_error_raises(monkeypatch):
+    from unittest.mock import MagicMock
+    import requests
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 500
+    http_error_500 = requests.exceptions.HTTPError(response=mock_resp)
+    mock_resp.raise_for_status.side_effect = http_error_500
+
+    monkeypatch.setattr(requests, "get", MagicMock(return_value=mock_resp))
+
+    with pytest.raises(requests.exceptions.HTTPError):
+        scraping_utils.scraping_raw("https://example.com/server-error")
+
+    with pytest.raises(requests.exceptions.HTTPError):
+        scraping_utils.scraping("https://example.com/server-error")
+

@@ -49,6 +49,15 @@ class AgentSummarize(AgentChat):
         return super().build_prompt(arguments, [Chat(role="user", content=prompt)])
 
     def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> Chat:
+        if self._context.get("scrape_skipped"):
+            self._logger.info("AgentSummarize skipped: scrape was skipped")
+            msg = (
+                chat_history[-1].get("content", "スクレイピングスキップ")
+                if chat_history
+                else "スクレイピングスキップ"
+            )
+            return Chat(role="assistant", content=msg)
+
         if not self._context.get("scraped_site"):
             url = str(
                 arguments.get("url")
@@ -58,7 +67,15 @@ class AgentSummarize(AgentChat):
             )
             if not scraping_utils.is_allow_scraping(url):
                 self._logger.info("AgentSummarize skipped (ignore domain): %s", url)
+                self._context["scrape_skipped"] = True
                 return Chat(role="assistant", content=f"スクレイピングスキップ: {url}")
+            site = scraping_utils.scraping(url)
+            if site is None:
+                self._logger.info("AgentSummarize skipped (not found / 404): %s", url)
+                self._context["scrape_skipped"] = True
+                return Chat(role="assistant", content=f"スクレイピングスキップ (404 Not Found): {url}")
+            self._site = site
+            self._context["scraped_site"] = site
         result = super().execute(arguments, chat_history)
         if self._site and self._site.content:
             chat_history.append(Chat(role="assistant", content=self._site.content))

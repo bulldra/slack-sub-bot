@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import tempfile
@@ -10,6 +11,8 @@ import pypdf
 import requests
 from bs4 import BeautifulSoup
 from pydantic import BaseModel, ConfigDict
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _load_url_strategy() -> dict:
@@ -197,15 +200,27 @@ def is_youtube_url(url: Optional[str]) -> bool:
     return _DELEGATE_DOMAINS.get(urlobj.netloc) == "youtube"
 
 
-def scraping_raw(url: str) -> str:
-    res = requests.get(url, timeout=(3.0, 8.0), headers=DEFAULT_HEADERS)
-    res.raise_for_status()
-    return res.text
+def scraping_raw(url: str) -> Optional[str]:
+    try:
+        res = requests.get(url, timeout=(3.0, 8.0), headers=DEFAULT_HEADERS)
+        res.raise_for_status()
+        return res.text
+    except requests.exceptions.HTTPError as err:
+        if err.response is not None and err.response.status_code == 404:
+            logger.info("404 Not Found, skipping: %s", url)
+            return None
+        raise
 
 
-def scraping_pdf(url: str) -> SiteInfo:
-    res = requests.get(url, timeout=(3.0, 8.0), headers=DEFAULT_HEADERS)
-    res.raise_for_status()
+def scraping_pdf(url: str) -> Optional[SiteInfo]:
+    try:
+        res = requests.get(url, timeout=(3.0, 8.0), headers=DEFAULT_HEADERS)
+        res.raise_for_status()
+    except requests.exceptions.HTTPError as err:
+        if err.response is not None and err.response.status_code == 404:
+            logger.info("404 Not Found, skipping PDF: %s", url)
+            return None
+        raise
     with tempfile.NamedTemporaryFile(mode="wb+", delete=True) as t:
         t.write(res.content)
         t.seek(0)
@@ -273,13 +288,15 @@ def scraping_text(content: str) -> Tuple[str, str]:
     return title, result
 
 
-def scraping_web(url: str) -> SiteInfo:
-    content: str = scraping_raw(url)
+def scraping_web(url: str) -> Optional[SiteInfo]:
+    content: Optional[str] = scraping_raw(url)
+    if content is None:
+        return None
     title, content = scraping_text(content)
     return SiteInfo(url=url, title=title or url, content=content)
 
 
-def scraping(url: str) -> SiteInfo:
+def scraping(url: str) -> Optional[SiteInfo]:
     if is_pdf_url(url):
         return scraping_pdf(url)
     return scraping_web(url)
