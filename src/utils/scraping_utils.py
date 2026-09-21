@@ -208,8 +208,8 @@ def scraping_raw(url: str) -> Optional[str]:
             res.encoding = res.apparent_encoding or "utf-8"
         return res.text
     except requests.exceptions.HTTPError as err:
-        if err.response is not None and err.response.status_code == 404:
-            logger.info("404 Not Found, skipping: %s", url)
+        if err.response is not None and err.response.status_code in (403, 404, 410):
+            logger.info("%s Client Error, skipping: %s", err.response.status_code, url)
             return None
         raise
 
@@ -219,8 +219,8 @@ def scraping_pdf(url: str) -> Optional[SiteInfo]:
         res = requests.get(url, timeout=(3.0, 8.0), headers=DEFAULT_HEADERS)
         res.raise_for_status()
     except requests.exceptions.HTTPError as err:
-        if err.response is not None and err.response.status_code == 404:
-            logger.info("404 Not Found, skipping PDF: %s", url)
+        if err.response is not None and err.response.status_code in (403, 404, 410):
+            logger.info("%s Client Error, skipping PDF: %s", err.response.status_code, url)
             return None
         raise
     with tempfile.NamedTemporaryFile(mode="wb+", delete=True) as t:

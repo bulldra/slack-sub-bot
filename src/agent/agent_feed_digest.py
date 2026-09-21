@@ -7,7 +7,7 @@ import conf.models as models
 from agent.agent_base import Agent
 from agent.chat_types import Chat
 from skills.skill_loader import load_skill
-from utils.gemini_client import get_gemini_client
+from utils.gemini_client import generate_content_with_retry, get_gemini_client
 
 
 class AgentFeedDigest(Agent):
@@ -96,10 +96,12 @@ class AgentFeedDigest(Agent):
         config = types.GenerateContentConfig(
             system_instruction=self.build_system_prompt(),
         )
-        response = self._client.models.generate_content(
+        response = generate_content_with_retry(
+            client=self._client,
             model=self._model,
             contents=prompt_messages,
             config=config,
+            fallback_model=models.gemini_mini(),
         )
         return response.text or ""
 

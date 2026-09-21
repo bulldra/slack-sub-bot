@@ -6,7 +6,7 @@ from google.genai import types
 import conf.models as models
 from agent.agent_base import AgentSlack
 from agent.chat_types import Chat
-from utils.gemini_client import get_gemini_client
+from utils.gemini_client import generate_content_with_retry, get_gemini_client
 from utils.system_prompt import build_system_prompt
 
 PromptType = Union[list[types.Content], list[types.Part], types.Content, str]
@@ -77,10 +77,12 @@ class AgentGemini(AgentSlack):
             if system_prompt:
                 config.system_instruction = system_prompt
 
-        response = self._client.models.generate_content(
+        response = generate_content_with_retry(
+            client=self._client,
             model=self._model,
             contents=contents,
             config=config,
+            fallback_model=models.gemini_mini(),
         )
         text = ""
         if hasattr(response, "text") and response.text:

@@ -57,3 +57,78 @@ def get_gemini_client(
             location=client_location,
         )
     return _client_cache[cache_key]
+
+
+def is_retryable_gemini_error(err: Exception) -> bool:
+    """429 RESOURCE_EXHAUSTED または 503 UNAVAILABLE かどうかを判定する。"""
+    from google.genai import errors
+
+    if isinstance(err, errors.APIError):
+        if getattr(err, "code", None) in (429, 503):
+            return True
+    err_str = str(err).upper()
+    return "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "503" in err_str or "UNAVAILABLE" in err_str
+
+
+def generate_content_with_retry(
+    client: genai.Client,
+    model: str,
+    contents: Any,
+    config: Any = None,
+    max_retries: int = 3,
+    initial_delay: float = 2.0,
+    backoff_factor: float = 2.0,
+    fallback_model: str | None = None,
+) -> Any:
+    """429/503 エラーに対して指数バックオフでリトライを行い、必要に応じてフォールバックモデルを試す。"""
+    import time
+
+    delay = initial_delay
+    last_err: Exception | None = None
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            return client.models.generate_content(
+                model=model,
+                contents=contents,
+                config=config,
+            )
+        except Exception as err:
+            if not is_retryable_gemini_error(err):
+                raise
+            last_err = err
+            if attempt < max_retries:
+                _logger.warning(
+                    "Gemini API rate limit / unavailable (attempt %d/%d, model=%s). Retrying in %.1fs... err=%s",
+                    attempt,
+                    max_retries,
+                    model,
+                    delay,
+                    err,
+                )
+                time.sleep(delay)
+                delay *= backoff_factor
+            else:
+                _logger.error(
+                    "Gemini API exhausted %d retries for model=%s. err=%s",
+                    max_retries,
+                    model,
+                    err,
+                )
+
+    if fallback_model and fallback_model != model:
+        _logger.warning("Attempting fallback to model=%s after retry exhaustion", fallback_model)
+        try:
+            return client.models.generate_content(
+                model=fallback_model,
+                contents=contents,
+                config=config,
+            )
+        except Exception as fallback_err:
+            _logger.error("Fallback model %s also failed: %s", fallback_model, fallback_err)
+            raise fallback_err
+
+    if last_err:
+        raise last_err
+    raise RuntimeError("generate_content failed without exception")
+

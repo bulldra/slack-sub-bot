@@ -287,3 +287,24 @@ def test_scraping_raw_apparent_encoding(monkeypatch):
     assert result == "日本語テキスト"
 
 
+def test_scraping_403_and_410_skips(monkeypatch):
+    from unittest.mock import MagicMock
+    import requests
+
+    for status_code in [403, 410]:
+        mock_resp = MagicMock()
+        mock_resp.status_code = status_code
+        err = requests.exceptions.HTTPError(response=mock_resp)
+        mock_resp.raise_for_status.side_effect = err
+
+        monkeypatch.setattr(requests, "get", MagicMock(return_value=mock_resp))
+
+        # scraping_raw returns None
+        assert scraping_utils.scraping_raw(f"https://example.com/status-{status_code}") is None
+        # scraping returns None
+        assert scraping_utils.scraping(f"https://example.com/status-{status_code}") is None
+        # scraping_pdf returns None
+        assert scraping_utils.scraping_pdf(f"https://example.com/status-{status_code}.pdf") is None
+
+
+
