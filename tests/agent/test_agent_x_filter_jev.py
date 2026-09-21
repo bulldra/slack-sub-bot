@@ -26,6 +26,7 @@ def test_filter_jev_accepts_useful_tweet():
     }
     client = MagicMock()
     mock_resp = MagicMock()
+    mock_resp.status_code = 200
     mock_resp.json.return_value = {
         "answers": {
             "is_useful_or_insightful": {"noul": 0.9},
@@ -53,6 +54,7 @@ def test_filter_jev_excludes_ai_slop():
     }
     client = MagicMock()
     mock_resp = MagicMock()
+    mock_resp.status_code = 200
     mock_resp.json.return_value = {
         "answers": {
             "is_useful_or_insightful": {"noul": 0.2},

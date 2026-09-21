@@ -7,10 +7,9 @@ import httpx
 
 from agent.agent_base import Agent
 from agent.chat_types import Chat
+from utils.jev_client import get_jev_client
 
 _logger = logging.getLogger(__name__)
-
-DEFAULT_JEV_ENDPOINT = "https://api.typesafe.ai/v1/systemone"
 
 JEV_QUESTIONS = {
     "is_useful_or_insightful": {
@@ -55,19 +54,15 @@ class AgentXFilterJev(Agent):
 
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
-        self._endpoint: str = os.getenv("JEV_ENDPOINT") or DEFAULT_JEV_ENDPOINT
+        self._jev_client = get_jev_client(self._context)
         self._slop_threshold: float = 0.60
         self._min_chars: int = 15
 
     def _get_api_key(self) -> Optional[str]:
-        return (
-            self._secrets.get("JEV_API_KEY")
-            or os.getenv("JEV_API_KEY")
-            or os.getenv("jev_api_key")
-        )
+        return self._jev_client._api_key
 
     def _evaluate_single_tweet(
-        self, tweet: dict[str, Any], client: httpx.Client, api_key: str
+        self, tweet: dict[str, Any], client: httpx.Client, api_key: str = ""
     ) -> Optional[dict[str, Any]]:
         """単一のポストに対して JEV API を呼び出して評価する。有益と判定されればポスト辞書を返し、除外なら None を返す。"""
         text = tweet.get("text", "").strip()
@@ -87,20 +82,14 @@ class AgentXFilterJev(Agent):
             f"Content:\n{text}"
         )
 
-        payload = {
-            "model": "jev-latest",
-            "state": state_text,
-            "questions": JEV_QUESTIONS,
-        }
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        }
-
         try:
-            res = client.post(self._endpoint, json=payload, headers=headers)
-            res.raise_for_status()
-            data = res.json()
+            data = self._jev_client.ask(
+                state=state_text,
+                questions=JEV_QUESTIONS,
+                client=client,
+            )
+            if not data:
+                return tweet
             answers = data.get("answers", {})
 
             useful_noul = answers.get("is_useful_or_insightful", {}).get("noul", 0.5)
@@ -191,7 +180,7 @@ class AgentXFilterJev(Agent):
                 max_workers=max_workers
             ) as executor:
                 futures = {
-                    executor.submit(self._evaluate_single_tweet, t, client, api_key): t
+                    executor.submit(self._evaluate_single_tweet, t, client): t
                     for t in raw_tweets
                 }
                 for future in concurrent.futures.as_completed(futures):

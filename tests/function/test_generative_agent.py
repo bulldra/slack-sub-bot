@@ -4,10 +4,12 @@ import os
 import pytest
 
 from agent.agent_base import AgentNotification, AgentText
+from agent.agent_chat import AgentChat
 from agent.agent_idea import AgentIdea
 from agent.agent_recommend import AgentRecommend
 from agent.agent_scrape import AgentScrape
 from agent.agent_slack_history import AgentSlackHistory
+from agent.agent_x_search import AgentXSearch
 from function.generative_agent import AgentExecute, GenerativeAgent
 
 if "SECRETS" not in os.environ:
@@ -85,10 +87,8 @@ def test_text(pytestconfig: pytest.Config):
         [Chat(role="user", content="こんにちわ！")],
     )
     result_elem = result[0].agent
-    expected = AgentText
     print(f"actual={result}")
-    print(f"expected={expected}")
-    assert expected == result_elem
+    assert result_elem in (AgentText, AgentChat)
 
 
 def test_chat(pytestconfig: pytest.Config):
@@ -98,7 +98,17 @@ def test_chat(pytestconfig: pytest.Config):
     )
     result_elem = result[0].agent
     print(f"actual={result}")
-    assert result_elem in (AgentText, AgentIdea)
+    assert result_elem in (AgentText, AgentIdea, AgentChat)
+
+
+def test_x_search_routing(pytestconfig: pytest.Config):
+    result = GenerativeAgent().generate(
+        None,
+        [Chat(role="user", content="Xで最新のAIトレンドの評判について調べて")],
+    )
+    result_elem = result[0].agent
+    print(f"actual={result}")
+    assert result_elem == AgentXSearch
 
 
 def test_multi(pytestconfig: pytest.Config):
@@ -145,7 +155,8 @@ def test_url_with_description_fallback_when_llm_returns_message(
     from function.generative_base import ToolCallItem
 
     agent = GenerativeAgent()
-    # LLMがfunction_callではなく通常の会話テキスト（message）を返した状況をシミュレート
+    # JEV が None を返した場合（障害または未設定時）のフォールバック動作を検証
+    monkeypatch.setattr(agent, "_route_with_jev", MagicMock(return_value=None))
     monkeypatch.setattr(
         agent,
         "function_call",
@@ -163,3 +174,16 @@ def test_url_with_description_fallback_when_llm_returns_message(
     assert [e.agent for e in result] == expected_agents
     assert result[0].arguments == {"url": "https://predge.jp/358742/"}
     assert result[1].arguments == {"url": "https://predge.jp/358742/"}
+
+
+def test_jev_unavailable_fallbacks_to_chat(monkeypatch: pytest.MonkeyPatch):
+    from unittest.mock import MagicMock
+    from agent.agent_chat import AgentChat
+
+    agent = GenerativeAgent()
+    monkeypatch.setattr(agent, "_route_with_jev", MagicMock(return_value=None))
+    monkeypatch.setattr(agent, "function_call", MagicMock(return_value=None))
+
+    result = agent.generate(None, [Chat(role="user", content="テストメッセージ")])
+    assert result[0].agent == AgentChat
+    assert result[-1].agent == AgentNotification

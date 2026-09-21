@@ -31,6 +31,74 @@ class AgentExecute(BaseModel):
 
 
 class GenerativeAgent(GenerativeBase):
+    def _route_with_jev(
+        self, content: str, chat_history: list[Chat]
+    ) -> Optional[list[AgentExecute]]:
+        """JEV System One API を用いてユーザー意図を判定し、適切なフローの実行キューを構築する。"""
+        import function.flow_loader as flow_loader
+        from skills.skill_loader import get_routable_skills
+        from utils.jev_client import get_jev_client
+
+        jev_client = get_jev_client()
+        if not jev_client.is_available():
+            return None
+
+        skills = get_routable_skills()
+        if not skills:
+            return None
+
+        criteria: dict[str, str] = {
+            s["name"]: s.get("description", "") for s in skills if s.get("name")
+        }
+
+        questions = {
+            "intent": {
+                "type": "choice",
+                "instructions": (
+                    "ユーザーからの入力内容に応じて最も適切な対応スキル（intent）を1つ選択してください。"
+                    "URLが含まれている場合は、そのURLの種類（YouTube, X, 一般のWeb記事）に適したスキルを選択してください。"
+                ),
+                "criteria": criteria,
+            }
+        }
+
+        history_lines: list[str] = []
+        for msg in chat_history[-3:]:
+            role_label = "User" if msg.get("role") == "user" else "Assistant"
+            text_val = str(msg.get("content", "")).strip()
+            if text_val:
+                history_lines.append(f"{role_label}: {text_val}")
+
+        state_text = "\n".join(history_lines) if history_lines else content
+        if not state_text.strip():
+            return None
+
+        resp = jev_client.ask(state=state_text, questions=questions)
+        if not resp:
+            return None
+
+        intent = jev_client.get_choice(resp, "intent")
+        if not intent or intent not in criteria:
+            return None
+
+        self._logger.info("JEV routed intent: %s", intent)
+
+        url_in_content = slack_link_utils.extract_and_remove_tracking_url(content)
+        command = f"/{intent}"
+        flow = flow_loader.get_flow(command)
+        if flow is not None:
+            execute_queue: list[AgentExecute] = []
+            for step in flow_loader.build_execute_queue(flow):
+                step_args = dict(step.arguments)
+                if url_in_content and ("url" not in step_args or not step_args["url"]):
+                    step_args["url"] = url_in_content
+                execute_queue.append(
+                    AgentExecute(agent=step.agent, arguments=step_args)
+                )
+            return execute_queue
+
+        return None
+
     def generate(
         self, command: Optional[str], chat_history: list[Chat]
     ) -> list[AgentExecute]:
@@ -136,6 +204,19 @@ class GenerativeAgent(GenerativeBase):
                 ),
             ]
 
+        # Phase 3: JEV による意図判定 & フロー生成
+        jev_queue = self._route_with_jev(content, chat_history)
+        if jev_queue:
+            if not jev_queue or jev_queue[-1].agent != AgentNotification:
+                jev_queue.append(
+                    AgentExecute(
+                        agent=command_dict["/notification"],
+                        arguments={"content": ""},
+                    )
+                )
+            return jev_queue
+
+        # Phase 4: JEV 未設定または失敗時のフォールバック（Gemini Function Calling）
         prompt_messages = self.build_prompt(chat_history)
 
         from skills.skill_loader import get_routable_skills
