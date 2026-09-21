@@ -42,16 +42,40 @@ class TestAgentSummarizeExecute:
         result = agent.execute({}, chat_history)
         assert "スクレイピングスキップ" in str(result.get("content", ""))
 
+    @patch("agent.agent_summarize.scraping_utils.scraping")
+    @patch("agent.agent_summarize.scraping_utils.is_allow_scraping", return_value=True)
+    def test_execute_grounding_first_success(self, mock_allow, mock_scraping):
+        """Gemini の Google Search Grounding が最優先され、スクレイピングを挟まずに要約できること。"""
+        agent = _make_agent()
+        agent.update_message = MagicMock()
+        chat_history = [Chat(role="user", content="https://example.com/grounded")]
+
+        with patch.object(
+            agent,
+            "_summarize_with_grounding",
+            return_value=("## # 要約\n\n- テスト要約\n\n## # キーワード\n\nキーワード", "解決タイトル"),
+        ) as mock_grounding:
+            result = agent.execute({"url": "https://example.com/grounded"}, chat_history)
+
+        mock_grounding.assert_called_once_with("https://example.com/grounded", None)
+        mock_scraping.assert_not_called()
+        assert "テスト要約" in str(result.get("content", ""))
+        assert agent._context.get("scraped_site").title == "解決タイトル"
+        agent.update_message.assert_called_once()
+
     @patch("agent.agent_summarize.scraping_utils.scraping", return_value=None)
     @patch("agent.agent_summarize.scraping_utils.is_allow_scraping", return_value=True)
     def test_execute_scraping_404_skips(self, mock_allow, mock_scraping):
         agent = _make_agent()
         chat_history = [Chat(role="user", content="https://example.com/not-found")]
 
-        result = agent.execute({"url": "https://example.com/not-found"}, chat_history)
+        with patch.object(agent, "_summarize_with_grounding", return_value=("", None)):
+            result = agent.execute({"url": "https://example.com/not-found"}, chat_history)
+
         assert "スクレイピングスキップ" in str(result.get("content", ""))
         assert agent._context.get("scrape_skipped") is True
         assert "scraped_site" not in agent._context
+        mock_scraping.assert_called_once_with("https://example.com/not-found")
 
     @patch("agent.agent_summarize.scraping_utils.is_allow_scraping", return_value=False)
     def test_execute_disallowed_url_skips(self, mock_allow):

@@ -23,6 +23,17 @@ def build_link(url: str, title: str) -> str:
         return f"<{escaped_url}|{title}>"
 
 
+def extract_title_from_link(text: Optional[str]) -> Optional[str]:
+    """Slackリンク <URL|タイトル> からタイトル文字列を抽出する。"""
+    if not text:
+        return None
+    match = re.search(r"<https?://[^|>]+(?:\|([^>]+))>", text)
+    if match:
+        title = match.group(1).strip()
+        return title if title else None
+    return None
+
+
 def extract_and_remove_tracking_url(text: Optional[str]) -> Optional[str]:
     if not text or not is_contains_url(text):
         return None

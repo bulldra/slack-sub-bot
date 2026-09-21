@@ -5,6 +5,11 @@ from google.genai.types import GenerateContentConfig, GoogleSearch, Tool
 
 from agent.agent_gemini import AgentGemini
 from agent.chat_types import Chat
+from utils.grounding_utils import (
+    add_grounding_links_to_text,
+    extract_grounded_response_text,
+    get_google_search_tool,
+)
 from utils.system_prompt import build_system_prompt
 
 
@@ -23,9 +28,8 @@ class AgentSearch(AgentGemini):
     ) -> str:
         system_prompt: str = build_system_prompt(self._use_character)
         if config is None:
-            google_search_tool = Tool(google_search=GoogleSearch())
             config = GenerateContentConfig(
-                tools=[google_search_tool],
+                tools=[get_google_search_tool()],
                 system_instruction=system_prompt if system_prompt else None,
             )
         elif config.system_instruction is None:
@@ -36,28 +40,7 @@ class AgentSearch(AgentGemini):
             contents=self._normalize_contents(prompt_messages),
             config=config,
         )
-
-        text: str = ""
-        if not response.candidates or not response.candidates[0]:
-            return text
-
-        result = response.candidates[0]
-        if hasattr(result, "content") and hasattr(result.content, "parts"):
-            text = "\n".join(part.text for part in result.content.parts if part.text)
-            if (
-                hasattr(result, "grounding_metadata")
-                and result.grounding_metadata
-                and hasattr(result.grounding_metadata, "grounding_supports")
-                and result.grounding_metadata.grounding_supports
-                and hasattr(result.grounding_metadata, "grounding_chunks")
-                and result.grounding_metadata.grounding_chunks
-            ):
-                text = self.add_grounding_links_to_text(
-                    result.content.parts,
-                    result.grounding_metadata.grounding_supports,
-                    result.grounding_metadata.grounding_chunks,
-                )
-        return text
+        return extract_grounded_response_text(response)
 
     def add_grounding_links_to_text(
         self, content_parts: list, grounding_supports: list, grounding_chunks: list

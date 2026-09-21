@@ -1,0 +1,60 @@
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
+import pytest
+
+from utils.grounding_utils import (
+    add_grounding_links_to_text,
+    extract_grounded_response_text,
+    get_google_search_tool,
+)
+
+
+def test_get_google_search_tool():
+    tool = get_google_search_tool()
+    assert tool is not None
+    assert hasattr(tool, "google_search")
+
+
+def test_add_grounding_links_to_text_basic():
+    part = SimpleNamespace(text="東京の明日の天気は晴れです。")
+    chunk0 = SimpleNamespace(web=SimpleNamespace(uri="https://weather.example.com", title="天気予報"))
+    support = SimpleNamespace(
+        grounding_chunk_indices=[0],
+        segment=SimpleNamespace(start_index=0, end_index=8, text="東京の明日の天気"),
+    )
+    result = add_grounding_links_to_text([part], [support], [chunk0])
+    assert "東京の明日の天気[^1]は晴れです。" in result
+    assert "[^1]: https://weather.example.com" in result
+
+
+def test_add_grounding_links_to_text_empty():
+    part = SimpleNamespace(text="プレーンテキスト")
+    result = add_grounding_links_to_text([part], [], [])
+    assert result == "プレーンテキスト"
+
+
+def test_extract_grounded_response_text_without_grounding():
+    resp = SimpleNamespace(text="回答テキスト", candidates=[])
+    res = extract_grounded_response_text(resp, use_grounding_links=True)
+    assert res == "回答テキスト"
+
+
+def test_extract_grounded_response_text_with_grounding():
+    part = SimpleNamespace(text="Geminiの最新モデルについて。")
+    content = SimpleNamespace(parts=[part])
+    chunk = SimpleNamespace(web=SimpleNamespace(uri="https://gemini.example.com", title="Gemini最新情報"))
+    support = SimpleNamespace(
+        grounding_chunk_indices=[0],
+        segment=SimpleNamespace(start_index=0, end_index=6, text="Gemini"),
+    )
+    metadata = SimpleNamespace(
+        grounding_chunks=[chunk],
+        grounding_supports=[support],
+    )
+    candidate = SimpleNamespace(content=content, grounding_metadata=metadata)
+    resp = SimpleNamespace(text=part.text, candidates=[candidate])
+
+    res = extract_grounded_response_text(resp, use_grounding_links=True)
+    assert "Gemini[^1]の最新モデルについて。" in res
+    assert "[^1]: https://gemini.example.com" in res

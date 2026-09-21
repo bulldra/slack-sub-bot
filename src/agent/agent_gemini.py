@@ -7,6 +7,7 @@ import conf.models as models
 from agent.agent_base import AgentSlack
 from agent.chat_types import Chat
 from utils.gemini_client import generate_content_with_retry, get_gemini_client
+from utils.grounding_utils import extract_grounded_response_text
 from utils.system_prompt import build_system_prompt
 
 PromptType = Union[list[types.Content], list[types.Part], types.Content, str]
@@ -84,10 +85,7 @@ class AgentGemini(AgentSlack):
             config=config,
             fallback_model=models.gemini_mini(),
         )
-        text = ""
-        if hasattr(response, "text") and response.text:
-            text = response.text
-        return text or ""
+        return extract_grounded_response_text(response)
 
     def completion_stream(
         self, prompt_messages: PromptType, config: types.GenerateContentConfig | None = None

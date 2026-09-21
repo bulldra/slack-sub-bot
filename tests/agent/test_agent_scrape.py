@@ -19,6 +19,26 @@ def _make_agent(context_override: dict | None = None) -> AgentScrape:
 
 
 class TestAgentScrapeExecute:
+    @patch("agent.agent_scrape.scraping_utils.scraping")
+    @patch("agent.agent_scrape.scraping_utils.is_allow_scraping", return_value=True)
+    def test_execute_grounding_first_success(self, mock_allow, mock_scraping):
+        """Gemini の Google Search Grounding が最優先され、スクレイピングを挟まずにMarkdown抽出できること。"""
+        agent = _make_agent()
+        chat_history: list[Chat] = [Chat(role="user", content="hello")]
+
+        with patch.object(
+            agent,
+            "_grounded_extract_markdown",
+            return_value=("# グラウンディング記事\n本文テキスト", "グラウンディング記事"),
+        ) as mock_grounding:
+            result = agent.execute({"url": "https://example.com"}, chat_history)
+
+        mock_grounding.assert_called_once_with("https://example.com", None)
+        mock_scraping.assert_not_called()
+        assert agent._context["scraped_site"].title == "グラウンディング記事"
+        assert agent._context["scraped_site"].content == "# グラウンディング記事\n本文テキスト"
+        assert "グラウンディング抽出完了" in str(result.get("content"))
+
     @patch.object(AgentScrape, "_to_markdown", return_value="# Example\nbody md")
     @patch("agent.agent_scrape.scraping_utils.scraping")
     @patch("agent.agent_scrape.scraping_utils.is_allow_scraping", return_value=True)
@@ -30,7 +50,8 @@ class TestAgentScrapeExecute:
         agent = _make_agent()
         chat_history: list[Chat] = [Chat(role="user", content="hello")]
 
-        result = agent.execute({"url": "https://example.com"}, chat_history)
+        with patch.object(agent, "_grounded_extract_markdown", return_value=("", None)):
+            result = agent.execute({"url": "https://example.com"}, chat_history)
 
         mock_scraping.assert_called_once_with("https://example.com")
         mock_to_md.assert_called_once_with("<p>body text</p>")
@@ -57,7 +78,8 @@ class TestAgentScrapeExecute:
             Chat(role="user", content="https://example.com/from-chat")
         ]
 
-        agent.execute({}, chat_history)
+        with patch.object(agent, "_grounded_extract_markdown", return_value=("", None)):
+            agent.execute({}, chat_history)
 
         mock_extract.assert_called_once()
         mock_scraping.assert_called_once_with("https://example.com/from-chat")
@@ -77,7 +99,8 @@ class TestAgentScrapeExecute:
         agent = _make_agent()
         chat_history: list[Chat] = [Chat(role="user", content="hello")]
 
-        result = agent.execute({"url": "https://example.com/not-found"}, chat_history)
+        with patch.object(agent, "_grounded_extract_markdown", return_value=("", None)):
+            result = agent.execute({"url": "https://example.com/not-found"}, chat_history)
         assert "スクレイピングスキップ" in str(result.get("content", ""))
         assert agent._context.get("scrape_skipped") is True
         assert "scraped_site" not in agent._context
@@ -91,8 +114,9 @@ class TestAgentScrapeExecute:
         agent = _make_agent()
         chat_history: list[Chat] = [Chat(role="user", content="hello")]
 
-        with pytest.raises(requests.exceptions.HTTPError):
-            agent.execute({"url": "https://example.com/500"}, chat_history)
+        with patch.object(agent, "_grounded_extract_markdown", return_value=("", None)):
+            with pytest.raises(requests.exceptions.HTTPError):
+                agent.execute({"url": "https://example.com/500"}, chat_history)
 
     @patch.object(AgentScrape, "_to_markdown", return_value="# Example\nbody md")
     @patch("agent.agent_scrape.scraping_utils.scraping")
@@ -103,7 +127,8 @@ class TestAgentScrapeExecute:
         agent = _make_agent()
         chat_history: list[Chat] = [Chat(role="user", content="hello")]
 
-        agent.execute({"url": "https://example.com"}, chat_history)
+        with patch.object(agent, "_grounded_extract_markdown", return_value=("", None)):
+            agent.execute({"url": "https://example.com"}, chat_history)
 
         mock_to_md.assert_not_called()
         assert agent._context["scraped_site"].content == ""
