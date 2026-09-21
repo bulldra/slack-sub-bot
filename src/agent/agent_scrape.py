@@ -131,7 +131,36 @@ class AgentScrape(Agent):
             self._context["scrape_skipped"] = True
             return Chat(role="assistant", content=f"スクレイピングスキップ: {url}")
 
-        # 1. URL Context 単体による全文Markdown抽出を最優先で実行
+        # 1. 自前のクローリングとタグ除去を最優先で実行
+        self._logger.info("AgentScrape crawling site directly: %s", url)
+        scraped_site = scraping_utils.scraping(url)
+        if scraped_site and scraped_site.content:
+            final_title = scraped_site.title or title_hint or url
+            try:
+                md_content = self._to_markdown(scraped_site.content)
+            except Exception as err:
+                self._logger.warning("AgentScrape _to_markdown failed: %s", err)
+                md_content = scraped_site.content
+            cleaned_site = scraping_utils.SiteInfo(
+                url=scraped_site.url,
+                title=final_title,
+                content=md_content or scraped_site.content,
+            )
+            self._context["scraped_site"] = cleaned_site
+            self._logger.info(
+                "AgentScrape stored crawled site: %s (%s), len=%d",
+                cleaned_site.url,
+                cleaned_site.title,
+                len(cleaned_site.content or ""),
+            )
+            return Chat(
+                role="assistant", content=f"スクレイピング完了: {cleaned_site.title}"
+            )
+
+        # 2. 自前のクローリングで取得できなかった場合に URL Context へフォールバック
+        self._logger.info(
+            "Direct scraping failed or empty for %s, falling back to URL Context", url
+        )
         md_content, resolved_title = self._url_context_extract_markdown(url, title_hint)
         is_valid_url_context = bool(md_content and not is_grounding_failure(md_content))
         if is_valid_url_context:
@@ -141,7 +170,7 @@ class AgentScrape(Agent):
             )
             self._context["scraped_site"] = extracted_site
             self._logger.info(
-                "AgentScrape stored URL context site: %s (%s), md_len=%d",
+                "AgentScrape stored fallback URL context site: %s (%s), md_len=%d",
                 extracted_site.url,
                 extracted_site.title,
                 len(md_content),
@@ -150,42 +179,14 @@ class AgentScrape(Agent):
                 role="assistant", content=f"URL抽出完了: {extracted_site.title}"
             )
 
-        # 2. URL Context で取得できなかった場合に従来のスクレイピング（タグ除去）へフォールバック
-        self._logger.info(
-            "URL Context empty for %s, falling back to traditional scraping", url
-        )
-        fallback_site = scraping_utils.scraping(url)
-        if fallback_site and fallback_site.content:
-            final_title = fallback_site.title or title_hint or url
-            try:
-                md_content = self._to_markdown(fallback_site.content)
-            except Exception as err:
-                self._logger.warning("AgentScrape _to_markdown failed: %s", err)
-                md_content = fallback_site.content
-            cleaned_site = scraping_utils.SiteInfo(
-                url=fallback_site.url,
-                title=final_title,
-                content=md_content or fallback_site.content,
-            )
-            self._context["scraped_site"] = cleaned_site
-            self._logger.info(
-                "AgentScrape stored fallback scraped site: %s (%s), len=%d",
-                cleaned_site.url,
-                cleaned_site.title,
-                len(cleaned_site.content or ""),
-            )
-            return Chat(
-                role="assistant", content=f"スクレイピング完了: {cleaned_site.title}"
-            )
-
         self._logger.info("AgentScrape skipped (not found / 404): %s", url)
         self._context["scrape_skipped"] = True
         return Chat(
             role="assistant", content=f"スクレイピングスキップ (取得失敗): {url}"
         )
 
-    _MAX_INPUT_CHARS = 10_000
-    _MAX_OUTPUT_CHARS = 5_000
+    _MAX_INPUT_CHARS = 20_000
+    _MAX_OUTPUT_CHARS = 20_000
 
     def _to_markdown(self, html_content: str) -> str:
         if len(html_content) > self._MAX_INPUT_CHARS:
