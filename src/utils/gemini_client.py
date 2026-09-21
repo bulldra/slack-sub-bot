@@ -5,9 +5,36 @@ from typing import Any
 
 from google import genai
 
+import conf.models as models
+
 _logger = logging.getLogger(__name__)
 
 _client_cache: dict[tuple[str | None, str], genai.Client] = {}
+
+
+def configure_thinking_for_model(model: str, config: Any = None) -> Any:
+    """miniモデルの場合にthinkingをlowに設定したconfigを返す。"""
+    if not models.is_mini_model(model):
+        return config
+
+    from google.genai import types
+
+    thinking_config = types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW)
+
+    if config is None:
+        return types.GenerateContentConfig(thinking_config=thinking_config)
+
+    if isinstance(config, types.GenerateContentConfig):
+        if config.thinking_config is None:
+            config.thinking_config = thinking_config
+        return config
+
+    if isinstance(config, dict):
+        if config.get("thinking_config") is None:
+            config["thinking_config"] = thinking_config
+        return config
+
+    return config
 
 
 def get_gemini_client(
@@ -83,6 +110,7 @@ def generate_content_with_retry(
     """429/503 エラーに対して指数バックオフでリトライを行い、必要に応じてフォールバックモデルを試す。"""
     import time
 
+    config = configure_thinking_for_model(model, config)
     delay = initial_delay
     last_err: Exception | None = None
 
@@ -118,11 +146,12 @@ def generate_content_with_retry(
 
     if fallback_model and fallback_model != model:
         _logger.warning("Attempting fallback to model=%s after retry exhaustion", fallback_model)
+        fallback_config = configure_thinking_for_model(fallback_model, config)
         try:
             return client.models.generate_content(
                 model=fallback_model,
                 contents=contents,
-                config=config,
+                config=fallback_config,
             )
         except Exception as fallback_err:
             _logger.error("Fallback model %s also failed: %s", fallback_model, fallback_err)

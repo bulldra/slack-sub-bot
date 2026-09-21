@@ -1,4 +1,5 @@
 import json
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -30,3 +31,15 @@ def openai_standard() -> str:
 
 def openai_mini() -> str:
     return gemini_mini()
+
+
+def is_mini_model(model: str) -> bool:
+    """指定されたモデルが mini モデルかどうかを判定する。"""
+    if not model:
+        return False
+    if model == gemini_mini() or model == openai_mini():
+        return True
+    m = model.lower()
+    if "flash-lite" in m or "lite" in m.split("-"):
+        return True
+    return bool(re.search(r"(^|[-_])mini([-_]|$)", m))

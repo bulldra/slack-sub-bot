@@ -6,7 +6,11 @@ from google.genai import types
 import conf.models as models
 from agent.agent_base import AgentSlack
 from agent.chat_types import Chat
-from utils.gemini_client import generate_content_with_retry, get_gemini_client
+from utils.gemini_client import (
+    configure_thinking_for_model,
+    generate_content_with_retry,
+    get_gemini_client,
+)
 from utils.grounding_utils import extract_grounded_response_text
 from utils.system_prompt import build_system_prompt
 
@@ -100,6 +104,8 @@ class AgentGemini(AgentSlack):
             system_prompt = build_system_prompt(self._use_character)
             if system_prompt:
                 config.system_instruction = system_prompt
+
+        config = configure_thinking_for_model(self._model, config)
 
         stream = self._client.models.generate_content_stream(
             model=self._model,
