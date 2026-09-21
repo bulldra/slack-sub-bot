@@ -23,24 +23,59 @@ class AgentChitchat(AgentGemini):
     def _search_rss_thread_messages(
         self,
         after_days: int = 3,
-        candidate_count: int = 2,
+        candidate_count: int = 1,
+        fetch_past: Optional[bool] = None,
     ) -> str:
-        """チャンネルを指定せず、RSS等から投稿されたURLとそのスレッド内容（要約等）を検索・取得する。"""
-        after_date = (datetime.now() - timedelta(days=after_days)).strftime("%Y-%m-%d")
-        query = f"after:{after_date} has:link"
-        self._logger.debug(
-            "Searching RSS thread messages across workspace: query=%s", query
-        )
+        """チャンネルを指定せず、RSS等から投稿されたURLとそのスレッド内容（要約等）を検索・取得する。
+        過去の記事もランダムに対象とし、コンテキストに渡すのは1つだけに絞り込む。
+        """
+        # ランダムに過去記事を対象にするか判定（デフォルト約50%の確率で過去記事を探索）
+        if fetch_past is None:
+            fetch_past = random.random() < 0.5
 
         matches: list[dict[str, Any]] = []
-        try:
-            res = self._slack_behalf_user.search_messages(
-                query=query, count=30, sort="timestamp", sort_dir="desc"
+        if fetch_past:
+            # 過去（7日前〜180日前）からランダムな期間（30日幅）を対象に検索
+            days_ago = random.randint(7, 180)
+            window_days = 30
+            before_date = (datetime.now() - timedelta(days=days_ago)).strftime(
+                "%Y-%m-%d"
             )
-            if res.get("ok"):
-                matches = res.get("messages", {}).get("matches", [])
-        except Exception as err:
-            self._logger.warning("Slack search_messages failed: %s", err)
+            after_date = (
+                datetime.now() - timedelta(days=days_ago + window_days)
+            ).strftime("%Y-%m-%d")
+            query = f"after:{after_date} before:{before_date} has:link"
+            self._logger.debug(
+                "Searching past RSS thread messages across workspace: query=%s", query
+            )
+            try:
+                res = self._slack_behalf_user.search_messages(
+                    query=query, count=50, sort="timestamp", sort_dir="desc"
+                )
+                if res.get("ok"):
+                    matches = res.get("messages", {}).get("matches", [])
+            except Exception as err:
+                self._logger.warning(
+                    "Slack search_messages for past articles failed: %s", err
+                )
+
+        # 過去記事でヒットしなかった、または直近探索の場合は直近から検索
+        if not matches:
+            after_date = (datetime.now() - timedelta(days=after_days)).strftime(
+                "%Y-%m-%d"
+            )
+            query = f"after:{after_date} has:link"
+            self._logger.debug(
+                "Searching recent RSS thread messages across workspace: query=%s", query
+            )
+            try:
+                res = self._slack_behalf_user.search_messages(
+                    query=query, count=30, sort="timestamp", sort_dir="desc"
+                )
+                if res.get("ok"):
+                    matches = res.get("messages", {}).get("matches", [])
+            except Exception as err:
+                self._logger.warning("Slack search_messages failed: %s", err)
 
         candidates: list[dict[str, Any]] = []
         for m in matches:
@@ -62,6 +97,11 @@ class AgentChitchat(AgentGemini):
             if not ch_id or not ts:
                 continue
 
+            try:
+                post_date = datetime.fromtimestamp(float(ts)).strftime("%Y-%m-%d")
+            except Exception:
+                post_date = ""
+
             # スレッド返信（Botによる要約やコメント）を取得
             thread_texts: list[str] = []
             try:
@@ -79,6 +119,7 @@ class AgentChitchat(AgentGemini):
             candidates.append(
                 {
                     "channel": ch_name,
+                    "date": post_date,
                     "parent_text": text,
                     "replies": thread_texts,
                     "has_replies": len(thread_texts) > 0,
@@ -95,13 +136,14 @@ class AgentChitchat(AgentGemini):
         with_replies = [c for c in candidates if c["has_replies"]]
         pool = with_replies if with_replies else candidates
 
-        # ランダムにピックアップして話題コンテキストを作成
+        # ランダムにピックアップして話題コンテキストを作成（1つに絞り込む）
         selected = random.sample(pool, min(len(pool), candidate_count))
         formatted_topics: list[str] = []
         for s in selected:
-            ch_info = f"（#{s['channel']}）" if s["channel"] else ""
-            lines = [f"【記事・URL】{ch_info} {s['parent_text'][:300]}"]
-            if s["replies"]:
+            ch_info = f"（#{s['channel']}）" if s.get("channel") else ""
+            date_info = f"（投稿日: {s['date']}）" if s.get("date") else ""
+            lines = [f"【記事・URL】{ch_info}{date_info} {s['parent_text'][:300]}"]
+            if s.get("replies"):
                 snippet = "\n".join(s["replies"])[:1500]
                 lines.append(f"【内容・要約】\n{snippet}")
             formatted_topics.append("\n".join(lines))
@@ -181,7 +223,9 @@ class AgentChitchat(AgentGemini):
         )
 
         after_days = int(arguments.get("after_days", 3))
-        recent_messages = self._search_rss_thread_messages(after_days=after_days)
+        recent_messages = self._search_rss_thread_messages(
+            after_days=after_days, candidate_count=1
+        )
         weather_summary = self._fetch_weather_summary()
 
         try:
@@ -193,7 +237,7 @@ class AgentChitchat(AgentGemini):
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
 
         skill_params = {
-            "recent_messages": recent_messages or "（直近のSlack記事はありません）",
+            "recent_messages": recent_messages or "（Slack記事はありません）",
             "weather_summary": weather_summary or "（天気情報の取得なし）",
             "current_time": current_time,
         }

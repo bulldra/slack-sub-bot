@@ -113,7 +113,7 @@ def test_chitchat_uses_chilchat_channel_id_in_autonomous_mode():
                     assert kwargs.get("channel") == "C_TIMES_999"
 
 
-def test_search_rss_thread_messages_success():
+def test_search_rss_thread_messages_limits_to_one():
     context = {"channel": "C12345"}
     agent = AgentChitchat(context)
     mock_behalf = MagicMock()
@@ -124,19 +124,19 @@ def test_search_rss_thread_messages_success():
                 {
                     "text": "<https://example.com/article1|AWS アップグレード>",
                     "channel": {"id": "C999", "name": "tech"},
-                    "ts": "1000.1",
+                    "ts": "1672531199.0",
                     "username": "developersio",
                 },
                 {
                     "text": "システムアラート https://monitoring.com",
                     "channel": {"id": "C888", "name": "alert"},
-                    "ts": "1000.2",
+                    "ts": "1672531200.0",
                     "username": "monitoring",
                 },
                 {
                     "text": "<https://example.com/article2|ローカルLLM記事>",
                     "channel": {"id": "C777", "name": "ai"},
-                    "ts": "1000.3",
+                    "ts": "1672531201.0",
                     "username": "google アラート",
                 },
             ]
@@ -148,14 +148,94 @@ def test_search_rss_thread_messages_success():
     mock_slack.conversations_replies.return_value = {
         "messages": [
             {"text": "親メッセージ"},
-            {"text": "記事の要約: Python 3.13 にアップデート成功"},
+            {"text": "記事の要約: テスト要約"},
         ]
     }
     agent._slack = mock_slack
 
-    res = agent._search_rss_thread_messages()
-    assert "記事の要約: Python 3.13 にアップデート成功" in res
+    res = agent._search_rss_thread_messages(candidate_count=1, fetch_past=False)
+    assert "記事の要約: テスト要約" in res
     assert "alert" not in res
+    # 1件だけに絞り込まれているため、区切り線 '---' が含まれないこと
+    assert "---" not in res
+    # 記事・URLの出現回数が1回であること
+    assert res.count("【記事・URL】") == 1
+    assert "投稿日:" in res
+
+
+def test_search_rss_thread_messages_past_articles():
+    context = {"channel": "C12345"}
+    agent = AgentChitchat(context)
+    mock_behalf = MagicMock()
+    mock_behalf.search_messages.return_value = {
+        "ok": True,
+        "messages": {
+            "matches": [
+                {
+                    "text": "<https://example.com/past|昔の良記事>",
+                    "channel": {"id": "C999", "name": "tech"},
+                    "ts": "1600000000.0",
+                    "username": "rss_bot",
+                }
+            ]
+        },
+    }
+    agent._slack_behalf_user = mock_behalf
+
+    mock_slack = MagicMock()
+    mock_slack.conversations_replies.return_value = {
+        "messages": [
+            {"text": "親メッセージ"},
+            {"text": "過去記事の要約"},
+        ]
+    }
+    agent._slack = mock_slack
+
+    res = agent._search_rss_thread_messages(fetch_past=True)
+    assert "昔の良記事" in res
+    assert "過去記事の要約" in res
+    # 過去検索クエリ（before:）が呼ばれていること
+    calls = mock_behalf.search_messages.call_args_list
+    assert len(calls) == 1
+    assert "before:" in calls[0].kwargs.get("query", "")
+
+
+def test_search_rss_thread_messages_past_fallback_to_recent():
+    context = {"channel": "C12345"}
+    agent = AgentChitchat(context)
+    mock_behalf = MagicMock()
+    # 1回目の過去検索は0件、2回目の直近検索で1件ヒット
+    mock_behalf.search_messages.side_effect = [
+        {"ok": True, "messages": {"matches": []}},
+        {
+            "ok": True,
+            "messages": {
+                "matches": [
+                    {
+                        "text": "<https://example.com/recent|直近の記事>",
+                        "channel": {"id": "C999", "name": "tech"},
+                        "ts": "1700000000.0",
+                        "username": "rss_bot",
+                    }
+                ]
+            },
+        },
+    ]
+    agent._slack_behalf_user = mock_behalf
+
+    mock_slack = MagicMock()
+    mock_slack.conversations_replies.return_value = {
+        "messages": [
+            {"text": "親"},
+            {"text": "直近要約"},
+        ]
+    }
+    agent._slack = mock_slack
+
+    res = agent._search_rss_thread_messages(fetch_past=True)
+    assert "直近の記事" in res
+    assert "直近要約" in res
+    assert mock_behalf.search_messages.call_count == 2
 
 
 def test_fetch_recent_messages_filters_bots_and_commands():
