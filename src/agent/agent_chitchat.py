@@ -91,11 +91,11 @@ class AgentChitchat(AgentGemini):
         selected = random.sample(pool, min(len(pool), candidate_count))
         formatted_topics: list[str] = []
         for s in selected:
-            ch_info = f"#{s['channel']} " if s["channel"] else ""
-            lines = [f"■ {ch_info}記事・URL: {s['parent_text'][:300]}"]
+            ch_info = f"（#{s['channel']}）" if s["channel"] else ""
+            lines = [f"【記事・URL】{ch_info} {s['parent_text'][:300]}"]
             if s["replies"]:
                 snippet = "\n".join(s["replies"])[:600]
-                lines.append(f"  スレッドの要約・会話内容: {snippet}")
+                lines.append(f"【内容・要約】\n{snippet}")
             formatted_topics.append("\n".join(lines))
 
         return "\n\n---\n\n".join(formatted_topics)
@@ -153,8 +153,11 @@ class AgentChitchat(AgentGemini):
 
         after_days = int(arguments.get("after_days", 3))
         recent_messages = self._search_rss_thread_messages(after_days=after_days)
-        input_messages = recent_messages if recent_messages else "（直近のメッセージはありません）"
-        prompt = load_skill("chitchat", {"recent_messages": input_messages})
+        if not recent_messages:
+            self._logger.info("No recent Slack messages found, skipping chitchat")
+            return Chat(role="assistant", content="")
+
+        prompt = load_skill("chitchat", {"recent_messages": recent_messages})
 
         content: str = (self.completion(prompt) or "").strip()
         if not content:

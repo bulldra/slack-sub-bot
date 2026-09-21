@@ -69,5 +69,7 @@ def load_skill(skill_name: str, variables: Optional[dict[str, str]] = None) -> s
         content = f.read()
     content = _FRONTMATTER_EXTRACT_RE.sub("", content)
     if variables:
+        for k in variables.keys():
+            content = re.sub(rf"\{{\{{\s*{re.escape(k)}\s*\}}\}}", f"${{{k}}}", content)
         content = Template(content).safe_substitute(variables)
     return content.strip()

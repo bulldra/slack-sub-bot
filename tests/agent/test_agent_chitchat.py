@@ -47,7 +47,7 @@ def test_chitchat_posts_to_bot_channel_by_default():
     context = {}  # channel未指定
     agent = AgentChitchat(context)
     with patch("random.random", return_value=0.1):
-        with patch.object(agent, "_search_rss_thread_messages", return_value=""):
+        with patch.object(agent, "_search_rss_thread_messages", return_value="【記事】テスト"):
             with patch.object(agent, "completion", return_value="今日もがんばろう！"):
                 with patch.object(agent, "post_message") as mock_post:
                     agent.execute({"probability": 0.20}, [])
@@ -60,7 +60,7 @@ def test_chitchat_executed_with_ts_calls_update():
     context = {"channel": "C12345", "ts": "123456.789"}
     agent = AgentChitchat(context)
     with patch("random.random", return_value=0.05):
-        with patch.object(agent, "_search_recent_messages", return_value=""):
+        with patch.object(agent, "_search_recent_messages", return_value="【記事】テスト"):
             with patch.object(agent, "completion", return_value="今日もいい天気ですね。"):
                 with patch.object(agent, "update_message") as mock_update:
                     with patch.object(agent, "post_message") as mock_post:
@@ -68,6 +68,19 @@ def test_chitchat_executed_with_ts_calls_update():
                         assert result.content == "今日もいい天気ですね。"
                         mock_update.assert_called_once()
                         mock_post.assert_not_called()
+
+
+def test_chitchat_empty_messages_skips():
+    context = {"channel": "C12345"}
+    agent = AgentChitchat(context)
+    with patch("random.random", return_value=0.1):
+        with patch.object(agent, "_search_rss_thread_messages", return_value=""):
+            with patch.object(agent, "completion") as mock_comp:
+                with patch.object(agent, "post_message") as mock_post:
+                    result = agent.execute({"probability": 0.20}, [])
+                    assert result.content == ""
+                    mock_comp.assert_not_called()
+                    mock_post.assert_not_called()
 
 
 def test_search_rss_thread_messages_success():
