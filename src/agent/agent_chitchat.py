@@ -149,6 +149,22 @@ class AgentChitchat(AgentGemini):
             raise ValueError("Content is empty.")
         return [{"type": "markdown", "text": content}]
 
+    def _fetch_weather_summary(self) -> str:
+        """東京エリアの天気概況を取得する。"""
+        try:
+            from utils.weather import Weather
+
+            data = Weather().get(130000)
+            if isinstance(data, dict):
+                headline = data.get("headlineText", "")
+                text = data.get("text", "")
+                summary = f"{headline} {text}".strip()
+                if summary:
+                    return summary[:300]
+        except Exception as e:
+            self._logger.debug("Weather fetch skipped or failed: %s", e)
+        return ""
+
     def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
         probability: float = float(arguments.get("probability", 0.20))
         roll = random.random()
@@ -166,11 +182,22 @@ class AgentChitchat(AgentGemini):
 
         after_days = int(arguments.get("after_days", 3))
         recent_messages = self._search_rss_thread_messages(after_days=after_days)
-        if not recent_messages:
-            self._logger.info("No recent Slack messages found, skipping chitchat")
-            return Chat(role="assistant", content="")
+        weather_summary = self._fetch_weather_summary()
 
-        prompt = load_skill("chitchat", {"recent_messages": recent_messages})
+        try:
+            import zoneinfo
+
+            jst = zoneinfo.ZoneInfo("Asia/Tokyo")
+            current_time = datetime.now(jst).strftime("%Y年%m月%d日 %H:%M")
+        except Exception:
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+        skill_params = {
+            "recent_messages": recent_messages or "（直近のSlack記事はありません）",
+            "weather_summary": weather_summary or "（天気情報の取得なし）",
+            "current_time": current_time,
+        }
+        prompt = load_skill("chitchat", skill_params)
 
         content: str = (self.completion(prompt) or "").strip()
         if not content:
@@ -178,13 +205,12 @@ class AgentChitchat(AgentGemini):
             return Chat(role="assistant", content="")
 
         blocks = self.build_message_blocks(content)
-        chitchat_channel = (
-            self._secrets.get("CHILCHAT_CHANNEL_ID")
+        target_channel: str = (
+            arguments.get("channel")
+            or self._channel
+            or self._secrets.get("CHILCHAT_CHANNEL_ID")
             or self._secrets.get("CHITCHAT_CHANNEL_ID")
             or self.BOT_CHANNEL_ID
-        )
-        target_channel: str = (
-            arguments.get("channel") or self._channel or str(chitchat_channel)
         )
         if self._ts and self._ts != "None":
             self.update_message(blocks)

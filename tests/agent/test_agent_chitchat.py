@@ -50,6 +50,7 @@ def test_chitchat_executed_when_roll_low():
 def test_chitchat_posts_to_bot_channel_by_default():
     context = {}  # channel未指定
     agent = AgentChitchat(context)
+    agent._secrets = {}  # シークレット未設定時は BOT_CHANNEL_ID にフォールバック
     with patch("random.random", return_value=0.1):
         with patch.object(
             agent, "_search_rss_thread_messages", return_value="【記事】テスト"
@@ -80,17 +81,36 @@ def test_chitchat_executed_with_ts_calls_update():
                         mock_post.assert_not_called()
 
 
-def test_chitchat_empty_messages_skips():
+def test_chitchat_without_articles_can_post_weather():
     context = {"channel": "C12345"}
     agent = AgentChitchat(context)
     with patch("random.random", return_value=0.1):
         with patch.object(agent, "_search_rss_thread_messages", return_value=""):
-            with patch.object(agent, "completion") as mock_comp:
+            with patch.object(
+                agent, "_fetch_weather_summary", return_value="晴れのち曇り"
+            ):
+                with patch.object(
+                    agent, "completion", return_value="今日はいい天気ですね〜"
+                ) as mock_comp:
+                    with patch.object(agent, "post_message") as mock_post:
+                        result = agent.execute({"probability": 0.20}, [])
+                        assert result.content == "今日はいい天気ですね〜"
+                        mock_comp.assert_called_once()
+                        mock_post.assert_called_once()
+
+
+def test_chitchat_uses_chilchat_channel_id_in_autonomous_mode():
+    context = {}  # channel未指定（自動実行時）
+    agent = AgentChitchat(context)
+    agent._secrets = {"CHILCHAT_CHANNEL_ID": "C_TIMES_999"}
+    with patch("random.random", return_value=0.1):
+        with patch.object(agent, "_search_rss_thread_messages", return_value=""):
+            with patch.object(agent, "completion", return_value="ふらっとつぶやき"):
                 with patch.object(agent, "post_message") as mock_post:
-                    result = agent.execute({"probability": 0.20}, [])
-                    assert result.content == ""
-                    mock_comp.assert_not_called()
-                    mock_post.assert_not_called()
+                    agent.execute({"probability": 0.20}, [])
+                    mock_post.assert_called_once()
+                    _, kwargs = mock_post.call_args
+                    assert kwargs.get("channel") == "C_TIMES_999"
 
 
 def test_search_rss_thread_messages_success():
