@@ -18,15 +18,18 @@ class AgentYoutube(AgentGemini):
 
     def build_prompt(
         self, arguments: Dict[str, Any], chat_history: List[Chat]
-    ) -> list[types.Part]:
+    ) -> list[types.Content]:
         if arguments.get("url"):
             url = arguments["url"]
         else:
             url = slack_link_utils.extract_and_remove_tracking_url(
-                str(chat_history[-1]["content"])
+                str(chat_history[-1].get("content", ""))
             )
 
-        video_id = self.extract_video_id(url)
+        if not url:
+            raise ValueError("No URL provided")
+
+        video_id = self.extract_video_id(str(url))
         if not video_id:
             raise ValueError("No URL provided")
 
@@ -38,7 +41,7 @@ class AgentYoutube(AgentGemini):
             types.Part(file_data=types.FileData(file_uri=url, mime_type="video/mp4")),
             types.Part.from_text(text=prompt),
         ]
-        return prompt_messages
+        return [types.Content(role="user", parts=prompt_messages)]
 
     def build_message_blocks(self, content: str) -> list:
         blocks: List[dict] = [

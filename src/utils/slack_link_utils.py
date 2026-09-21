@@ -4,6 +4,7 @@ import ipaddress
 import re
 import socket
 import urllib
+import urllib.parse
 from typing import Any, List, Optional, Tuple
 
 import requests

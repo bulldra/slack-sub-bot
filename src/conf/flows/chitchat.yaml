@@ -1,0 +1,7 @@
+name: chitchat
+description: "10分に1回雑談ロールを行い、20%の確率で直近のSlackから話題を拾って会話する"
+command: "/chitchat"
+steps:
+  - agent: AgentChitchat
+    arguments:
+      probability: 0.20

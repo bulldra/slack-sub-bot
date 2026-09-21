@@ -107,7 +107,7 @@ class AgentScrape(Agent):
             if pipe_idx > 0:
                 url = url[:pipe_idx]
         else:
-            url = str(
+            url = (
                 slack_link_utils.extract_and_remove_tracking_url(raw_text) or ""
             )
 

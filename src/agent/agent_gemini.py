@@ -7,7 +7,7 @@ import conf.models as models
 from agent.agent_base import AgentSlack
 from agent.chat_types import Chat
 from utils.gemini_client import (
-    configure_thinking_for_model,
+    configure_model_config,
     generate_content_with_retry,
     get_gemini_client,
 )
@@ -105,7 +105,7 @@ class AgentGemini(AgentSlack):
             if system_prompt:
                 config.system_instruction = system_prompt
 
-        config = configure_thinking_for_model(self._model, config)
+        config = configure_model_config(self._model, config)
 
         stream = self._client.models.generate_content_stream(
             model=self._model,

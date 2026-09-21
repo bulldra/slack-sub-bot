@@ -146,6 +146,22 @@ class AgentSlack(Agent):
             unfurl_links=True,
         )
 
+    def post_message(
+        self,
+        blocks: list,
+        text: Optional[str] = None,
+        channel: Optional[str] = None,
+    ) -> Any:
+        safe_blocks = self._limit_blocks(blocks)
+        msg_text: str = text or self._blocks_to_text(safe_blocks)
+        target_channel = channel or self._channel or self._share_channel
+        return self._slack.chat_postMessage(
+            channel=target_channel,
+            blocks=safe_blocks,
+            text=msg_text,
+            unfurl_links=True,
+        )
+
     def flush_blocks(self) -> None:
         if not self._collect_blocks:
             return

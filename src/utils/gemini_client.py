@@ -47,6 +47,34 @@ def configure_thinking_for_model(model: str, config: Any = None) -> Any:
     return config
 
 
+def configure_afc(config: Any = None) -> Any:
+    """Automatic Function Calling (AFC) を明示的に無効化し、非推奨警告を抑制する。"""
+    from google.genai import types
+
+    afc_config = types.AutomaticFunctionCallingConfig(disable=True)
+
+    if config is None:
+        return types.GenerateContentConfig(automatic_function_calling=afc_config)
+
+    if isinstance(config, types.GenerateContentConfig):
+        if getattr(config, "automatic_function_calling", None) is None:
+            config.automatic_function_calling = afc_config
+        return config
+
+    if isinstance(config, dict):
+        if config.get("automatic_function_calling") is None:
+            config["automatic_function_calling"] = afc_config
+        return config
+
+    return config
+
+
+def configure_model_config(model: str, config: Any = None) -> Any:
+    """thinking 設定および AFC 警告抑止設定を適用した config を返す。"""
+    config = configure_thinking_for_model(model, config)
+    return configure_afc(config)
+
+
 def get_gemini_client(
     context: dict[str, Any] | None = None,
     location: str | None = None,
@@ -120,7 +148,7 @@ def generate_content_with_retry(
     """429/503 エラーに対して指数バックオフでリトライを行い、必要に応じてフォールバックモデルを試す。"""
     import time
 
-    config = configure_thinking_for_model(model, config)
+    config = configure_model_config(model, config)
     delay = initial_delay
     last_err: Exception | None = None
 
@@ -156,7 +184,7 @@ def generate_content_with_retry(
 
     if fallback_model and fallback_model != model:
         _logger.warning("Attempting fallback to model=%s after retry exhaustion", fallback_model)
-        fallback_config = configure_thinking_for_model(fallback_model, config)
+        fallback_config = configure_model_config(fallback_model, config)
         try:
             return client.models.generate_content(
                 model=fallback_model,

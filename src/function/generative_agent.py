@@ -6,6 +6,7 @@ import utils.scraping_utils as scraping_utils
 import utils.slack_link_utils as slack_link_utils
 from agent.agent_base import Agent, AgentDelete, AgentNotification, AgentText
 from agent.agent_chat import AgentChat
+from agent.agent_chitchat import AgentChitchat
 from agent.agent_feed_digest import AgentFeedDigest
 from agent.agent_idea import AgentIdea
 from agent.agent_recommend import AgentRecommend
@@ -117,6 +118,7 @@ class GenerativeAgent(GenerativeBase):
             "/slack_history": AgentSlackHistory,
             "/feed_digest": AgentFeedDigest,
             "/x": AgentX,
+            "/chitchat": AgentChitchat,
         }
 
         execute_queue: list[AgentExecute] = []

@@ -62,3 +62,35 @@ def test_generate_content_with_retry_applies_thinking_for_mini():
     assert passed_config is not None
     assert passed_config.thinking_config is not None
     assert passed_config.thinking_config.thinking_level == types.ThinkingLevel.LOW
+    assert passed_config.automatic_function_calling is not None
+    assert passed_config.automatic_function_calling.disable is True
+
+
+def test_configure_afc_none_config():
+    from utils.gemini_client import configure_afc
+
+    cfg = configure_afc(None)
+    assert isinstance(cfg, types.GenerateContentConfig)
+    assert cfg.automatic_function_calling is not None
+    assert cfg.automatic_function_calling.disable is True
+
+
+def test_configure_afc_existing_config():
+    from utils.gemini_client import configure_afc
+
+    orig = types.GenerateContentConfig(temperature=0.3)
+    cfg = configure_afc(orig)
+    assert cfg.automatic_function_calling is not None
+    assert cfg.automatic_function_calling.disable is True
+    assert cfg.temperature == 0.3
+
+
+def test_configure_model_config_sets_both():
+    from utils.gemini_client import configure_model_config
+
+    cfg = configure_model_config(models.gemini_mini(), None)
+    assert isinstance(cfg, types.GenerateContentConfig)
+    assert cfg.thinking_config is not None
+    assert cfg.thinking_config.thinking_level == types.ThinkingLevel.LOW
+    assert cfg.automatic_function_calling is not None
+    assert cfg.automatic_function_calling.disable is True

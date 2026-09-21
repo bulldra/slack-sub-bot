@@ -126,16 +126,20 @@ class GenerativeBase:
         else:
             mode = types.FunctionCallingConfigMode.AUTO
 
+        from utils.gemini_client import configure_model_config
+
         config_args: dict[str, Any] = {
             "tools": [types.Tool(function_declarations=function_declarations)],
             "tool_config": types.ToolConfig(
                 function_calling_config=types.FunctionCallingConfig(mode=mode)
             ),
+            "automatic_function_calling": types.AutomaticFunctionCallingConfig(disable=True),
         }
         if system_instruction:
             config_args["system_instruction"] = system_instruction
 
         config = types.GenerateContentConfig(**config_args)
+        config = configure_model_config(self._model, config)
 
         response = self._client.models.generate_content(
             model=self._model,
