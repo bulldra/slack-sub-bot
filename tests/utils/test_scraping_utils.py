@@ -322,3 +322,49 @@ def test_scraping_403_and_410_skips(monkeypatch):
             scraping_utils.scraping_pdf(f"https://example.com/status-{status_code}.pdf")
             is None
         )
+
+
+def test_is_safe_url_ssrf_protection():
+    # 安全なパブリックURL
+    assert scraping_utils.is_safe_url("https://example.com") is True
+    assert scraping_utils.is_safe_url("http://google.com/test") is True
+
+    # 空や不正なURL
+    assert scraping_utils.is_safe_url(None) is False
+    assert scraping_utils.is_safe_url("") is False
+    assert scraping_utils.is_safe_url("not_a_url") is False
+
+    # 危険なスキーム
+    assert scraping_utils.is_safe_url("file:///etc/passwd") is False
+    assert scraping_utils.is_safe_url("ftp://example.com") is False
+    assert scraping_utils.is_safe_url("gopher://example.com") is False
+
+    # ローカルホスト・ループバック
+    assert scraping_utils.is_safe_url("http://localhost/") is False
+    assert scraping_utils.is_safe_url("http://127.0.0.1/") is False
+    assert scraping_utils.is_safe_url("http://127.0.0.2:8080/") is False
+    assert scraping_utils.is_safe_url("http://[::1]/") is False
+
+    # GCP/クラウド メタデータサーバー
+    assert (
+        scraping_utils.is_safe_url("http://169.254.169.254/computeMetadata/v1/")
+        is False
+    )
+
+    # プライベートネットワーク
+    assert scraping_utils.is_safe_url("http://10.0.0.1/") is False
+    assert scraping_utils.is_safe_url("http://192.168.1.1/") is False
+    assert scraping_utils.is_safe_url("http://172.16.0.1/") is False
+
+
+def test_scraping_raw_blocks_ssrf(monkeypatch):
+    import requests
+    from unittest.mock import MagicMock
+
+    mock_get = MagicMock()
+    monkeypatch.setattr(requests, "get", mock_get)
+
+    # メタデータサーバーへのアクセスは requests.get を呼ばずに None を返す
+    res = scraping_utils.scraping_raw("http://169.254.169.254/computeMetadata/v1/")
+    assert res is None
+    mock_get.assert_not_called()

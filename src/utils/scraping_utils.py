@@ -1,7 +1,9 @@
+import ipaddress
 import json
 import logging
 import os
 import re
+import socket
 import tempfile
 import urllib.parse
 from pathlib import Path
@@ -13,6 +15,73 @@ from bs4 import BeautifulSoup
 from pydantic import BaseModel, ConfigDict
 
 logger: logging.Logger = logging.getLogger(__name__)
+
+
+def is_safe_url(url: Optional[str]) -> bool:
+    """SSRF (Server-Side Request Forgery) 防止のためURLの安全性を検証する。
+
+    - http / https 以外のスキームを拒否
+    - localhost, *.local などのローカルホストを拒否
+    - ループバック (127.0.0.0/8, ::1) を拒否
+    - プライベートIP (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) を拒否
+    - リンクローカル / クラウドメタデータ (169.254.0.0/16, fe80::/10) を拒否
+    """
+    if not url:
+        return False
+    try:
+        urlobj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
+    except Exception:
+        return False
+
+    if urlobj.scheme not in ("http", "https"):
+        logger.warning("SSRF blocked: unsupported scheme: %s", urlobj.scheme)
+        return False
+
+    hostname = urlobj.hostname
+    if not hostname:
+        return False
+
+    lower_host = hostname.lower()
+    if lower_host in ("localhost", "localhost.localdomain") or lower_host.endswith(
+        ".local"
+    ):
+        logger.warning("SSRF blocked: local hostname: %s", hostname)
+        return False
+
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if (
+            ip.is_loopback
+            or ip.is_private
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_unspecified
+        ):
+            logger.warning("SSRF blocked: private/loopback/link-local IP: %s", hostname)
+            return False
+    except ValueError:
+        try:
+            addr_info = socket.getaddrinfo(hostname, None)
+            for item in addr_info:
+                ip_str = item[4][0]
+                ip = ipaddress.ip_address(ip_str)
+                if (
+                    ip.is_loopback
+                    or ip.is_private
+                    or ip.is_link_local
+                    or ip.is_reserved
+                    or ip.is_unspecified
+                ):
+                    logger.warning(
+                        "SSRF blocked: host %s resolved to private/link-local IP: %s",
+                        hostname,
+                        ip_str,
+                    )
+                    return False
+        except socket.gaierror:
+            pass
+
+    return True
 
 
 def _load_url_strategy() -> dict:
@@ -78,7 +147,7 @@ def classify_url(url: Optional[str]) -> str:
         "ignore" - 処理対象外
         エージェントコマンド名 (例: "youtube", "x") - 専用エージェントに委譲
     """
-    if not url:
+    if not url or not is_safe_url(url):
         return "ignore"
     urlobj: urllib.parse.ParseResult = urllib.parse.urlparse(url)
     netloc: str = urlobj.netloc
@@ -202,8 +271,20 @@ def is_youtube_url(url: Optional[str]) -> bool:
 
 
 def scraping_raw(url: str) -> Optional[str]:
+    if not is_safe_url(url):
+        logger.warning("SSRF blocked URL before request: %s", url)
+        return None
     try:
         res = requests.get(url, timeout=(3.0, 8.0), headers=DEFAULT_HEADERS)
+        for resp in res.history:
+            resp_url = getattr(resp, "url", None)
+            if isinstance(resp_url, str) and not is_safe_url(resp_url):
+                logger.warning("SSRF blocked redirect: %s", resp_url)
+                return None
+        final_url = getattr(res, "url", None)
+        if isinstance(final_url, str) and not is_safe_url(final_url):
+            logger.warning("SSRF blocked final redirect: %s", final_url)
+            return None
         res.raise_for_status()
         if res.encoding is None or res.encoding.lower() == "iso-8859-1":
             res.encoding = res.apparent_encoding or "utf-8"
@@ -216,8 +297,20 @@ def scraping_raw(url: str) -> Optional[str]:
 
 
 def scraping_pdf(url: str) -> Optional[SiteInfo]:
+    if not is_safe_url(url):
+        logger.warning("SSRF blocked PDF URL before request: %s", url)
+        return None
     try:
         res = requests.get(url, timeout=(3.0, 8.0), headers=DEFAULT_HEADERS)
+        for resp in res.history:
+            resp_url = getattr(resp, "url", None)
+            if isinstance(resp_url, str) and not is_safe_url(resp_url):
+                logger.warning("SSRF blocked PDF redirect: %s", resp_url)
+                return None
+        final_url = getattr(res, "url", None)
+        if isinstance(final_url, str) and not is_safe_url(final_url):
+            logger.warning("SSRF blocked final PDF redirect: %s", final_url)
+            return None
         res.raise_for_status()
     except requests.exceptions.HTTPError as err:
         if err.response is not None and err.response.status_code in (403, 404, 410):

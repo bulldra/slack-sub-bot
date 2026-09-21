@@ -1,7 +1,42 @@
 #!/usr/bin/env bash
 set -e
 
-echo "=== [Pre-commit Hook] Starting lint & format checks ==="
+echo "=== [Pre-commit Hook] Starting security, lint & format checks ==="
+
+# 0. Secret scan on staged changes
+echo "--> Checking for accidentally staged secrets..."
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM || true)
+
+# 危険なファイル（secrets.json や .env）のステージングをブロック
+for f in $STAGED_FILES; do
+    if [[ "$f" =~ (^|/)secrets.*\.json$ ]] && [[ ! "$f" =~ \.sample\.json$ ]] && [[ ! "$f" =~ \.sample$ ]]; then
+        echo "[SECURITY ERROR] Attempting to commit a secret file: $f"
+        echo "Please unstage this file: git reset HEAD $f"
+        exit 1
+    fi
+    if [[ "$f" =~ (^|/)\.env.*$ ]] && [[ ! "$f" =~ \.sample$ ]]; then
+        echo "[SECURITY ERROR] Attempting to commit an env file: $f"
+        echo "Please unstage this file: git reset HEAD $f"
+        exit 1
+    fi
+done
+
+# 機微なトークン・秘密鍵のハードコード検出
+SECRET_PATTERNS='(xoxb-[0-9a-zA-Z]{10,}|xoxp-[0-9a-zA-Z]{10,}|xapp-[0-9a-zA-Z]{10,}|AIzaSy[0-9A-Za-z_-]{33}|ghp_[0-9a-zA-Z]{36}|AKIA[0-9A-Z]{16}|BEGIN (RSA|EC|OPENSSH|DSA|PGP|ENCRYPTED)? ?PRIVATE KEY)'
+
+MATCHED_SECRETS=$(git diff --cached -G"$SECRET_PATTERNS" -U0 | grep -E '^\+[^+]' | grep -E "$SECRET_PATTERNS" || true)
+
+if [ -n "$MATCHED_SECRETS" ]; then
+    # サンプルファイル（.env.sample, secrets.json.sample）のプレースホルダーを除外
+    REAL_LEAKS=$(echo "$MATCHED_SECRETS" | grep -v -E '(xoxb-xxx|xoxp-xxx|ghp_xxx|sk-xxx|your-)' || true)
+    if [ -n "$REAL_LEAKS" ]; then
+        echo "[SECURITY ERROR] Potential sensitive secret detected in staged changes:"
+        echo "$REAL_LEAKS"
+        echo "Please remove the sensitive tokens before committing."
+        exit 1
+    fi
+fi
+echo "--> Secret scan passed: No sensitive credentials found."
 
 # 1. Formatter (black)
 STAGED_PY_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)
