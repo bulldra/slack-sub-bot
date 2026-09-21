@@ -20,6 +20,9 @@ from agent.agent_x import AgentX
 from agent.agent_quote_picker import AgentQuotePicker
 from agent.agent_recent_digest_collect import AgentRecentDigestCollect
 from agent.agent_x_post import AgentXPost
+from agent.agent_x_search import AgentXSearch
+from agent.agent_x_filter_jev import AgentXFilterJev
+from agent.agent_x_summary import AgentXSummary
 from agent.agent_youtube import AgentYoutube
 from function.generative_agent import AgentExecute
 
@@ -40,6 +43,9 @@ AGENT_REGISTRY: dict[str, type[Agent]] = {
     "AgentFeedCollect": AgentFeedCollect,
     "AgentX": AgentX,
     "AgentXPost": AgentXPost,
+    "AgentXSearch": AgentXSearch,
+    "AgentXFilterJev": AgentXFilterJev,
+    "AgentXSummary": AgentXSummary,
     "AgentScrape": AgentScrape,
     "AgentQuotePicker": AgentQuotePicker,
     "AgentRecentDigestCollect": AgentRecentDigestCollect,

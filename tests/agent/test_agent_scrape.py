@@ -124,8 +124,11 @@ class TestAgentScrapeExecute:
             Chat(role="user", content="https://example.com/from-chat")
         ]
 
-        with patch.object(
-            agent, "_url_context_extract_markdown", return_value=("", None)
+        with (
+            patch.object(
+                agent, "_url_context_extract_markdown", return_value=("", None)
+            ),
+            patch.object(agent, "_to_markdown", return_value="content"),
         ):
             agent.execute({}, chat_history)
 

@@ -158,9 +158,19 @@ class GenerativeAgent(GenerativeBase):
             for function_call in function_calls:
                 if function_call.type == "function_call":
                     command = f"/{function_call.name}"
+                    args = function_call.args_dict
+                    flow = flow_loader.get_flow(command)
+                    if flow is not None:
+                        for step in flow_loader.build_execute_queue(flow):
+                            step_args = dict(step.arguments)
+                            if not step_args and args:
+                                step_args = dict(args)
+                            execute_queue.append(
+                                AgentExecute(agent=step.agent, arguments=step_args)
+                            )
+                        continue
                     if command in command_dict:
                         exe = command_dict[command]
-                        args = function_call.args_dict
                         if command == "/summarize":
                             execute_queue.append(
                                 AgentExecute(agent=AgentScrape, arguments=args)

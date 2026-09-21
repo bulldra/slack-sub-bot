@@ -22,7 +22,16 @@ def test_get_routable_skills():
     routable = get_routable_skills()
     names = [t["name"] for t in routable]
     # 期待されるルーティング対象スキルとその順序
-    assert names == ["summarize", "youtube", "x", "search", "recommend", "idea", "chat"]
+    assert names == [
+        "summarize",
+        "youtube",
+        "x",
+        "search",
+        "x_search",
+        "recommend",
+        "idea",
+        "chat",
+    ]
 
     # 各スキルの parameters が辞書形式で存在すること
     for tool in routable:

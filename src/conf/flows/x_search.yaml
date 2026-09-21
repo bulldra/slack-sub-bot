@@ -1,0 +1,12 @@
+name: x_search
+description: "特定の単語からファンアウトしてXを検索し、JEVで有益な情報を抽出してまとめます"
+command: "/x_search"
+steps:
+  - agent: AgentXSearch
+    arguments: {}
+  - agent: AgentXFilterJev
+    arguments: {}
+  - agent: AgentXSummary
+    arguments: {}
+  - agent: AgentNotification
+    arguments: {}

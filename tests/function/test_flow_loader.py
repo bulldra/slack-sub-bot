@@ -58,6 +58,20 @@ def test_build_execute_queue_single_command():
     assert queue[-1].agent == AgentNotification
 
 
+def test_get_flow_x_search():
+    flow = get_flow("/x_search")
+    assert flow is not None
+    assert flow.name == "x_search"
+    assert flow.command == "/x_search"
+    assert len(flow.steps) == 4
+    queue = build_execute_queue(flow)
+    assert len(queue) == 4
+    assert queue[0].agent.__name__ == "AgentXSearch"
+    assert queue[1].agent.__name__ == "AgentXFilterJev"
+    assert queue[2].agent.__name__ == "AgentXSummary"
+    assert queue[3].agent == AgentNotification
+
+
 def test_agent_registry_complete():
     expected_agents = [
         "AgentChat",
@@ -75,6 +89,9 @@ def test_agent_registry_complete():
         "AgentFeedCollect",
         "AgentX",
         "AgentXPost",
+        "AgentXSearch",
+        "AgentXFilterJev",
+        "AgentXSummary",
         "AgentScrape",
         "AgentQuotePicker",
         "AgentRecentDigestCollect",
