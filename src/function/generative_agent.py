@@ -134,47 +134,20 @@ class GenerativeAgent(GenerativeBase):
                 ),
             ]
 
-        notification = AgentExecute(
-            agent=command_dict["/notification"],
-            arguments={"content": ""},
-        )
-        if slack_link_utils.is_only_url(content):
-            url: Optional[str] = slack_link_utils.extract_and_remove_tracking_url(
-                content
-            )
-            if url:
-                strategy = scraping_utils.classify_url(url)
-                if strategy == "scrape":
-                    return [
-                        AgentExecute(
-                            agent=AgentScrape,
-                            arguments={"url": url},
-                        ),
-                        AgentExecute(
-                            agent=AgentScrapeText,
-                            arguments={},
-                        ),
-                        notification,
-                    ]
-                elif strategy not in ("ignore", "slack_history"):
-                    command = f"/{strategy}"
-                    if command in command_dict:
-                        return [
-                            AgentExecute(
-                                agent=command_dict[command],
-                                arguments={"url": url},
-                            ),
-                            notification,
-                        ]
-
         prompt_messages = self.build_prompt(chat_history)
 
         from skills.skill_loader import get_routable_skills
 
         tools: list[dict[str, Any]] = get_routable_skills()
 
+        system_instruction = (
+            "あなたは Slack のアシスタント Bot です。"
+            "ユーザーからの入力内容に応じて適切なツールを呼び出してください。"
+            "特に、入力に Web 記事の URL（YouTube や X 以外）が含まれている場合は、直接テキストで回答せず、必ず summarize ツールを呼び出してください。"
+        )
+
         function_calls: list[ToolCallItem] | None = self.function_call(
-            tools, prompt_messages, tool_choice="auto"
+            tools, prompt_messages, tool_choice="auto", system_instruction=system_instruction
         )
         if function_calls:
             for function_call in function_calls:
@@ -189,6 +162,22 @@ class GenerativeAgent(GenerativeBase):
                             )
                         execute_queue.append(AgentExecute(agent=exe, arguments=args))
                 elif function_call.type == "message":
+                    url_in_content = slack_link_utils.extract_and_remove_tracking_url(content)
+                    if url_in_content:
+                        strategy = scraping_utils.classify_url(url_in_content)
+                        if strategy == "scrape":
+                            execute_queue.append(
+                                AgentExecute(agent=AgentScrape, arguments={"url": url_in_content})
+                            )
+                            execute_queue.append(
+                                AgentExecute(agent=AgentSummarize, arguments={"url": url_in_content})
+                            )
+                            continue
+                        elif f"/{strategy}" in command_dict:
+                            execute_queue.append(
+                                AgentExecute(agent=command_dict[f"/{strategy}"], arguments={"url": url_in_content})
+                            )
+                            continue
                     execute_queue.append(
                         AgentExecute(
                             agent=command_dict["/text"],
@@ -196,12 +185,27 @@ class GenerativeAgent(GenerativeBase):
                         )
                     )
         if len(execute_queue) == 0:
-            execute_queue.append(
-                AgentExecute(
-                    agent=command_dict["/chat"],
-                    arguments={},
+            url_in_content = slack_link_utils.extract_and_remove_tracking_url(content)
+            if url_in_content:
+                strategy = scraping_utils.classify_url(url_in_content)
+                if strategy == "scrape":
+                    execute_queue.append(
+                        AgentExecute(agent=AgentScrape, arguments={"url": url_in_content})
+                    )
+                    execute_queue.append(
+                        AgentExecute(agent=AgentSummarize, arguments={"url": url_in_content})
+                    )
+                elif f"/{strategy}" in command_dict:
+                    execute_queue.append(
+                        AgentExecute(agent=command_dict[f"/{strategy}"], arguments={"url": url_in_content})
+                    )
+            else:
+                execute_queue.append(
+                    AgentExecute(
+                        agent=command_dict["/chat"],
+                        arguments={},
+                    )
                 )
-            )
         execute_queue.append(
             AgentExecute(
                 agent=command_dict["/notification"],

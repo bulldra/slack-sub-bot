@@ -1,6 +1,6 @@
 ---
 name: summarize
-description: YouTube以外のWeb記事URLを受け取った場合に実行。URLの内容を要約して返す。
+description: YouTube・X（Twitter）以外のWeb記事URL（タイトルや紹介文・概要が添えられている場合を含む）を受け取った場合に必ず実行。URLの内容を要約して返す。
 routable: true
 priority: 10
 parameters:

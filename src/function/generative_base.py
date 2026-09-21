@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any
+from typing import Any, Optional
 
 from google.genai import types
 
@@ -104,6 +104,7 @@ class GenerativeBase:
         tools: list[dict[str, Any]],
         messages: list[types.Content],
         tool_choice: str = "required",
+        system_instruction: Optional[str] = None,
     ) -> list[ToolCallItem] | None:
         function_declarations: list[dict[str, Any]] = []
         for t in tools:
@@ -125,12 +126,16 @@ class GenerativeBase:
         else:
             mode = types.FunctionCallingConfigMode.AUTO
 
-        config = types.GenerateContentConfig(
-            tools=[types.Tool(function_declarations=function_declarations)],
-            tool_config=types.ToolConfig(
+        config_args: dict[str, Any] = {
+            "tools": [types.Tool(function_declarations=function_declarations)],
+            "tool_config": types.ToolConfig(
                 function_calling_config=types.FunctionCallingConfig(mode=mode)
             ),
-        )
+        }
+        if system_instruction:
+            config_args["system_instruction"] = system_instruction
+
+        config = types.GenerateContentConfig(**config_args)
 
         response = self._client.models.generate_content(
             model=self._model,

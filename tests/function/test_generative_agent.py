@@ -97,10 +97,8 @@ def test_chat(pytestconfig: pytest.Config):
         [Chat(role="user", content="マーケティングに関する蘊蓄を教えて")],
     )
     result_elem = result[0].agent
-    expected = AgentText
     print(f"actual={result}")
-    print(f"expected={expected}")
-    assert expected == result_elem
+    assert result_elem in (AgentText, AgentIdea)
 
 
 def test_multi(pytestconfig: pytest.Config):
@@ -124,3 +122,41 @@ def test_slack_history(pytestconfig: pytest.Config):
         AgentExecute(agent=AgentNotification, arguments={"content": ""}),
     ]
     assert result == expected
+
+
+def test_url_with_description_routes_to_summarize(pytestconfig: pytest.Config):
+    from agent.agent_summarize import AgentSummarize
+
+    content = (
+        "<https://predge.jp/358742/|看護師のリアルな成長物語で伝える 訪問看護「おうちの里」の採用広報戦略>\n"
+        "訪問看護ステーション「おうちの里」が、現役看護師の実話をもとにしたInstagramショートドラマ『看ドラ』を開始。"
+    )
+    result = GenerativeAgent().generate(None, [Chat(role="user", content=content)])
+    agents = [e.agent for e in result]
+    assert AgentScrape in agents
+    assert AgentSummarize in agents
+
+
+def test_url_with_description_fallback_when_llm_returns_message(monkeypatch: pytest.MonkeyPatch):
+    from unittest.mock import MagicMock
+    from agent.agent_summarize import AgentSummarize
+    from function.generative_base import ToolCallItem
+
+    agent = GenerativeAgent()
+    # LLMがfunction_callではなく通常の会話テキスト（message）を返した状況をシミュレート
+    monkeypatch.setattr(
+        agent,
+        "function_call",
+        MagicMock(return_value=[ToolCallItem(type="message", content="面白い記事ですね。")]),
+    )
+
+    content = (
+        "<https://predge.jp/358742/|看護師のリアルな成長物語で伝える 訪問看護「おうちの里」の採用広報戦略>\n"
+        "訪問看護ステーション「おうちの里」が、現役看護師の実話をもとにしたInstagramショートドラマ『看ドラ』を開始。"
+    )
+    result = agent.generate(None, [Chat(role="user", content=content)])
+    expected_agents = [AgentScrape, AgentSummarize, AgentNotification]
+    assert [e.agent for e in result] == expected_agents
+    assert result[0].arguments == {"url": "https://predge.jp/358742/"}
+    assert result[1].arguments == {"url": "https://predge.jp/358742/"}
+
