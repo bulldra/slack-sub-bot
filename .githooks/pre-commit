@@ -51,7 +51,7 @@ fi
 
 # 2. Linter (Pyrefly)
 echo "--> Running Pyrefly check..."
-uvx pyrefly check --min-severity warn --output-format=full-text
+uvx pyrefly check --check-unannotated-defs --min-severity warn --output-format=full-text
 
 # 3. Type checker (Mypy)
 echo "--> Running Mypy check..."

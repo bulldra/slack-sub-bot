@@ -66,7 +66,9 @@ class TestAgentSummarizeExecute:
         mock_url_ctx.assert_called_once_with("https://example.com/url-ctx", None)
         mock_scraping.assert_not_called()
         assert "テスト要約" in str(result.get("content", ""))
-        assert agent._context.get("scraped_site").title == "解決タイトル"
+        scraped_site = agent._context.get("scraped_site")
+        assert scraped_site is not None
+        assert scraped_site.title == "解決タイトル"
         agent.update_message.assert_called_once()
 
     @patch("agent.agent_summarize.scraping_utils.scraping")
@@ -99,7 +101,9 @@ class TestAgentSummarizeExecute:
             )
 
         mock_scraping.assert_called_once_with("https://example.com/fallback")
-        assert agent._context.get("scraped_site").title == "スクレイピング記事"
+        scraped_site = agent._context.get("scraped_site")
+        assert scraped_site is not None
+        assert scraped_site.title == "スクレイピング記事"
 
     @patch("agent.agent_summarize.scraping_utils.scraping", return_value=None)
     @patch("agent.agent_summarize.scraping_utils.is_allow_scraping", return_value=True)

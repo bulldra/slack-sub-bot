@@ -8,5 +8,5 @@ def pytest_configure(config):
     if path.exists():
         with path.open("r", encoding="utf-8") as f:
             os.environ["SECRETS"] = json.dumps(json.load(f))
-    elif os.getenv("SECRETS_JSON"):
-        os.environ["SECRETS"] = os.getenv("SECRETS_JSON")
+    elif (secrets_json := os.getenv("SECRETS_JSON")) is not None:
+        os.environ["SECRETS"] = secrets_json

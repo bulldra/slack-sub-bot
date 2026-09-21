@@ -33,9 +33,13 @@ def main():
         print(f"Found {len(matches)} matches")
         for i, m in enumerate(matches[:5]):
             ch = m.get("channel", {})
-            ch_id = ch.get("id") if isinstance(ch, dict) else ch
-            ch_name = ch.get("name") if isinstance(ch, dict) else ""
-            ts = m.get("ts")
+            ch_id = str(ch.get("id")) if isinstance(ch, dict) and ch.get("id") else ""
+            ch_name = (
+                str(ch.get("name")) if isinstance(ch, dict) and ch.get("name") else ""
+            )
+            ts = str(m.get("ts", ""))
+            if not ch_id or not ts:
+                continue
             text = m.get("text", "")
             bot_id = m.get("bot_id")
             username = m.get("username", "")

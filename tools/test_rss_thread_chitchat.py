@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """チャンネル無指定でRSSから投稿されたURLとそのスレッド内容を検索・抽出し、雑談を生成するテストツール。"""
 
-import os
 import json
+import os
 import random
 from datetime import datetime, timedelta
+from typing import Any
 from slack_sdk import WebClient
 import conf.models as models
 from skills.skill_loader import load_skill
@@ -32,14 +33,17 @@ def main():
     matches = res.get("messages", {}).get("matches", [])
     print(f"Found {len(matches)} matches across workspace")
 
-    candidates = []
+    candidates: list[dict[str, Any]] = []
     for m in matches:
-        text = m.get("text", "").strip()
+        text = str(m.get("text", "")).strip()
         ch = m.get("channel", {})
-        ch_id = ch.get("id") if isinstance(ch, dict) else ch
-        ch_name = ch.get("name") if isinstance(ch, dict) else ""
-        ts = m.get("ts")
-        username = m.get("username", "")
+        ch_id = str(ch.get("id")) if isinstance(ch, dict) and ch.get("id") else ""
+        ch_name = str(ch.get("name")) if isinstance(ch, dict) and ch.get("name") else ""
+        ts = str(m.get("ts", ""))
+        username = str(m.get("username", ""))
+
+        if not ch_id or not ts or not text:
+            continue
 
         # URL を含むか確認
         if "http://" not in text and "https://" not in text:
@@ -58,9 +62,9 @@ def main():
             print(f"Failed to fetch replies for {ts}: {e}")
             continue
 
-        thread_texts = []
+        thread_texts: list[str] = []
         for r in reply_msgs[1:]:  # 親以降の返信
-            r_text = r.get("text", "").strip()
+            r_text = str(r.get("text", "")).strip()
             if r_text and not r_text.startswith("*Executing"):
                 thread_texts.append(r_text)
 
@@ -76,8 +80,10 @@ def main():
 
     print(f"\nTotal valid candidates: {len(candidates)}")
     for i, c in enumerate(candidates[:5]):
+        p_text = str(c.get("parent_text", ""))
+        r_list = c.get("replies") or []
         print(
-            f"[{i}] #{c['channel']} ({c['username']}): {c['parent_text'][:80]}... (replies: {len(c['replies'])})"
+            f"[{i}] #{c['channel']} ({c['username']}): {p_text[:80]}... (replies: {len(r_list)})"
         )
 
     # ランダムに候補から1〜2件選んで要約とスレッド内容を構成
@@ -85,10 +91,12 @@ def main():
 
     formatted_topics = []
     for s in selected:
-        topic_lines = [f"■ チャンネル #{s['channel']} の記事: {s['parent_text'][:300]}"]
-        if s["replies"]:
+        parent_text = str(s.get("parent_text", ""))
+        topic_lines = [f"■ チャンネル #{s['channel']} の記事: {parent_text[:300]}"]
+        replies_list = s.get("replies") or []
+        if replies_list:
             # スレッド要約の先頭部分を抜粋
-            reply_snippet = "\n".join(s["replies"])[:600]
+            reply_snippet = "\n".join(replies_list)[:600]
             topic_lines.append(f"  スレッド内容・要約: {reply_snippet}")
         formatted_topics.append("\n".join(topic_lines))
 

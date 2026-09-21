@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Slack API の blocks 数上限とブロックタイプごとの許容数を正確にテストするツール。"""
 
-import os
 import json
+import os
+from typing import Any
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
@@ -20,7 +21,9 @@ def main():
 
     # テスト1: 50個の markdown ブロック
     print("Testing 50 markdown blocks...")
-    blocks_50_md = [{"type": "markdown", "text": f"Line {i}"} for i in range(49)]
+    blocks_50_md: list[dict[str, Any]] = [
+        {"type": "markdown", "text": f"Line {i}"} for i in range(49)
+    ]
     blocks_50_md.append(
         {
             "type": "context",
@@ -37,7 +40,7 @@ def main():
 
     # テスト2: 50個の section ブロック
     print("\nTesting 50 section blocks...")
-    blocks_50_sec = [
+    blocks_50_sec: list[dict[str, Any]] = [
         {"type": "section", "text": {"type": "mrkdwn", "text": f"Line {i}"}}
         for i in range(49)
     ]
