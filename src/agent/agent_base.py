@@ -34,12 +34,12 @@ class AgentSlack(Agent):
         self._slack_behalf_user: slack_sdk.WebClient = slack_sdk.WebClient(
             token=self._secrets.get("SLACK_USER_TOKEN")
         )
-        self._share_channel: str = str(self._secrets.get("SHARE_CHANNEL_ID"))
-        self._image_channel: str = str(self._secrets.get("IMAGE_CHANNEL_ID"))
-        self._processing_message: str = str(context.get("processing_message"))
-        self._channel = str(context.get("channel"))
-        self._ts = str(context.get("ts"))
-        self._thread_ts = str(context.get("thread_ts"))
+        self._share_channel: str = str(self._secrets.get("SHARE_CHANNEL_ID") or "")
+        self._image_channel: str = str(self._secrets.get("IMAGE_CHANNEL_ID") or "")
+        self._processing_message: str = str(context.get("processing_message") or "")
+        self._channel: Optional[str] = str(context["channel"]) if context.get("channel") else None
+        self._ts: Optional[str] = str(context["ts"]) if context.get("ts") else None
+        self._thread_ts: Optional[str] = str(context["thread_ts"]) if context.get("thread_ts") else None
         self._collect_blocks: Optional[list] = context.get("collect_blocks")
 
     def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> Chat:
@@ -133,6 +133,9 @@ class AgentSlack(Agent):
         return truncated
 
     def update_message(self, blocks: list, *, force: bool = False) -> None:
+        if not self._channel or not self._ts:
+            self._logger.debug("update_message skipped: missing channel or ts")
+            return
         if self._collect_blocks is not None and not force:
             self._collect_blocks.extend(blocks)
             return
@@ -165,6 +168,8 @@ class AgentSlack(Agent):
     def flush_blocks(self) -> None:
         if not self._collect_blocks:
             return
+        if not self._channel or not self._ts:
+            return
         safe_blocks = self._limit_blocks(self._collect_blocks)
         text: str = self._blocks_to_text(safe_blocks)
         self._slack.chat_update(
@@ -177,6 +182,8 @@ class AgentSlack(Agent):
         self._collect_blocks.clear()
 
     def delete_message(self) -> None:
+        if not self._channel or not self._ts:
+            return
         self._slack.chat_delete(
             channel=self._channel,
             ts=self._ts,
@@ -215,10 +222,11 @@ class AgentSlack(Agent):
 class AgentDelete(AgentSlack):
     def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
         self._logger.debug("delete")
-        self._slack.chat_delete(
-            channel=self._channel,
-            ts=self._ts,
-        )
+        if self._channel and self._ts:
+            self._slack.chat_delete(
+                channel=self._channel,
+                ts=self._ts,
+            )
         return Chat(role="assistant", content="deleted")
 
 

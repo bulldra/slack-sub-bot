@@ -51,16 +51,17 @@ def main(cloud_event: CloudEvent):
         agent: Agent = agent_class(context)
         if isinstance(agent, AgentSlack):
             last_slack_agent = agent
-            status_blocks = [
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": f"*Executing {agent_class.__name__} ({idx}/{total})*",
-                    },
-                }
-            ]
-            agent.update_message(status_blocks, force=True)
+            if context.get("channel") and context.get("ts"):
+                status_blocks = [
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": f"*Executing {agent_class.__name__} ({idx}/{total})*",
+                        },
+                    }
+                ]
+                agent.update_message(status_blocks, force=True)
         try:
             chat_response: Chat = agent.execute(
                 agent_execute.arguments, chat_history_copy
