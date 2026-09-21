@@ -117,6 +117,7 @@ def test_execute_flow_full():
             result = agent.execute({}, chat_history)
 
     assert "X検索完了" in str(result.get("content"))
+    assert context["user_intent"] == "/x_search MCP"
     assert len(context["raw_tweets"]) == 2
     ids = [t["id"] for t in context["raw_tweets"]]
     assert ids == ["111", "222"]

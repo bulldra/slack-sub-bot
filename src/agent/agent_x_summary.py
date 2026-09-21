@@ -52,11 +52,18 @@ class AgentXSummary(AgentChat):
             if tweets_lines
             else "（該当するポストはありません）"
         )
+        user_intent: str = str(
+            self._context.get("user_intent")
+            or arguments.get("user_intent")
+            or (chat_history[-1].get("content") if chat_history else "")
+            or seed_query
+        ).strip()
         keywords_str = ", ".join(keywords) if keywords else seed_query
 
         skill_params = {
             "query": seed_query,
             "keywords": keywords_str,
+            "user_intent": user_intent,
             "tweets_content": tweets_content,
         }
         prompt_text = load_skill("x_summary", skill_params)

@@ -171,6 +171,8 @@ class AgentXSearch(AgentGemini):
                 role="assistant", content="検索キーワードが指定されていません。"
             )
 
+        user_intent: str = str(arguments.get("user_intent") or raw_text).strip()
+        self._context["user_intent"] = user_intent
         self._context["search_seed_query"] = seed_query
         keywords = self._fanout_keywords(seed_query)
         self._context["search_keywords"] = keywords

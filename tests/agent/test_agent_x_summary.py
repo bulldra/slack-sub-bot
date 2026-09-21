@@ -15,6 +15,7 @@ def _make_agent(context: dict | None = None) -> AgentXSummary:
 
 def test_build_prompt_with_tweets():
     context = {
+        "user_intent": "MCPの連携方法を知りたい",
         "search_seed_query": "MCP",
         "search_keywords": ["MCP", "MCP サーバー"],
         "filtered_tweets": [
@@ -33,6 +34,7 @@ def test_build_prompt_with_tweets():
     assert len(prompt) == 1
     content_text = prompt[0].parts[0].text
     assert "MCP" in content_text
+    assert "MCPの連携方法を知りたい" in content_text
     assert "@tech_user" in content_text
     assert "https://x.com/tech_user/status/123" in content_text
 

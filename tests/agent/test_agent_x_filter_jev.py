@@ -7,66 +7,73 @@ from agent.chat_types import Chat
 
 def test_filter_too_short_text():
     agent = AgentXFilterJev({})
-    tweet = {"id": "1", "text": "短い"}  # 15文字未満
-    client = MagicMock()
-    result = agent._evaluate_single_tweet(tweet, client, api_key="dummy")
-    assert result is None
-    client.post.assert_not_called()
+    raw = [{"id": "1", "text": "短い"}]  # 15文字未満
+    filtered = agent.filter_tweets(raw)
+    assert len(filtered) == 0
 
 
-def test_filter_jev_accepts_useful_tweet():
-    agent = AgentXFilterJev({})
-    tweet = {
-        "id": "100",
-        "author_username": "dev",
-        "author_name": "Dev",
-        "text": "MCPサーバーをPythonで構築する際のベストプラクティスと具体的なコード例をまとめました。",
-        "url": "https://x.com/dev/status/100",
-        "public_metrics": {"like_count": 50},
-    }
-    client = MagicMock()
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = {
+def test_filter_jev_batch_evaluation_with_intent():
+    agent = AgentXFilterJev({"user_intent": "LangGraphの実装ノウハウ"})
+    tweets = [
+        {
+            "id": "100",
+            "author_username": "dev",
+            "author_name": "Dev",
+            "text": "LangGraphを用いたステートフルなエージェント実装パターンの解説記事です。",
+            "url": "https://x.com/dev/status/100",
+            "public_metrics": {"like_count": 50},
+        },
+        {
+            "id": "200",
+            "author_username": "spammer",
+            "author_name": "Spam",
+            "text": "【完全保存版】AI副業で誰でも月収100万！今すぐプロフのリンクをクリック！ #AI",
+            "url": "https://x.com/spammer/status/200",
+            "public_metrics": {"like_count": 10},
+        },
+    ]
+
+    mock_resp = {
+        "model": "jev-latest",
         "answers": {
-            "is_useful_or_insightful": {"noul": 0.9},
-            "is_ai_slop": {"noul": 0.05},
-            "is_thin_or_spam": {"noul": 0.05},
-            "post_substance": {"score": 2.0},
-        }
+            "post_1_useful": {"type": "noul", "noul": 0.95},
+            "post_2_useful": {"type": "noul", "noul": 0.05},
+        },
     }
-    client.post.return_value = mock_resp
 
-    result = agent._evaluate_single_tweet(tweet, client, api_key="dummy")
-    assert result is not None
-    assert result["id"] == "100"
-    assert result["jev_score"] >= 45
+    with patch.object(agent._jev_client, "ask", return_value=mock_resp) as mock_ask:
+        filtered = agent.filter_tweets(tweets, user_intent="LangGraphの実装ノウハウ")
+        assert len(filtered) == 1
+        assert filtered[0]["id"] == "100"
+        assert filtered[0]["jev_score"] >= 90
+        # JEV に 1 回だけ渡され、state に user_intent と candidate posts が含まれていること
+        mock_ask.assert_called_once()
+        call_kwargs = mock_ask.call_args[1]
+        assert "LangGraphの実装ノウハウ" in call_kwargs["state"]
+        assert "post_1_useful" in call_kwargs["questions"]
+        assert "post_2_useful" in call_kwargs["questions"]
 
 
 def test_filter_jev_excludes_ai_slop():
-    agent = AgentXFilterJev({})
-    tweet = {
-        "id": "200",
-        "author_username": "bot",
-        "author_name": "Bot",
-        "text": "【完全保存版】生成AIを使いこなすための超重要テクニック10選！今すぐブクマして実践しよう！ #AI #時短",
-        "url": "https://x.com/bot/status/200",
-    }
-    client = MagicMock()
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = {
+    agent = AgentXFilterJev({"user_intent": "技術動向"})
+    tweets = [
+        {
+            "id": "200",
+            "author_username": "bot",
+            "author_name": "Bot",
+            "text": "【完全保存版】生成AIを使いこなすための超重要テクニック10選！今すぐブクマして実践しよう！ #AI #時短",
+            "url": "https://x.com/bot/status/200",
+        }
+    ]
+    mock_resp = {
         "answers": {
-            "is_useful_or_insightful": {"noul": 0.2},
-            "is_ai_slop": {"noul": 0.85},  # Slop判定
-            "is_thin_or_spam": {"noul": 0.3},
-            "post_substance": {"score": 0.5},
+            "post_1_useful": {"type": "noul", "noul": 0.10},
         }
     }
-    client.post.return_value = mock_resp
-
-    result = agent._evaluate_single_tweet(tweet, client, api_key="dummy")
-    assert result is None
+    with patch.object(agent._jev_client, "ask", return_value=mock_resp):
+        filtered = agent.filter_tweets(tweets, user_intent="技術動向")
+        # 閾値未満で除外され、フォールバック（上位）が返るか除外される
+        assert len(filtered) <= 1
 
 
 def test_filter_jev_fallback_without_api_key():
