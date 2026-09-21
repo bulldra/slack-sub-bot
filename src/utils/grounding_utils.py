@@ -1,6 +1,6 @@
 import re
-from typing import Any
-from google.genai.types import GoogleSearch, Tool
+from typing import Any, Optional
+from google.genai.types import GoogleSearch, Tool, UrlContext
 
 _GROUNDING_FAILURE_PATTERNS = [
     r"申し訳(?:あり|ござい)ません",
@@ -23,7 +23,7 @@ _GROUNDING_FAILURE_PATTERNS = [
 
 
 def is_grounding_failure(text: str) -> bool:
-    """GeminiのGoogle Search Groundingがページ内容を取得できずにお断り・失敗回答を返したかを判定する。"""
+    """GeminiのGoogle Search GroundingやURL Contextがページ内容を取得できずにお断り・失敗回答を返したかを判定する。"""
     if not text or not text.strip():
         return True
 
@@ -38,6 +38,29 @@ def is_grounding_failure(text: str) -> bool:
 def get_google_search_tool() -> Tool:
     """Google Search Grounding 用の Tool オブジェクトを返す。"""
     return Tool(google_search=GoogleSearch())
+
+
+def get_url_context_tool() -> Tool:
+    """Gemini URL Context 単体用の Tool オブジェクトを返す。"""
+    return Tool(url_context=UrlContext())
+
+
+def is_url_context_success(response: Any) -> bool:
+    """URL Context の取得が成功したかを判定する。"""
+    if not hasattr(response, "candidates") or not response.candidates:
+        return False
+    cand = response.candidates[0]
+    meta = getattr(cand, "url_context_metadata", None)
+    if not meta:
+        return False
+    url_metadata = getattr(meta, "url_metadata", None)
+    if not url_metadata:
+        return False
+    for item in url_metadata:
+        status = getattr(item, "url_retrieval_status", None)
+        if status and "SUCCESS" in str(status):
+            return True
+    return False
 
 
 def add_grounding_links_to_text(

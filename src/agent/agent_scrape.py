@@ -11,7 +11,9 @@ from utils.gemini_client import generate_content_with_retry, get_gemini_client
 from utils.grounding_utils import (
     extract_grounded_response_text,
     get_google_search_tool,
+    get_url_context_tool,
     is_grounding_failure,
+    is_url_context_success,
 )
 
 _SYSTEM_PROMPT = (
@@ -46,27 +48,27 @@ class AgentScrape(Agent):
         self._client = get_gemini_client(context=context)
         self._model = models.gemini_mini()
 
-    def _grounded_extract_markdown(
+    def _url_context_extract_markdown(
         self, url: str, title: Optional[str] = None
     ) -> tuple[str, Optional[str]]:
-        """Gemini の Google Search Grounding を最優先で使用して記事本文とタイトルを抽出する。"""
-        self._logger.info("Extracting Markdown via Gemini Google Search Grounding: url=%s", url)
+        """Gemini の URL Context 単体を使用して記事本文の全文とタイトルをMarkdown抽出する。"""
+        self._logger.info("Extracting Markdown via Gemini URL Context: url=%s", url)
         title_hint = f"タイトル: {title}\n" if title else ""
         prompt = (
-            "指定されたURLのWeb記事をGoogle検索・グラウンディングで参照し、"
-            "記事の正確なタイトルと、記事本文の主要な内容を綺麗なMarkdown形式で構成・抽出してください。\n\n"
+            "以下のURLの内容を読み取り、記事の正確なタイトルと本文の全文をMarkdown形式で抽出してください。\n\n"
             f"対象URL: {url}\n"
             f"{title_hint}\n"
             "## 制約\n"
-            "- 本文の内容のみを抽出すること（ナビゲーションや広告、シェアボタン等は除外）\n"
+            "- 本文の内容を忠実に抽出し、要約や省略は行わないこと\n"
+            "- 見出しやリスト構造をMarkdown記法で保持すること\n"
             "- 出力は日本語で行うこと\n\n"
             "## 出力形式\n"
             "# [記事タイトル]\n\n"
-            "[記事の主要な本文・内容をMarkdown形式で出力]\n"
+            "[記事本文の全文をMarkdown形式で出力]\n"
         )
         config = types.GenerateContentConfig(
-            tools=[get_google_search_tool()],
-            system_instruction="あなたはWeb記事を検索・参照してMarkdown形式で整理・抽出するアシスタントです。",
+            tools=[get_url_context_tool()],
+            system_instruction="あなたは指定されたURLの内容を直接読み取り、本文の全文を忠実にMarkdown形式で抽出するアシスタントです。内容の要約や省略はせず、本文をすべて出力してください。",
         )
         try:
             response = generate_content_with_retry(
@@ -78,7 +80,7 @@ class AgentScrape(Agent):
             )
             text = extract_grounded_response_text(response, use_grounding_links=False)
             if not text or is_grounding_failure(text):
-                self._logger.info("Grounding markdown is empty or failure text for %s", url)
+                self._logger.info("URL Context markdown is empty or failure text for %s", url)
                 return "", None
 
             # 1行目の見出し(# タイトル)からタイトル抽出を試みる
@@ -87,21 +89,13 @@ class AgentScrape(Agent):
             if lines and lines[0].startswith("# "):
                 extracted_title = lines[0][2:].strip()
 
-            # grounding_metadata からもタイトル補完
-            if not extracted_title and hasattr(response, "candidates") and response.candidates:
-                cand = response.candidates[0]
-                gm = getattr(cand, "grounding_metadata", None)
-                if gm and getattr(gm, "grounding_chunks", None):
-                    for chunk in gm.grounding_chunks:
-                        chunk_title = getattr(getattr(chunk, "web", None), "title", None)
-                        if chunk_title:
-                            extracted_title = chunk_title
-                            break
-
             return text, extracted_title
         except Exception as err:
-            self._logger.warning("Grounded markdown extraction failed for %s: %s", url, err)
+            self._logger.warning("URL Context markdown extraction failed for %s: %s", url, err)
             return "", None
+
+    # 後方互換性のためのエイリアス
+    _grounded_extract_markdown = _url_context_extract_markdown
 
     def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
         raw_text = str(chat_history[-1].get("content", "")) if chat_history else ""
@@ -131,40 +125,45 @@ class AgentScrape(Agent):
             self._context["scrape_skipped"] = True
             return Chat(role="assistant", content=f"スクレイピングスキップ: {url}")
 
-        # 1. むしろ Gemini のグラウンディングを最優先で実行（スクレイピング不要）
-        grounded_content, resolved_title = self._grounded_extract_markdown(url, title_hint)
-        is_valid_grounding = bool(
-            grounded_content and not is_grounding_failure(grounded_content)
+        # 1. URL Context 単体による全文Markdown抽出を最優先で実行
+        md_content, resolved_title = self._url_context_extract_markdown(url, title_hint)
+        is_valid_url_context = bool(
+            md_content and not is_grounding_failure(md_content)
         )
-        if is_valid_grounding:
+        if is_valid_url_context:
             final_title = resolved_title or title_hint or url
-            grounded_site = scraping_utils.SiteInfo(
-                url=url, title=final_title, content=grounded_content
+            extracted_site = scraping_utils.SiteInfo(
+                url=url, title=final_title, content=md_content
             )
-            self._context["scraped_site"] = grounded_site
-            self._logger.info("AgentScrape stored grounded site: %s (%s)", grounded_site.url, grounded_site.title)
-            return Chat(role="assistant", content=f"グラウンディング抽出完了: {grounded_site.title}")
+            self._context["scraped_site"] = extracted_site
+            self._logger.info(
+                "AgentScrape stored URL context site: %s (%s), md_len=%d",
+                extracted_site.url,
+                extracted_site.title,
+                len(md_content),
+            )
+            return Chat(role="assistant", content=f"URL抽出完了: {extracted_site.title}")
 
-        # 2. グラウンディングで取得できなかった場合のみ従来のスクレイピングへフォールバック
-        self._logger.info("Grounding empty for %s, falling back to traditional scraping", url)
+        # 2. URL Context で取得できなかった場合に従来のスクレイピング（タグ除去）へフォールバック
+        self._logger.info("URL Context empty for %s, falling back to traditional scraping", url)
         fallback_site = scraping_utils.scraping(url)
-        if fallback_site is None:
-            self._logger.info("AgentScrape skipped (not found / 404): %s", url)
-            self._context["scrape_skipped"] = True
-            return Chat(role="assistant", content=f"スクレイピングスキップ (404 Not Found): {url}")
+        if fallback_site and fallback_site.content:
+            final_title = fallback_site.title or title_hint or url
+            cleaned_site = scraping_utils.SiteInfo(
+                url=fallback_site.url, title=final_title, content=fallback_site.content
+            )
+            self._context["scraped_site"] = cleaned_site
+            self._logger.info(
+                "AgentScrape stored fallback scraped site: %s (%s), len=%d",
+                cleaned_site.url,
+                cleaned_site.title,
+                len(cleaned_site.content or ""),
+            )
+            return Chat(role="assistant", content=f"スクレイピング完了: {cleaned_site.title}")
 
-        markdown_content = self._to_markdown(fallback_site.content) if fallback_site.content else ""
-        md_site = scraping_utils.SiteInfo(
-            url=fallback_site.url, title=fallback_site.title, content=markdown_content
-        )
-        self._context["scraped_site"] = md_site
-        self._logger.info(
-            "AgentScrape stored scraped site: %s (%s), md_len=%d",
-            md_site.url,
-            md_site.title,
-            len(markdown_content),
-        )
-        return Chat(role="assistant", content=f"スクレイピング完了: {md_site.title}")
+        self._logger.info("AgentScrape skipped (not found / 404): %s", url)
+        self._context["scrape_skipped"] = True
+        return Chat(role="assistant", content=f"スクレイピングスキップ (取得失敗): {url}")
 
     _MAX_INPUT_CHARS = 10_000
     _MAX_OUTPUT_CHARS = 5_000

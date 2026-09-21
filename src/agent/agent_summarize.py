@@ -12,6 +12,7 @@ from utils.gemini_client import generate_content_with_retry
 from utils.grounding_utils import (
     extract_grounded_response_text,
     get_google_search_tool,
+    get_url_context_tool,
     is_grounding_failure,
 )
 
@@ -34,13 +35,12 @@ class AgentSummarize(AgentChat):
         title = slack_link_utils.extract_title_from_link(raw_text)
         return (str(url) if url else None, title)
 
-    def _summarize_with_grounding(self, url: str, title: Optional[str]) -> tuple[str, Optional[str]]:
-        """Gemini の Google Search Grounding を最優先で使用して記事を要約する。"""
-        self._logger.info("Summarizing via Gemini Google Search Grounding: url=%s, title=%s", url, title)
+    def _summarize_with_url_context(self, url: str, title: Optional[str]) -> tuple[str, Optional[str]]:
+        """Gemini の URL Context 単体を使用して記事を直接読み取り要約する。"""
+        self._logger.info("Summarizing via Gemini URL Context: url=%s, title=%s", url, title)
         title_hint = f"タイトル: {title}\n" if title else ""
         prompt = (
-            "以下のWeb記事について、Google検索・グラウンディングで内容を参照・確認し、"
-            "要約と重要なキーワードを日本語で抽出してください。\n\n"
+            "以下のWeb記事の内容を読み取り、要約と重要なキーワードを日本語で抽出してください。\n\n"
             f"対象URL: {url}\n"
             f"{title_hint}\n"
             "## 制約\n"
@@ -55,8 +55,8 @@ class AgentSummarize(AgentChat):
             "キーワード1, キーワード2, キーワード3\n"
         )
         config = types.GenerateContentConfig(
-            tools=[get_google_search_tool()],
-            system_instruction="あなたはWeb記事を検索・参照して要約と重要キーワードを抽出するアシスタントです。",
+            tools=[get_url_context_tool()],
+            system_instruction="あなたは指定されたURLの記事を直接読み取り、要約と重要キーワードを抽出するアシスタントです。",
         )
         response = generate_content_with_retry(
             client=self._client,
@@ -65,20 +65,17 @@ class AgentSummarize(AgentChat):
             config=config,
             fallback_model=models.gemini_mini(),
         )
-        text = extract_grounded_response_text(response, use_grounding_links=True)
+        text = extract_grounded_response_text(response, use_grounding_links=False)
 
         extracted_title = title
-        if not extracted_title and hasattr(response, "candidates") and response.candidates:
-            cand = response.candidates[0]
-            gm = getattr(cand, "grounding_metadata", None)
-            if gm and getattr(gm, "grounding_chunks", None):
-                for chunk in gm.grounding_chunks:
-                    chunk_title = getattr(getattr(chunk, "web", None), "title", None)
-                    if chunk_title:
-                        extracted_title = chunk_title
-                        break
+        lines = text.strip().split("\n")
+        if lines and lines[0].startswith("# "):
+            extracted_title = lines[0][2:].strip()
 
         return text, extracted_title
+
+    # 後方互換性のためのエイリアス
+    _summarize_with_grounding = _summarize_with_url_context
 
     def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> Chat:
         # すでに前段（AgentScrape等）でスキップされている場合はスキップ
@@ -119,8 +116,8 @@ class AgentSummarize(AgentChat):
             )
             return super().execute(arguments, [Chat(role="user", content=prompt)])
 
-        # 2. むしろ Gemini のグラウンディングを最優先で実行（スクレイピング不要）
-        summary_text, resolved_title = self._summarize_with_grounding(url, title)
+        # 2. URL Context 単体を使用して記事を直接読み取り要約
+        summary_text, resolved_title = self._summarize_with_url_context(url, title)
         is_success = bool(
             summary_text
             and not is_grounding_failure(summary_text)
@@ -138,9 +135,9 @@ class AgentSummarize(AgentChat):
             chat_history.append(result)
             return result
 
-        # 3. グラウンディングで取得・要約できなかった場合のみスクレイピングへフォールバック
+        # 3. URL Context で取得・要約できなかった場合のみスクレイピングへフォールバック
         self._logger.info(
-            "Grounding summary failed or empty for %s, falling back to traditional scraping", url
+            "URL Context summary failed or empty for %s, falling back to traditional scraping", url
         )
         site = scraping_utils.scraping(url)
         if site is None or not site.content:

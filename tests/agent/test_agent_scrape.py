@@ -21,31 +21,30 @@ def _make_agent(context_override: dict | None = None) -> AgentScrape:
 class TestAgentScrapeExecute:
     @patch("agent.agent_scrape.scraping_utils.scraping")
     @patch("agent.agent_scrape.scraping_utils.is_allow_scraping", return_value=True)
-    def test_execute_grounding_first_success(self, mock_allow, mock_scraping):
-        """Gemini の Google Search Grounding が最優先され、スクレイピングを挟まずにMarkdown抽出できること。"""
+    def test_execute_url_context_first_success(self, mock_allow, mock_scraping):
+        """Gemini の URL Context 単体が最優先され、スクレイピングを挟まずにMarkdown抽出できること。"""
         agent = _make_agent()
         chat_history: list[Chat] = [Chat(role="user", content="hello")]
 
         with patch.object(
             agent,
-            "_grounded_extract_markdown",
-            return_value=("# グラウンディング記事\n本文テキスト", "グラウンディング記事"),
-        ) as mock_grounding:
+            "_url_context_extract_markdown",
+            return_value=("# URL抽出記事\n本文テキスト", "URL抽出記事"),
+        ) as mock_url_context:
             result = agent.execute({"url": "https://example.com"}, chat_history)
 
-        mock_grounding.assert_called_once_with("https://example.com", None)
+        mock_url_context.assert_called_once_with("https://example.com", None)
         mock_scraping.assert_not_called()
-        assert agent._context["scraped_site"].title == "グラウンディング記事"
-        assert agent._context["scraped_site"].content == "# グラウンディング記事\n本文テキスト"
-        assert "グラウンディング抽出完了" in str(result.get("content"))
+        assert agent._context["scraped_site"].title == "URL抽出記事"
+        assert agent._context["scraped_site"].content == "# URL抽出記事\n本文テキスト"
+        assert "URL抽出完了" in str(result.get("content"))
 
-    @patch.object(AgentScrape, "_to_markdown", return_value="# スクレイピング記事\n本文md")
     @patch("agent.agent_scrape.scraping_utils.scraping")
     @patch("agent.agent_scrape.scraping_utils.is_allow_scraping", return_value=True)
-    def test_execute_grounding_refusal_falls_back_to_scraping(
-        self, mock_allow, mock_scraping, mock_to_md
+    def test_execute_url_context_failure_falls_back_to_scraping(
+        self, mock_allow, mock_scraping
     ):
-        """グラウンディングでお断り文が返ってきた場合に、直接スクレイピングにフォールバックすること。"""
+        """URL Context でお断り文が返ってきた場合に、直接スクレイピングにフォールバックすること。"""
         refusal = (
             "申し訳ありませんが、指定されたURL（https://dev.classmethod.jp/articles/bs1149-app-runtime-cortex-sdk-swttokyo26/）の"
             "ページ内容の正確なキャッシュや検索結果が十分に取得できなかったため、記事のタイトルおよび主要な内容を直接生成・抽出することができません。"
@@ -57,18 +56,17 @@ class TestAgentScrapeExecute:
         agent = _make_agent()
         chat_history: list[Chat] = [Chat(role="user", content="hello")]
 
-        with patch.object(agent, "_grounded_extract_markdown", return_value=(refusal, None)):
+        with patch.object(agent, "_url_context_extract_markdown", return_value=(refusal, None)):
             result = agent.execute({"url": "https://example.com/fallback"}, chat_history)
 
         mock_scraping.assert_called_once_with("https://example.com/fallback")
         assert agent._context["scraped_site"].title == "スクレイピング記事"
-        assert agent._context["scraped_site"].content == "# スクレイピング記事\n本文md"
+        assert agent._context["scraped_site"].content == "<p>本文</p>"
         assert "スクレイピング完了" in str(result.get("content"))
 
-    @patch.object(AgentScrape, "_to_markdown", return_value="# Example\nbody md")
     @patch("agent.agent_scrape.scraping_utils.scraping")
     @patch("agent.agent_scrape.scraping_utils.is_allow_scraping", return_value=True)
-    def test_execute_with_url_argument(self, mock_allow, mock_scraping, mock_to_md):
+    def test_execute_with_url_argument(self, mock_allow, mock_scraping):
         site = SiteInfo(
             url="https://example.com", title="Example", content="<p>body text</p>"
         )
@@ -76,16 +74,14 @@ class TestAgentScrapeExecute:
         agent = _make_agent()
         chat_history: list[Chat] = [Chat(role="user", content="hello")]
 
-        with patch.object(agent, "_grounded_extract_markdown", return_value=("", None)):
+        with patch.object(agent, "_url_context_extract_markdown", return_value=("", None)):
             result = agent.execute({"url": "https://example.com"}, chat_history)
 
         mock_scraping.assert_called_once_with("https://example.com")
-        mock_to_md.assert_called_once_with("<p>body text</p>")
         stored = agent._context["scraped_site"]
-        assert stored.content == "# Example\nbody md"
+        assert stored.content == "<p>body text</p>"
         assert "Example" in str(result.get("content"))
 
-    @patch.object(AgentScrape, "_to_markdown", return_value="markdown")
     @patch("agent.agent_scrape.scraping_utils.scraping")
     @patch("agent.agent_scrape.scraping_utils.is_allow_scraping", return_value=True)
     @patch(
@@ -93,7 +89,7 @@ class TestAgentScrapeExecute:
         return_value="https://example.com/from-chat",
     )
     def test_execute_url_from_chat_history(
-        self, mock_extract, mock_allow, mock_scraping, mock_to_md
+        self, mock_extract, mock_allow, mock_scraping
     ):
         site = SiteInfo(
             url="https://example.com/from-chat", title="Chat URL", content="content"
@@ -104,12 +100,12 @@ class TestAgentScrapeExecute:
             Chat(role="user", content="https://example.com/from-chat")
         ]
 
-        with patch.object(agent, "_grounded_extract_markdown", return_value=("", None)):
+        with patch.object(agent, "_url_context_extract_markdown", return_value=("", None)):
             agent.execute({}, chat_history)
 
         mock_extract.assert_called_once()
         mock_scraping.assert_called_once_with("https://example.com/from-chat")
-        assert agent._context["scraped_site"].content == "markdown"
+        assert agent._context["scraped_site"].content == "content"
 
     @patch("agent.agent_scrape.scraping_utils.is_allow_scraping", return_value=False)
     def test_execute_disallowed_url_skips(self, mock_allow):
@@ -125,7 +121,7 @@ class TestAgentScrapeExecute:
         agent = _make_agent()
         chat_history: list[Chat] = [Chat(role="user", content="hello")]
 
-        with patch.object(agent, "_grounded_extract_markdown", return_value=("", None)):
+        with patch.object(agent, "_url_context_extract_markdown", return_value=("", None)):
             result = agent.execute({"url": "https://example.com/not-found"}, chat_history)
         assert "スクレイピングスキップ" in str(result.get("content", ""))
         assert agent._context.get("scrape_skipped") is True
@@ -140,24 +136,22 @@ class TestAgentScrapeExecute:
         agent = _make_agent()
         chat_history: list[Chat] = [Chat(role="user", content="hello")]
 
-        with patch.object(agent, "_grounded_extract_markdown", return_value=("", None)):
+        with patch.object(agent, "_url_context_extract_markdown", return_value=("", None)):
             with pytest.raises(requests.exceptions.HTTPError):
                 agent.execute({"url": "https://example.com/500"}, chat_history)
 
-    @patch.object(AgentScrape, "_to_markdown", return_value="# Example\nbody md")
     @patch("agent.agent_scrape.scraping_utils.scraping")
     @patch("agent.agent_scrape.scraping_utils.is_allow_scraping", return_value=True)
-    def test_empty_content_skips_markdown(self, mock_allow, mock_scraping, mock_to_md):
+    def test_empty_content_skips_markdown(self, mock_allow, mock_scraping):
         site = SiteInfo(url="https://example.com", title="Empty", content="")
         mock_scraping.return_value = site
         agent = _make_agent()
         chat_history: list[Chat] = [Chat(role="user", content="hello")]
 
-        with patch.object(agent, "_grounded_extract_markdown", return_value=("", None)):
+        with patch.object(agent, "_url_context_extract_markdown", return_value=("", None)):
             agent.execute({"url": "https://example.com"}, chat_history)
 
-        mock_to_md.assert_not_called()
-        assert agent._context["scraped_site"].content == ""
+        assert agent._context.get("scrape_skipped") is True
 
 
 class TestAgentScrapeTextExecute:

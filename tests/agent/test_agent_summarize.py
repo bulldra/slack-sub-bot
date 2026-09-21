@@ -44,20 +44,20 @@ class TestAgentSummarizeExecute:
 
     @patch("agent.agent_summarize.scraping_utils.scraping")
     @patch("agent.agent_summarize.scraping_utils.is_allow_scraping", return_value=True)
-    def test_execute_grounding_first_success(self, mock_allow, mock_scraping):
-        """Gemini の Google Search Grounding が最優先され、スクレイピングを挟まずに要約できること。"""
+    def test_execute_url_context_first_success(self, mock_allow, mock_scraping):
+        """Gemini の URL Context 単体が最優先され、スクレイピングを挟まずに要約できること。"""
         agent = _make_agent()
         agent.update_message = MagicMock()
-        chat_history = [Chat(role="user", content="https://example.com/grounded")]
+        chat_history = [Chat(role="user", content="https://example.com/url-ctx")]
 
         with patch.object(
             agent,
-            "_summarize_with_grounding",
+            "_summarize_with_url_context",
             return_value=("## # 要約\n\n- テスト要約\n\n## # キーワード\n\nキーワード", "解決タイトル"),
-        ) as mock_grounding:
-            result = agent.execute({"url": "https://example.com/grounded"}, chat_history)
+        ) as mock_url_ctx:
+            result = agent.execute({"url": "https://example.com/url-ctx"}, chat_history)
 
-        mock_grounding.assert_called_once_with("https://example.com/grounded", None)
+        mock_url_ctx.assert_called_once_with("https://example.com/url-ctx", None)
         mock_scraping.assert_not_called()
         assert "テスト要約" in str(result.get("content", ""))
         assert agent._context.get("scraped_site").title == "解決タイトル"
@@ -65,8 +65,8 @@ class TestAgentSummarizeExecute:
 
     @patch("agent.agent_summarize.scraping_utils.scraping")
     @patch("agent.agent_summarize.scraping_utils.is_allow_scraping", return_value=True)
-    def test_execute_grounding_refusal_falls_back_to_scraping(self, mock_allow, mock_scraping):
-        """グラウンディングでお断り文が返ってきた場合に、直接スクレイピングにフォールバックすること。"""
+    def test_execute_url_context_refusal_falls_back_to_scraping(self, mock_allow, mock_scraping):
+        """URL Context でお断り文が返ってきた場合に、直接スクレイピングにフォールバックすること。"""
         refusal = (
             "申し訳ありませんが、指定されたURLのページ内容の正確なキャッシュや検索結果が十分に取得できなかったため、"
             "記事のタイトルおよび主要な内容を直接生成・抽出することができません。"
@@ -79,7 +79,7 @@ class TestAgentSummarizeExecute:
         agent.update_message = MagicMock()
         chat_history = [Chat(role="user", content="https://example.com/fallback")]
 
-        with patch.object(agent, "_summarize_with_grounding", return_value=(refusal, None)):
+        with patch.object(agent, "_summarize_with_url_context", return_value=(refusal, None)):
             result = agent.execute({"url": "https://example.com/fallback"}, chat_history)
 
         mock_scraping.assert_called_once_with("https://example.com/fallback")
@@ -91,7 +91,7 @@ class TestAgentSummarizeExecute:
         agent = _make_agent()
         chat_history = [Chat(role="user", content="https://example.com/not-found")]
 
-        with patch.object(agent, "_summarize_with_grounding", return_value=("", None)):
+        with patch.object(agent, "_summarize_with_url_context", return_value=("", None)):
             result = agent.execute({"url": "https://example.com/not-found"}, chat_history)
 
         assert "スクレイピングスキップ" in str(result.get("content", ""))

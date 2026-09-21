@@ -30,6 +30,38 @@ def test_get_google_search_tool():
     assert hasattr(tool, "google_search")
 
 
+def test_get_url_context_tool():
+    from utils.grounding_utils import get_url_context_tool
+
+    tool = get_url_context_tool()
+    assert tool is not None
+    assert hasattr(tool, "url_context")
+
+
+def test_is_url_context_success():
+    from utils.grounding_utils import is_url_context_success
+
+    # 成功パターン
+    meta_item = SimpleNamespace(url_retrieval_status="URL_RETRIEVAL_STATUS_SUCCESS")
+    cand_success = SimpleNamespace(
+        url_context_metadata=SimpleNamespace(url_metadata=[meta_item])
+    )
+    resp_success = SimpleNamespace(candidates=[cand_success])
+    assert is_url_context_success(resp_success) is True
+
+    # 失敗パターン
+    meta_fail = SimpleNamespace(url_retrieval_status="URL_RETRIEVAL_STATUS_ERROR")
+    cand_fail = SimpleNamespace(
+        url_context_metadata=SimpleNamespace(url_metadata=[meta_fail])
+    )
+    resp_fail = SimpleNamespace(candidates=[cand_fail])
+    assert is_url_context_success(resp_fail) is False
+
+    # メタデータなし
+    assert is_url_context_success(SimpleNamespace(candidates=[])) is False
+    assert is_url_context_success(SimpleNamespace(candidates=[SimpleNamespace()])) is False
+
+
 def test_add_grounding_links_to_text_basic():
     part = SimpleNamespace(text="東京の明日の天気は晴れです。")
     chunk0 = SimpleNamespace(web=SimpleNamespace(uri="https://weather.example.com", title="天気予報"))
