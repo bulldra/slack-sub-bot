@@ -4,6 +4,7 @@
 import json
 import os
 
+
 def main():
     path = "secrets.json"
     if not os.path.exists(path):
@@ -18,7 +19,10 @@ def main():
 
     with open(path, "w") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
-    print("Successfully updated secrets.json with CHITCHAT_CHANNEL_ID and CHILCHAT_CHANNEL_ID = C05GDA42HJ5")
+    print(
+        "Successfully updated secrets.json with CHITCHAT_CHANNEL_ID and CHILCHAT_CHANNEL_ID = C05GDA42HJ5"
+    )
+
 
 if __name__ == "__main__":
     main()

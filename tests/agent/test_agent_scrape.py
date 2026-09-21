@@ -50,14 +50,20 @@ class TestAgentScrapeExecute:
             "ページ内容の正確なキャッシュや検索結果が十分に取得できなかったため、記事のタイトルおよび主要な内容を直接生成・抽出することができません。"
         )
         site = SiteInfo(
-            url="https://example.com/fallback", title="スクレイピング記事", content="<p>本文</p>"
+            url="https://example.com/fallback",
+            title="スクレイピング記事",
+            content="<p>本文</p>",
         )
         mock_scraping.return_value = site
         agent = _make_agent()
         chat_history: list[Chat] = [Chat(role="user", content="hello")]
 
-        with patch.object(agent, "_url_context_extract_markdown", return_value=(refusal, None)):
-            result = agent.execute({"url": "https://example.com/fallback"}, chat_history)
+        with patch.object(
+            agent, "_url_context_extract_markdown", return_value=(refusal, None)
+        ):
+            result = agent.execute(
+                {"url": "https://example.com/fallback"}, chat_history
+            )
 
         mock_scraping.assert_called_once_with("https://example.com/fallback")
         assert agent._context["scraped_site"].title == "スクレイピング記事"
@@ -74,7 +80,9 @@ class TestAgentScrapeExecute:
         agent = _make_agent()
         chat_history: list[Chat] = [Chat(role="user", content="hello")]
 
-        with patch.object(agent, "_url_context_extract_markdown", return_value=("", None)):
+        with patch.object(
+            agent, "_url_context_extract_markdown", return_value=("", None)
+        ):
             result = agent.execute({"url": "https://example.com"}, chat_history)
 
         mock_scraping.assert_called_once_with("https://example.com")
@@ -100,7 +108,9 @@ class TestAgentScrapeExecute:
             Chat(role="user", content="https://example.com/from-chat")
         ]
 
-        with patch.object(agent, "_url_context_extract_markdown", return_value=("", None)):
+        with patch.object(
+            agent, "_url_context_extract_markdown", return_value=("", None)
+        ):
             agent.execute({}, chat_history)
 
         mock_extract.assert_called_once()
@@ -121,8 +131,12 @@ class TestAgentScrapeExecute:
         agent = _make_agent()
         chat_history: list[Chat] = [Chat(role="user", content="hello")]
 
-        with patch.object(agent, "_url_context_extract_markdown", return_value=("", None)):
-            result = agent.execute({"url": "https://example.com/not-found"}, chat_history)
+        with patch.object(
+            agent, "_url_context_extract_markdown", return_value=("", None)
+        ):
+            result = agent.execute(
+                {"url": "https://example.com/not-found"}, chat_history
+            )
         assert "スクレイピングスキップ" in str(result.get("content", ""))
         assert agent._context.get("scrape_skipped") is True
         assert "scraped_site" not in agent._context
@@ -136,7 +150,9 @@ class TestAgentScrapeExecute:
         agent = _make_agent()
         chat_history: list[Chat] = [Chat(role="user", content="hello")]
 
-        with patch.object(agent, "_url_context_extract_markdown", return_value=("", None)):
+        with patch.object(
+            agent, "_url_context_extract_markdown", return_value=("", None)
+        ):
             with pytest.raises(requests.exceptions.HTTPError):
                 agent.execute({"url": "https://example.com/500"}, chat_history)
 
@@ -148,7 +164,9 @@ class TestAgentScrapeExecute:
         agent = _make_agent()
         chat_history: list[Chat] = [Chat(role="user", content="hello")]
 
-        with patch.object(agent, "_url_context_extract_markdown", return_value=("", None)):
+        with patch.object(
+            agent, "_url_context_extract_markdown", return_value=("", None)
+        ):
             agent.execute({"url": "https://example.com"}, chat_history)
 
         assert agent._context.get("scrape_skipped") is True
@@ -160,7 +178,12 @@ class TestAgentScrapeTextExecute:
 
         ctx = {"scrape_skipped": True}
         agent = AgentScrapeText(ctx)
-        chat_history = [Chat(role="assistant", content="スクレイピングスキップ (404 Not Found): https://example.com")]
+        chat_history = [
+            Chat(
+                role="assistant",
+                content="スクレイピングスキップ (404 Not Found): https://example.com",
+            )
+        ]
 
         result = agent.execute({}, chat_history)
         assert "スクレイピングスキップ" in str(result.get("content", ""))
@@ -174,4 +197,3 @@ class TestAgentScrapeTextExecute:
 
         result = agent.execute({}, chat_history)
         assert "スクレイピングスキップ" in str(result.get("content", ""))
-

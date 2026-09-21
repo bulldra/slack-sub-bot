@@ -23,6 +23,7 @@ def main():
     pubsub_target = data.get("pubsubTarget", {})
     body = pubsub_target.get("data", "")
     import base64
+
     decoded = base64.b64decode(body).decode() if body else ""
     print("PubSub Data:", decoded)
 

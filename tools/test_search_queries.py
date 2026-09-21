@@ -42,8 +42,8 @@ def main():
     matches3 = res3.get("messages", {}).get("matches", [])
     print(f"Matches count: {len(matches3)}")
     for m in matches3[:5]:
-        ch = m.get('channel', {})
-        ch_name = ch.get('name') if isinstance(ch, dict) else ch
+        ch = m.get("channel", {})
+        ch_name = ch.get("name") if isinstance(ch, dict) else ch
         print(f"  [{ch_name}] {m.get('text', '')[:70]}...")
 
 

@@ -14,9 +14,7 @@ class AgentRecommend(AgentChat):
         self._model: str = models.gemini_standard()
         self._keywords: List[str] = []
 
-    def build_prompt(
-        self, arguments: dict[str, Any], chat_history: List[Chat]
-    ) -> Any:
+    def build_prompt(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Any:
         days_ago_start = arguments.get("start_days_ago", 365)
         days_ago_end = arguments.get("end_days_ago", 0)
         days_ago_end = min(days_ago_start, days_ago_end)

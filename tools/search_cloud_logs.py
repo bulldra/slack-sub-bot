@@ -17,11 +17,30 @@ import sys
 def main():
     parser = argparse.ArgumentParser(description="Search Cloud Logging entries.")
     parser.add_argument("--query", "-q", default=None, help="Text or JSON query filter")
-    parser.add_argument("--service", "-s", default="ai", help="Service name (default: ai)")
-    parser.add_argument("--severity", default=None, help="Minimum severity (e.g. INFO, ERROR, WARNING)")
-    parser.add_argument("--around", default=None, help="Target ISO timestamp to search around (e.g. 2026-09-21T07:11:43Z)")
-    parser.add_argument("--window-minutes", type=int, default=5, help="Minutes before/after target time (default: 5)")
-    parser.add_argument("--limit", "-n", type=int, default=50, help="Max entries to return (default: 50)")
+    parser.add_argument(
+        "--service", "-s", default="ai", help="Service name (default: ai)"
+    )
+    parser.add_argument(
+        "--severity", default=None, help="Minimum severity (e.g. INFO, ERROR, WARNING)"
+    )
+    parser.add_argument(
+        "--around",
+        default=None,
+        help="Target ISO timestamp to search around (e.g. 2026-09-21T07:11:43Z)",
+    )
+    parser.add_argument(
+        "--window-minutes",
+        type=int,
+        default=5,
+        help="Minutes before/after target time (default: 5)",
+    )
+    parser.add_argument(
+        "--limit",
+        "-n",
+        type=int,
+        default=50,
+        help="Max entries to return (default: 50)",
+    )
     parser.add_argument("--json", action="store_true", help="Output raw JSON")
 
     args = parser.parse_args()
@@ -43,9 +62,15 @@ def main():
         filter_parts.append(f'timestamp<="{end_dt.strftime("%Y-%m-%dT%H:%M:%SZ")}"')
 
     if args.query:
-        filter_parts.append(f'(textPayload=~"{args.query}" OR jsonPayload.message=~"{args.query}")')
+        filter_parts.append(
+            f'(textPayload=~"{args.query}" OR jsonPayload.message=~"{args.query}")'
+        )
 
-    filter_query = " AND ".join(filter_parts) if filter_parts else 'resource.labels.service_name="ai"'
+    filter_query = (
+        " AND ".join(filter_parts)
+        if filter_parts
+        else 'resource.labels.service_name="ai"'
+    )
     print(f"Executing query: {filter_query}\n")
 
     cmd = [
@@ -79,14 +104,20 @@ def main():
     for idx, entry in enumerate(entries):
         ts = entry.get("timestamp", "")
         sev = entry.get("severity", "DEFAULT")
-        text = entry.get("textPayload") or entry.get("jsonPayload", {}).get("message") or ""
+        text = (
+            entry.get("textPayload")
+            or entry.get("jsonPayload", {}).get("message")
+            or ""
+        )
         if not text and "jsonPayload" in entry:
             text = str(entry["jsonPayload"])
 
         # JST 変換
         try:
             dt = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
-            jst_str = dt.astimezone(datetime.timezone(datetime.timedelta(hours=9))).strftime("%Y-%m-%d %H:%M:%S")
+            jst_str = dt.astimezone(
+                datetime.timezone(datetime.timedelta(hours=9))
+            ).strftime("%Y-%m-%d %H:%M:%S")
         except Exception:
             jst_str = ts
 

@@ -3,7 +3,10 @@ from unittest.mock import MagicMock
 from google.genai import types
 
 import conf.models as models
-from utils.gemini_client import configure_thinking_for_model, generate_content_with_retry
+from utils.gemini_client import (
+    configure_thinking_for_model,
+    generate_content_with_retry,
+)
 
 
 def test_is_mini_model():

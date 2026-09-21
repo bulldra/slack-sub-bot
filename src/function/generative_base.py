@@ -53,9 +53,7 @@ class GenerativeBase:
         self._logger: logging.Logger = logging.getLogger(__name__)
         self._logger.setLevel(logging.DEBUG)
 
-    def build_prompt(
-        self, chat_history: list[Chat]
-    ) -> list[types.Content]:
+    def build_prompt(self, chat_history: list[Chat]) -> list[types.Content]:
         raw_items: list[tuple[str, str]] = []
         if chat_history:
             for message in chat_history:
@@ -133,7 +131,9 @@ class GenerativeBase:
             "tool_config": types.ToolConfig(
                 function_calling_config=types.FunctionCallingConfig(mode=mode)
             ),
-            "automatic_function_calling": types.AutomaticFunctionCallingConfig(disable=True),
+            "automatic_function_calling": types.AutomaticFunctionCallingConfig(
+                disable=True
+            ),
         }
         if system_instruction:
             config_args["system_instruction"] = system_instruction

@@ -3,6 +3,7 @@
 
 import json
 
+
 def main():
     with open("tools/failing_blocks.json") as f:
         blocks = json.load(f)
@@ -25,6 +26,7 @@ def main():
     print(f"\nTotal characters: {total_len}")
     print("\n--- Block [9] content ---")
     print(json.dumps(blocks[9], indent=2, ensure_ascii=False))
+
 
 if __name__ == "__main__":
     main()

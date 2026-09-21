@@ -23,7 +23,9 @@ def main():
     for i, e in enumerate(entries):
         ts = e.get("timestamp")
         sev = e.get("severity")
-        txt = e.get("textPayload") or json.dumps(e.get("jsonPayload", {}), ensure_ascii=False)
+        txt = e.get("textPayload") or json.dumps(
+            e.get("jsonPayload", {}), ensure_ascii=False
+        )
         print(f"--- Entry {i+1} [{ts}] [{sev}] ---")
         print(txt)
 

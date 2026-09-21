@@ -38,6 +38,7 @@ def test_generate_content_with_retry_success_on_first_try():
 
 def test_generate_content_with_retry_recovers_after_429(monkeypatch):
     import time
+
     monkeypatch.setattr(time, "sleep", lambda x: None)
 
     mock_client = MagicMock()
@@ -76,6 +77,7 @@ def test_generate_content_with_retry_non_retryable_raises_immediately():
 
 def test_generate_content_with_retry_fallback_model(monkeypatch):
     import time
+
     monkeypatch.setattr(time, "sleep", lambda x: None)
 
     mock_client = MagicMock()
@@ -84,7 +86,11 @@ def test_generate_content_with_retry_fallback_model(monkeypatch):
     mock_fallback_resp.text = "Fallback response"
 
     # Primary model fails 2 times, then fallback model succeeds
-    mock_client.models.generate_content.side_effect = [err_429, err_429, mock_fallback_resp]
+    mock_client.models.generate_content.side_effect = [
+        err_429,
+        err_429,
+        mock_fallback_resp,
+    ]
 
     res = generate_content_with_retry(
         client=mock_client,

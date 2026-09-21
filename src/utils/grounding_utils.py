@@ -114,7 +114,9 @@ def add_grounding_links_to_text(
     return text
 
 
-def extract_grounded_response_text(response: Any, use_grounding_links: bool = True) -> str:
+def extract_grounded_response_text(
+    response: Any, use_grounding_links: bool = True
+) -> str:
     """Gemini レスポンスからグラウンディング情報を考慮してテキストを抽出する。"""
     if not hasattr(response, "candidates") or not response.candidates:
         return getattr(response, "text", "") or ""

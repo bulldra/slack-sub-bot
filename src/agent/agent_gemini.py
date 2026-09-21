@@ -69,7 +69,9 @@ class AgentGemini(AgentSlack):
             raise err
 
     def completion(
-        self, prompt_messages: PromptType, config: types.GenerateContentConfig | None = None
+        self,
+        prompt_messages: PromptType,
+        config: types.GenerateContentConfig | None = None,
     ) -> str:
         contents = self._normalize_contents(prompt_messages)
         if config is None:
@@ -92,7 +94,9 @@ class AgentGemini(AgentSlack):
         return extract_grounded_response_text(response)
 
     def completion_stream(
-        self, prompt_messages: PromptType, config: types.GenerateContentConfig | None = None
+        self,
+        prompt_messages: PromptType,
+        config: types.GenerateContentConfig | None = None,
     ) -> Iterator[str]:
         contents = self._normalize_contents(prompt_messages)
         if config is None:

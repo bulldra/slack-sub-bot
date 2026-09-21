@@ -41,7 +41,10 @@ def test_get_routable_skills():
 
 def test_load_skill_markdown_body():
     # 本文にフロントマターが含まれていないこと
-    content = load_skill("summarize", {"url": "https://test.com", "title": "Test Title", "content": "Test Body"})
+    content = load_skill(
+        "summarize",
+        {"url": "https://test.com", "title": "Test Title", "content": "Test Body"},
+    )
     assert not content.startswith("---")
     assert "# 記事の要約と関連情報抽出" in content
     assert "https://test.com" in content

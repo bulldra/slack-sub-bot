@@ -24,14 +24,18 @@ def main():
     after_date = (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d")
     query = f"in:<#{share_channel}> after:{after_date}"
     print(f"Search query: {query}")
-    res = user_client.search_messages(query=query, count=20, sort="timestamp", sort_dir="desc")
+    res = user_client.search_messages(
+        query=query, count=20, sort="timestamp", sort_dir="desc"
+    )
     matches = res.get("messages", {}).get("matches", [])
     print(f"Found {len(matches)} matches in share_channel")
 
     if not matches:
         query_all = f"after:{after_date}"
         print(f"Falling back to workspace query: {query_all}")
-        res = user_client.search_messages(query=query_all, count=20, sort="timestamp", sort_dir="desc")
+        res = user_client.search_messages(
+            query=query_all, count=20, sort="timestamp", sort_dir="desc"
+        )
         matches = res.get("messages", {}).get("matches", [])
         print(f"Found {len(matches)} matches in workspace")
 

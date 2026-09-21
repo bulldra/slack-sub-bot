@@ -24,7 +24,9 @@ def main():
     # 1. blocks[9] を2個送ってみる
     print("Testing [blocks[9], blocks[9]]...")
     try:
-        res = client.chat_update(channel=channel, ts=ts, blocks=[blocks[9], blocks[9]], text="test")
+        res = client.chat_update(
+            channel=channel, ts=ts, blocks=[blocks[9], blocks[9]], text="test"
+        )
         print("Success 2x block[9]!")
     except SlackApiError as e:
         print("Failed 2x block[9]:", e.response.data)
@@ -34,16 +36,20 @@ def main():
     sec_blocks = []
     for b in blocks:
         if b.get("type") == "markdown":
-            sec_blocks.append({
-                "type": "section",
-                "text": {"type": "mrkdwn", "text": b.get("text", "")},
-            })
+            sec_blocks.append(
+                {
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": b.get("text", "")},
+                }
+            )
         else:
             sec_blocks.append(b)
 
     print(f"Testing {len(sec_blocks)} section blocks...")
     try:
-        res = client.chat_update(channel=channel, ts=ts, blocks=sec_blocks, text="test section")
+        res = client.chat_update(
+            channel=channel, ts=ts, blocks=sec_blocks, text="test section"
+        )
         print("Success section blocks!", res["ok"])
     except SlackApiError as e:
         print("Failed section blocks:", e.response.data)

@@ -44,13 +44,16 @@ def main():
     ]
     add_res = subprocess.run(add_cmd, capture_output=True, text=True)
     import os
+
     os.remove(temp_path)
 
     if add_res.returncode != 0:
         print("Error adding secret version:", add_res.stderr)
         return
 
-    print("Successfully updated SUB_SLACK_SECRETS with CHITCHAT_CHANNEL_ID and CHILCHAT_CHANNEL_ID = C05GDA42HJ5!")
+    print(
+        "Successfully updated SUB_SLACK_SECRETS with CHITCHAT_CHANNEL_ID and CHILCHAT_CHANNEL_ID = C05GDA42HJ5!"
+    )
 
 
 if __name__ == "__main__":

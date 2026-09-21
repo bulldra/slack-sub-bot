@@ -59,7 +59,9 @@ def get_slack_token() -> str:
     except Exception as e:
         pass
 
-    raise RuntimeError("Slack token could not be retrieved from environment or GCP Secret Manager.")
+    raise RuntimeError(
+        "Slack token could not be retrieved from environment or GCP Secret Manager."
+    )
 
 
 def parse_slack_url(url: str) -> tuple[str, str, Optional[str]]:
@@ -97,9 +99,13 @@ def parse_slack_url(url: str) -> tuple[str, str, Optional[str]]:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Fetch Slack thread or message details.")
+    parser = argparse.ArgumentParser(
+        description="Fetch Slack thread or message details."
+    )
     parser.add_argument("target", help="Slack URL or channel ID")
-    parser.add_argument("ts", nargs="?", default=None, help="Message ts (optional if URL is given)")
+    parser.add_argument(
+        "ts", nargs="?", default=None, help="Message ts (optional if URL is given)"
+    )
     parser.add_argument("--thread-ts", default=None, help="Thread ts (optional)")
     parser.add_argument("--json", action="store_true", help="Output raw JSON")
 
@@ -127,7 +133,9 @@ def main():
             sys.exit(1)
     else:
         query_ts = thread_ts or ts
-        print(f"=== Fetching Slack Thread: channel={channel}, thread_ts={query_ts} (target_ts={ts}) ===")
+        print(
+            f"=== Fetching Slack Thread: channel={channel}, thread_ts={query_ts} (target_ts={ts}) ==="
+        )
 
         try:
             resp = client.conversations_replies(channel=channel, ts=query_ts)
@@ -135,7 +143,9 @@ def main():
         except Exception as e:
             print(f"Error fetching replies (trying single message): {e}")
             try:
-                resp = client.conversations_history(channel=channel, latest=ts, inclusive=True, limit=1)
+                resp = client.conversations_history(
+                    channel=channel, latest=ts, inclusive=True, limit=1
+                )
                 messages = resp.get("messages", [])
             except Exception as e2:
                 print(f"Failed to fetch message history: {e2}", file=sys.stderr)
@@ -152,7 +162,9 @@ def main():
         m_ts = msg.get("ts", "0")
         try:
             ts_float = float(m_ts)
-            dt_jst = datetime.datetime.fromtimestamp(ts_float, tz=datetime.timezone(datetime.timedelta(hours=9)))
+            dt_jst = datetime.datetime.fromtimestamp(
+                ts_float, tz=datetime.timezone(datetime.timedelta(hours=9))
+            )
             dt_str = dt_jst.strftime("%Y-%m-%d %H:%M:%S JST")
         except Exception:
             dt_str = ""
@@ -182,7 +194,9 @@ def main():
         if attachments:
             print(f"\nattachments: {len(attachments)}")
             for a_idx, a in enumerate(attachments):
-                print(f"  [{a_idx}] title={a.get('title')}, from_url={a.get('from_url')}")
+                print(
+                    f"  [{a_idx}] title={a.get('title')}, from_url={a.get('from_url')}"
+                )
     print(f"--------------------------------------------------\n")
 
 

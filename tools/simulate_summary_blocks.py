@@ -38,13 +38,15 @@ def main():
 
     blocks = context["collect_blocks"]
     print(f"collect_blocks count: {len(blocks)}")
-    
+
     safe_blocks = AgentSlack._limit_blocks(blocks)
     print(f"safe_blocks count: {len(safe_blocks)}")
 
     print("safe_blocks types:")
     for i, b in enumerate(safe_blocks):
-        print(f"  [{i:02d}] type={type(b)} keys={list(b.keys()) if isinstance(b, dict) else b}")
+        print(
+            f"  [{i:02d}] type={type(b)} keys={list(b.keys()) if isinstance(b, dict) else b}"
+        )
 
 
 if __name__ == "__main__":

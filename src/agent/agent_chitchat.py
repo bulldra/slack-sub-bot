@@ -28,7 +28,9 @@ class AgentChitchat(AgentGemini):
         """チャンネルを指定せず、RSS等から投稿されたURLとそのスレッド内容（要約等）を検索・取得する。"""
         after_date = (datetime.now() - timedelta(days=after_days)).strftime("%Y-%m-%d")
         query = f"after:{after_date} has:link"
-        self._logger.debug("Searching RSS thread messages across workspace: query=%s", query)
+        self._logger.debug(
+            "Searching RSS thread messages across workspace: query=%s", query
+        )
 
         matches: list[dict[str, Any]] = []
         try:
@@ -63,7 +65,9 @@ class AgentChitchat(AgentGemini):
             # スレッド返信（Botによる要約やコメント）を取得
             thread_texts: list[str] = []
             try:
-                replies = self._slack.conversations_replies(channel=ch_id, ts=ts, limit=10)
+                replies = self._slack.conversations_replies(
+                    channel=ch_id, ts=ts, limit=10
+                )
                 reply_msgs = replies.get("messages", [])
                 for r in reply_msgs[1:]:
                     r_text = r.get("text", "").strip()
@@ -72,15 +76,19 @@ class AgentChitchat(AgentGemini):
             except Exception as e:
                 self._logger.debug("Failed to fetch replies for %s: %s", ts, e)
 
-            candidates.append({
-                "channel": ch_name,
-                "parent_text": text,
-                "replies": thread_texts,
-                "has_replies": len(thread_texts) > 0,
-            })
+            candidates.append(
+                {
+                    "channel": ch_name,
+                    "parent_text": text,
+                    "replies": thread_texts,
+                    "has_replies": len(thread_texts) > 0,
+                }
+            )
 
         if not candidates:
-            self._logger.info("No RSS candidates found, falling back to conversations_history")
+            self._logger.info(
+                "No RSS candidates found, falling back to conversations_history"
+            )
             return self._fetch_recent_messages()
 
         # スレッド返信があるものを優先

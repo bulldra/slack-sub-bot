@@ -61,7 +61,7 @@ def main():
 
         # エラーの要約キーを抽出
         first_line = msg.strip().split("\n")[0] if msg else "Empty message"
-        
+
         # スタックトレースの最後の行（例外名）を探す
         lines = [l.strip() for l in msg.strip().split("\n") if l.strip()]
         last_line = lines[-1] if lines else "Unknown"
@@ -70,11 +70,11 @@ def main():
         if "HTTPError" in msg or "Client Error" in msg or "Server Error" in msg:
             if "403" in msg or "Forbidden" in msg:
                 # ドメインを抽出
-                domain_match = re.search(r'https?://([^/]+)', msg)
+                domain_match = re.search(r"https?://([^/]+)", msg)
                 domain = domain_match.group(1) if domain_match else "unknown"
                 err_key = f"[{service}] Web Scrape 403 Forbidden ({domain})"
             elif "404" in msg or "Not Found" in msg:
-                domain_match = re.search(r'https?://([^/]+)', msg)
+                domain_match = re.search(r"https?://([^/]+)", msg)
                 domain = domain_match.group(1) if domain_match else "unknown"
                 err_key = f"[{service}] Web Scrape 404 Not Found ({domain})"
             elif "429" in msg or "RESOURCE_EXHAUSTED" in msg:
@@ -95,20 +95,22 @@ def main():
             err_key = f"[{service}] {last_line[:100]}"
 
         error_type_counter[err_key] += 1
-        details_by_type[err_key].append({
-            "timestamp": ts,
-            "service": service,
-            "message": msg,
-            "first_line": first_line,
-            "last_line": last_line,
-        })
+        details_by_type[err_key].append(
+            {
+                "timestamp": ts,
+                "service": service,
+                "message": msg,
+                "first_line": first_line,
+                "last_line": last_line,
+            }
+        )
 
     report_data = {
         "since": since_time,
         "total_entries": len(entries),
         "service_counts": dict(service_counter.most_common()),
         "error_category_counts": dict(error_type_counter.most_common()),
-        "details_by_type": {k: v[:3] for k, v in details_by_type.items()}  # 各最大3件
+        "details_by_type": {k: v[:3] for k, v in details_by_type.items()},  # 各最大3件
     }
 
     with open("scratch/error_analysis_report.json", "w", encoding="utf-8") as f:
@@ -125,6 +127,7 @@ def main():
     print("==========================================")
     for err_type, count in error_type_counter.most_common():
         print(f"  [{count:3d}件] {err_type}")
+
 
 if __name__ == "__main__":
     main()

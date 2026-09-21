@@ -31,13 +31,19 @@ class AgentSummarize(AgentChat):
         self, arguments: dict[str, Any], chat_history: List[Chat]
     ) -> tuple[Optional[str], Optional[str]]:
         raw_text = str(chat_history[-1].get("content", "")) if chat_history else ""
-        url = arguments.get("url") or slack_link_utils.extract_and_remove_tracking_url(raw_text)
+        url = arguments.get("url") or slack_link_utils.extract_and_remove_tracking_url(
+            raw_text
+        )
         title = slack_link_utils.extract_title_from_link(raw_text)
         return (str(url) if url else None, title)
 
-    def _summarize_with_url_context(self, url: str, title: Optional[str]) -> tuple[str, Optional[str]]:
+    def _summarize_with_url_context(
+        self, url: str, title: Optional[str]
+    ) -> tuple[str, Optional[str]]:
         """Gemini の URL Context 単体を使用して記事を直接読み取り要約する。"""
-        self._logger.info("Summarizing via Gemini URL Context: url=%s, title=%s", url, title)
+        self._logger.info(
+            "Summarizing via Gemini URL Context: url=%s, title=%s", url, title
+        )
         title_hint = f"タイトル: {title}\n" if title else ""
         prompt = (
             "以下のWeb記事の内容を読み取り、要約と重要なキーワードを日本語で抽出してください。\n\n"
@@ -93,7 +99,9 @@ class AgentSummarize(AgentChat):
         if not url:
             self._logger.info("AgentSummarize skipped: no url found")
             self._context["scrape_skipped"] = True
-            return Chat(role="assistant", content="要約スキップ: 対象URLが見つかりませんでした")
+            return Chat(
+                role="assistant", content="要約スキップ: 対象URLが見つかりませんでした"
+            )
 
         if not scraping_utils.is_allow_scraping(url):
             self._logger.info("AgentSummarize skipped (ignore domain): %s", url)
@@ -137,13 +145,17 @@ class AgentSummarize(AgentChat):
 
         # 3. URL Context で取得・要約できなかった場合のみスクレイピングへフォールバック
         self._logger.info(
-            "URL Context summary failed or empty for %s, falling back to traditional scraping", url
+            "URL Context summary failed or empty for %s, falling back to traditional scraping",
+            url,
         )
         site = scraping_utils.scraping(url)
         if site is None or not site.content:
             self._logger.info("AgentSummarize skipped (not found / 404): %s", url)
             self._context["scrape_skipped"] = True
-            return Chat(role="assistant", content=f"スクレイピングスキップ (404 Not Found): {url}")
+            return Chat(
+                role="assistant",
+                content=f"スクレイピングスキップ (404 Not Found): {url}",
+            )
 
         self._site = site
         self._context["scraped_site"] = site

@@ -203,7 +203,10 @@ def test_agent_x_execute_handles_value_error():
     agent = AgentX({})
     with patch.object(agent, "update_message") as mock_update:
         # Invalid X URL
-        result = agent.execute({"url": "https://togetter.com/li/2746597"}, [Chat(role="user", content="hello")])
+        result = agent.execute(
+            {"url": "https://togetter.com/li/2746597"},
+            [Chat(role="user", content="hello")],
+        )
         assert "Xポストの取得に失敗しました" in str(result.get("content"))
         assert mock_update.call_count >= 1
 

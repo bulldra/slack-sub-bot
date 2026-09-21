@@ -5,6 +5,7 @@ import os
 import json
 from agent.agent_base import AgentSlack
 
+
 def main():
     if os.path.exists("secrets.json"):
         with open("secrets.json") as f:
@@ -17,11 +18,12 @@ def main():
 
     blocks = slack_agent.build_message_blocks(content)
     print(f"Generated blocks count: {len(blocks)}")
-    
+
     safe_blocks = slack_agent._limit_blocks(blocks)
     print(f"Safe blocks count: {len(safe_blocks)}")
 
     print(json.dumps(safe_blocks, indent=2, ensure_ascii=False))
+
 
 if __name__ == "__main__":
     main()

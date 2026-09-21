@@ -30,6 +30,7 @@ _IGNORE_DOMAINS: list[str] = _STRATEGY_CONFIG["ignore_domains"]
 _IGNORE_EXTENSIONS: list[str] = _STRATEGY_CONFIG["ignore_extensions"]
 _SECONDARY_DOMAINS: list[str] = _STRATEGY_CONFIG.get("secondary_domains", [])
 
+
 def _build_default_headers(config: dict) -> dict[str, str]:
     headers: dict[str, str] = {
         "Accept": (
@@ -220,7 +221,9 @@ def scraping_pdf(url: str) -> Optional[SiteInfo]:
         res.raise_for_status()
     except requests.exceptions.HTTPError as err:
         if err.response is not None and err.response.status_code in (403, 404, 410):
-            logger.info("%s Client Error, skipping PDF: %s", err.response.status_code, url)
+            logger.info(
+                "%s Client Error, skipping PDF: %s", err.response.status_code, url
+            )
             return None
         raise
     with tempfile.NamedTemporaryFile(mode="wb+", delete=True) as t:

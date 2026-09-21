@@ -103,11 +103,7 @@ def get_gemini_client(
         or os.getenv("GCP_PROJECT")
     )
 
-    client_location = (
-        location
-        or os.getenv("GEMINI_LOCATION")
-        or "global"
-    )
+    client_location = location or os.getenv("GEMINI_LOCATION") or "global"
 
     cache_key = (project, client_location)
     if cache_key not in _client_cache:
@@ -132,7 +128,12 @@ def is_retryable_gemini_error(err: Exception) -> bool:
         if getattr(err, "code", None) in (429, 503):
             return True
     err_str = str(err).upper()
-    return "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "503" in err_str or "UNAVAILABLE" in err_str
+    return (
+        "429" in err_str
+        or "RESOURCE_EXHAUSTED" in err_str
+        or "503" in err_str
+        or "UNAVAILABLE" in err_str
+    )
 
 
 def generate_content_with_retry(
@@ -183,7 +184,9 @@ def generate_content_with_retry(
                 )
 
     if fallback_model and fallback_model != model:
-        _logger.warning("Attempting fallback to model=%s after retry exhaustion", fallback_model)
+        _logger.warning(
+            "Attempting fallback to model=%s after retry exhaustion", fallback_model
+        )
         fallback_config = configure_model_config(fallback_model, config)
         try:
             return client.models.generate_content(
@@ -192,10 +195,11 @@ def generate_content_with_retry(
                 config=fallback_config,
             )
         except Exception as fallback_err:
-            _logger.error("Fallback model %s also failed: %s", fallback_model, fallback_err)
+            _logger.error(
+                "Fallback model %s also failed: %s", fallback_model, fallback_err
+            )
             raise fallback_err
 
     if last_err:
         raise last_err
     raise RuntimeError("generate_content failed without exception")
-

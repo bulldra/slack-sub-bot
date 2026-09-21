@@ -53,7 +53,9 @@ def main():
         print(f"\nTesting Block [{i}]: type={block.get('type')}")
         test_blocks = [block]
         try:
-            client.chat_update(channel=channel, ts=ts, blocks=test_blocks, text=f"test block {i}")
+            client.chat_update(
+                channel=channel, ts=ts, blocks=test_blocks, text=f"test block {i}"
+            )
             print(f"Block [{i}] SUCCESS!")
         except SlackApiError as e:
             print(f"Block [{i}] FAILED: {e.response.data}")

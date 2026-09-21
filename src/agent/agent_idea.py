@@ -14,9 +14,7 @@ class AgentIdea(AgentChat):
         self._stream = True
         self._model: str = models.gemini_standard()
 
-    def build_prompt(
-        self, arguments: dict[str, Any], chat_history: List[Chat]
-    ) -> Any:
+    def build_prompt(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Any:
         keywords: List[str] = arguments.get("keywords", [])
         related_messages: set[str] = set()
         max_messages = 20

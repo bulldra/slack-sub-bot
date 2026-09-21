@@ -38,9 +38,13 @@ class AgentSlack(Agent):
         self._share_channel: str = str(self._secrets.get("SHARE_CHANNEL_ID") or "")
         self._image_channel: str = str(self._secrets.get("IMAGE_CHANNEL_ID") or "")
         self._processing_message: str = str(context.get("processing_message") or "")
-        self._channel: Optional[str] = str(context["channel"]) if context.get("channel") else None
+        self._channel: Optional[str] = (
+            str(context["channel"]) if context.get("channel") else None
+        )
         self._ts: Optional[str] = str(context["ts"]) if context.get("ts") else None
-        self._thread_ts: Optional[str] = str(context["thread_ts"]) if context.get("thread_ts") else None
+        self._thread_ts: Optional[str] = (
+            str(context["thread_ts"]) if context.get("thread_ts") else None
+        )
         self._collect_blocks: Optional[list] = context.get("collect_blocks")
 
     def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> Chat:
@@ -175,7 +179,9 @@ class AgentSlack(Agent):
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": text[:3000] if text else "メッセージの表示に失敗しました。",
+                        "text": (
+                            text[:3000] if text else "メッセージの表示に失敗しました。"
+                        ),
                     },
                 }
             ]
@@ -213,14 +219,20 @@ class AgentSlack(Agent):
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": msg_text[:3000] if msg_text else "メッセージの表示に失敗しました。",
+                        "text": (
+                            msg_text[:3000]
+                            if msg_text
+                            else "メッセージの表示に失敗しました。"
+                        ),
                     },
                 }
             ]
             return self._slack.chat_postMessage(
                 channel=target_channel,
                 blocks=fallback_blocks,
-                text=msg_text[:3000] if msg_text else "メッセージの表示に失敗しました。",
+                text=(
+                    msg_text[:3000] if msg_text else "メッセージの表示に失敗しました。"
+                ),
                 unfurl_links=True,
             )
 
@@ -249,7 +261,9 @@ class AgentSlack(Agent):
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": text[:3000] if text else "メッセージの表示に失敗しました。",
+                        "text": (
+                            text[:3000] if text else "メッセージの表示に失敗しました。"
+                        ),
                     },
                 }
             ]

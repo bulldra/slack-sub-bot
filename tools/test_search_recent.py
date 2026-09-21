@@ -20,7 +20,9 @@ def main():
     print(f"share_channel: {share_channel}")
 
     # 直近7日間のスレッドを検索
-    query = slack_search_utils.build_past_query(share_channel, after_days=7, before_days=0)
+    query = slack_search_utils.build_past_query(
+        share_channel, after_days=7, before_days=0
+    )
     print(f"Query 7 days: {query}")
     messages = slack_search_utils.search_messages(user_client, query, num=10)
     print(f"Found {len(messages)} messages with 7-day query")
@@ -29,7 +31,9 @@ def main():
 
     # もし7日間で少なければ直近30日間
     if len(messages) < 3:
-        query_30 = slack_search_utils.build_past_query(share_channel, after_days=30, before_days=0)
+        query_30 = slack_search_utils.build_past_query(
+            share_channel, after_days=30, before_days=0
+        )
         print(f"\nQuery 30 days: {query_30}")
         messages_30 = slack_search_utils.search_messages(user_client, query_30, num=10)
         print(f"Found {len(messages_30)} messages with 30-day query")

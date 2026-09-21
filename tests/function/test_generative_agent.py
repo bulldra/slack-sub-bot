@@ -137,7 +137,9 @@ def test_url_with_description_routes_to_summarize(pytestconfig: pytest.Config):
     assert AgentSummarize in agents
 
 
-def test_url_with_description_fallback_when_llm_returns_message(monkeypatch: pytest.MonkeyPatch):
+def test_url_with_description_fallback_when_llm_returns_message(
+    monkeypatch: pytest.MonkeyPatch,
+):
     from unittest.mock import MagicMock
     from agent.agent_summarize import AgentSummarize
     from function.generative_base import ToolCallItem
@@ -147,7 +149,9 @@ def test_url_with_description_fallback_when_llm_returns_message(monkeypatch: pyt
     monkeypatch.setattr(
         agent,
         "function_call",
-        MagicMock(return_value=[ToolCallItem(type="message", content="面白い記事ですね。")]),
+        MagicMock(
+            return_value=[ToolCallItem(type="message", content="面白い記事ですね。")]
+        ),
     )
 
     content = (
@@ -159,4 +163,3 @@ def test_url_with_description_fallback_when_llm_returns_message(monkeypatch: pyt
     assert [e.agent for e in result] == expected_agents
     assert result[0].arguments == {"url": "https://predge.jp/358742/"}
     assert result[1].arguments == {"url": "https://predge.jp/358742/"}
-

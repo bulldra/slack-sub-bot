@@ -185,7 +185,10 @@ def test_strategy_module_constants():
     assert "speakerdeck.com" in scraping_utils._IGNORE_DOMAINS
     assert ".zip" in scraping_utils._IGNORE_EXTENSIONS
     assert "b.hatena.ne.jp" in scraping_utils._SECONDARY_DOMAINS
-    assert scraping_utils.DEFAULT_HEADERS["User-Agent"] == scraping_utils._STRATEGY_CONFIG["user_agent"]
+    assert (
+        scraping_utils.DEFAULT_HEADERS["User-Agent"]
+        == scraping_utils._STRATEGY_CONFIG["user_agent"]
+    )
 
 
 def test_classify_url():
@@ -205,8 +208,14 @@ def test_classify_url():
     # ignore: domain
     assert scraping_utils.classify_url("https://speakerdeck.com/slide") == "ignore"
     assert scraping_utils.classify_url("https://open.spotify.com/track/abc") == "ignore"
-    assert scraping_utils.classify_url("https://markezine.jp/article/detail/77669") == "ignore"
-    assert scraping_utils.classify_url("https://codezine.jp/article/detail/29766") == "ignore"
+    assert (
+        scraping_utils.classify_url("https://markezine.jp/article/detail/77669")
+        == "ignore"
+    )
+    assert (
+        scraping_utils.classify_url("https://codezine.jp/article/detail/29766")
+        == "ignore"
+    )
     # ignore: extension
     assert scraping_utils.classify_url("https://example.com/file.zip") == "ignore"
     # ignore: image
@@ -300,11 +309,16 @@ def test_scraping_403_and_410_skips(monkeypatch):
         monkeypatch.setattr(requests, "get", MagicMock(return_value=mock_resp))
 
         # scraping_raw returns None
-        assert scraping_utils.scraping_raw(f"https://example.com/status-{status_code}") is None
+        assert (
+            scraping_utils.scraping_raw(f"https://example.com/status-{status_code}")
+            is None
+        )
         # scraping returns None
-        assert scraping_utils.scraping(f"https://example.com/status-{status_code}") is None
+        assert (
+            scraping_utils.scraping(f"https://example.com/status-{status_code}") is None
+        )
         # scraping_pdf returns None
-        assert scraping_utils.scraping_pdf(f"https://example.com/status-{status_code}.pdf") is None
-
-
-
+        assert (
+            scraping_utils.scraping_pdf(f"https://example.com/status-{status_code}.pdf")
+            is None
+        )

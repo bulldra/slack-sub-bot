@@ -43,14 +43,20 @@ def test_split_markdown_blocks_multiple():
 
 
 def test_limit_blocks_under_max():
-    blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": f"item {i}"}} for i in range(30)]
+    blocks = [
+        {"type": "section", "text": {"type": "mrkdwn", "text": f"item {i}"}}
+        for i in range(30)
+    ]
     result = AgentSlack._limit_blocks(blocks)
     assert len(result) == 30
     assert result == blocks
 
 
 def test_limit_blocks_over_max():
-    blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": f"item {i}"}} for i in range(60)]
+    blocks = [
+        {"type": "section", "text": {"type": "mrkdwn", "text": f"item {i}"}}
+        for i in range(60)
+    ]
     result = AgentSlack._limit_blocks(blocks)
     assert len(result) == 45
     assert result[:44] == blocks[:44]

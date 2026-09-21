@@ -26,7 +26,9 @@ def main():
     query = f"after:{after_date} has:link"
     print(f"Search Query: {query}")
 
-    res = user_client.search_messages(query=query, count=30, sort="timestamp", sort_dir="desc")
+    res = user_client.search_messages(
+        query=query, count=30, sort="timestamp", sort_dir="desc"
+    )
     matches = res.get("messages", {}).get("matches", [])
     print(f"Found {len(matches)} matches across workspace")
 
@@ -63,16 +65,20 @@ def main():
                 thread_texts.append(r_text)
 
         # 親メッセージまたはスレッドがあるものを候補にする
-        candidates.append({
-            "channel": ch_name,
-            "parent_text": text,
-            "replies": thread_texts,
-            "username": username,
-        })
+        candidates.append(
+            {
+                "channel": ch_name,
+                "parent_text": text,
+                "replies": thread_texts,
+                "username": username,
+            }
+        )
 
     print(f"\nTotal valid candidates: {len(candidates)}")
     for i, c in enumerate(candidates[:5]):
-        print(f"[{i}] #{c['channel']} ({c['username']}): {c['parent_text'][:80]}... (replies: {len(c['replies'])})")
+        print(
+            f"[{i}] #{c['channel']} ({c['username']}): {c['parent_text'][:80]}... (replies: {len(c['replies'])})"
+        )
 
     # ランダムに候補から1〜2件選んで要約とスレッド内容を構成
     selected = random.sample(candidates, min(len(candidates), 2)) if candidates else []

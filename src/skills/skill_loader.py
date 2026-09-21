@@ -47,18 +47,19 @@ def get_routable_skills() -> list[dict[str, Any]]:
     フロントマターの name, description, parameters を参照する。
     """
     all_skills = load_all_skill_frontmatters()
-    routable = [
-        meta for meta in all_skills.values()
-        if meta.get("routable", False)
-    ]
+    routable = [meta for meta in all_skills.values() if meta.get("routable", False)]
     routable.sort(key=lambda x: int(x.get("priority", 100)))
     tools: list[dict[str, Any]] = []
     for meta in routable:
-        tools.append({
-            "name": meta["name"],
-            "description": meta.get("description", ""),
-            "parameters": meta.get("parameters", {"type": "object", "properties": {}}),
-        })
+        tools.append(
+            {
+                "name": meta["name"],
+                "description": meta.get("description", ""),
+                "parameters": meta.get(
+                    "parameters", {"type": "object", "properties": {}}
+                ),
+            }
+        )
     return tools
 
 

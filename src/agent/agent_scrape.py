@@ -80,7 +80,9 @@ class AgentScrape(Agent):
             )
             text = extract_grounded_response_text(response, use_grounding_links=False)
             if not text or is_grounding_failure(text):
-                self._logger.info("URL Context markdown is empty or failure text for %s", url)
+                self._logger.info(
+                    "URL Context markdown is empty or failure text for %s", url
+                )
                 return "", None
 
             # 1行目の見出し(# タイトル)からタイトル抽出を試みる
@@ -91,7 +93,9 @@ class AgentScrape(Agent):
 
             return text, extracted_title
         except Exception as err:
-            self._logger.warning("URL Context markdown extraction failed for %s: %s", url, err)
+            self._logger.warning(
+                "URL Context markdown extraction failed for %s: %s", url, err
+            )
             return "", None
 
     # 後方互換性のためのエイリアス
@@ -107,17 +111,19 @@ class AgentScrape(Agent):
             if pipe_idx > 0:
                 url = url[:pipe_idx]
         else:
-            url = (
-                slack_link_utils.extract_and_remove_tracking_url(raw_text) or ""
-            )
+            url = slack_link_utils.extract_and_remove_tracking_url(raw_text) or ""
 
         title_hint = slack_link_utils.extract_title_from_link(raw_text)
-        self._logger.debug("AgentScrape processing url=%s, title_hint=%s", url, title_hint)
+        self._logger.debug(
+            "AgentScrape processing url=%s, title_hint=%s", url, title_hint
+        )
 
         if not url:
             self._logger.info("AgentScrape skipped: no url found")
             self._context["scrape_skipped"] = True
-            return Chat(role="assistant", content="スクレイピングスキップ: URLがありません")
+            return Chat(
+                role="assistant", content="スクレイピングスキップ: URLがありません"
+            )
 
         # 対象外URLの判定（画像・除外ドメイン等）
         if not scraping_utils.is_allow_scraping(url):
@@ -127,9 +133,7 @@ class AgentScrape(Agent):
 
         # 1. URL Context 単体による全文Markdown抽出を最優先で実行
         md_content, resolved_title = self._url_context_extract_markdown(url, title_hint)
-        is_valid_url_context = bool(
-            md_content and not is_grounding_failure(md_content)
-        )
+        is_valid_url_context = bool(md_content and not is_grounding_failure(md_content))
         if is_valid_url_context:
             final_title = resolved_title or title_hint or url
             extracted_site = scraping_utils.SiteInfo(
@@ -142,10 +146,14 @@ class AgentScrape(Agent):
                 extracted_site.title,
                 len(md_content),
             )
-            return Chat(role="assistant", content=f"URL抽出完了: {extracted_site.title}")
+            return Chat(
+                role="assistant", content=f"URL抽出完了: {extracted_site.title}"
+            )
 
         # 2. URL Context で取得できなかった場合に従来のスクレイピング（タグ除去）へフォールバック
-        self._logger.info("URL Context empty for %s, falling back to traditional scraping", url)
+        self._logger.info(
+            "URL Context empty for %s, falling back to traditional scraping", url
+        )
         fallback_site = scraping_utils.scraping(url)
         if fallback_site and fallback_site.content:
             final_title = fallback_site.title or title_hint or url
@@ -159,11 +167,15 @@ class AgentScrape(Agent):
                 cleaned_site.title,
                 len(cleaned_site.content or ""),
             )
-            return Chat(role="assistant", content=f"スクレイピング完了: {cleaned_site.title}")
+            return Chat(
+                role="assistant", content=f"スクレイピング完了: {cleaned_site.title}"
+            )
 
         self._logger.info("AgentScrape skipped (not found / 404): %s", url)
         self._context["scrape_skipped"] = True
-        return Chat(role="assistant", content=f"スクレイピングスキップ (取得失敗): {url}")
+        return Chat(
+            role="assistant", content=f"スクレイピングスキップ (取得失敗): {url}"
+        )
 
     _MAX_INPUT_CHARS = 10_000
     _MAX_OUTPUT_CHARS = 5_000
@@ -204,13 +216,22 @@ class AgentScrapeText(AgentSlack):
     def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
         if self._context.get("scrape_skipped"):
             self._logger.info("AgentScrapeText skipped: scrape was skipped")
-            msg = chat_history[-1].get("content", "スクレイピングスキップ") if chat_history else "スクレイピングスキップ"
+            msg = (
+                chat_history[-1].get("content", "スクレイピングスキップ")
+                if chat_history
+                else "スクレイピングスキップ"
+            )
             return Chat(role="assistant", content=msg)
 
         site: Optional[scraping_utils.SiteInfo] = self._context.get("scraped_site")
         if site is None:
-            self._logger.info("AgentScrapeText skipped: scraped_site not found in context")
-            return Chat(role="assistant", content="スクレイピングスキップ: コンテンツがありません")
+            self._logger.info(
+                "AgentScrapeText skipped: scraped_site not found in context"
+            )
+            return Chat(
+                role="assistant",
+                content="スクレイピングスキップ: コンテンツがありません",
+            )
 
         blocks: List[dict] = [
             {

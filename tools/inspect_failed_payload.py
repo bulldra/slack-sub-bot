@@ -29,7 +29,11 @@ def main():
     for idx, e in enumerate(entries):
         ts = e.get("timestamp")
         sev = e.get("severity")
-        msg = e.get("textPayload") or e.get("jsonPayload", {}).get("message") or json.dumps(e.get("jsonPayload", {}), ensure_ascii=False)
+        msg = (
+            e.get("textPayload")
+            or e.get("jsonPayload", {}).get("message")
+            or json.dumps(e.get("jsonPayload", {}), ensure_ascii=False)
+        )
         print(f"[{idx+1:02d}] {ts} [{sev}] {msg[:150]}")
 
 

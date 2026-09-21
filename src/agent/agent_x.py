@@ -109,9 +109,7 @@ class AgentX(AgentChat):
                 continue
         return "\n\n---\n\n".join(articles)
 
-    def build_prompt(
-        self, arguments: dict[str, Any], chat_history: List[Chat]
-    ) -> Any:
+    def build_prompt(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Any:
         if arguments.get("url"):
             url = str(arguments["url"])
         else:

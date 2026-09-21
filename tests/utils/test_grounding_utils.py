@@ -20,7 +20,10 @@ def test_is_grounding_failure():
     assert is_grounding_failure("") is True
     assert is_grounding_failure("   ") is True
     assert is_grounding_failure("アクセスすることができませんでした。") is True
-    assert is_grounding_failure("## # 要約\n\n- ポイント1\n\n## # キーワード\n\nkw") is False
+    assert (
+        is_grounding_failure("## # 要約\n\n- ポイント1\n\n## # キーワード\n\nkw")
+        is False
+    )
     assert is_grounding_failure("# 記事タイトル\n\nこれは正常な本文です。") is False
 
 
@@ -59,12 +62,16 @@ def test_is_url_context_success():
 
     # メタデータなし
     assert is_url_context_success(SimpleNamespace(candidates=[])) is False
-    assert is_url_context_success(SimpleNamespace(candidates=[SimpleNamespace()])) is False
+    assert (
+        is_url_context_success(SimpleNamespace(candidates=[SimpleNamespace()])) is False
+    )
 
 
 def test_add_grounding_links_to_text_basic():
     part = SimpleNamespace(text="東京の明日の天気は晴れです。")
-    chunk0 = SimpleNamespace(web=SimpleNamespace(uri="https://weather.example.com", title="天気予報"))
+    chunk0 = SimpleNamespace(
+        web=SimpleNamespace(uri="https://weather.example.com", title="天気予報")
+    )
     support = SimpleNamespace(
         grounding_chunk_indices=[0],
         segment=SimpleNamespace(start_index=0, end_index=8, text="東京の明日の天気"),
@@ -89,7 +96,9 @@ def test_extract_grounded_response_text_without_grounding():
 def test_extract_grounded_response_text_with_grounding():
     part = SimpleNamespace(text="Geminiの最新モデルについて。")
     content = SimpleNamespace(parts=[part])
-    chunk = SimpleNamespace(web=SimpleNamespace(uri="https://gemini.example.com", title="Gemini最新情報"))
+    chunk = SimpleNamespace(
+        web=SimpleNamespace(uri="https://gemini.example.com", title="Gemini最新情報")
+    )
     support = SimpleNamespace(
         grounding_chunk_indices=[0],
         segment=SimpleNamespace(start_index=0, end_index=6, text="Gemini"),

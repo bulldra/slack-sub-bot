@@ -36,7 +36,10 @@ class TestAgentSummarizeExecute:
     def test_execute_with_scrape_skipped(self):
         agent = _make_agent({"scrape_skipped": True})
         chat_history = [
-            Chat(role="assistant", content="スクレイピングスキップ (404 Not Found): https://example.com")
+            Chat(
+                role="assistant",
+                content="スクレイピングスキップ (404 Not Found): https://example.com",
+            )
         ]
 
         result = agent.execute({}, chat_history)
@@ -53,7 +56,10 @@ class TestAgentSummarizeExecute:
         with patch.object(
             agent,
             "_summarize_with_url_context",
-            return_value=("## # 要約\n\n- テスト要約\n\n## # キーワード\n\nキーワード", "解決タイトル"),
+            return_value=(
+                "## # 要約\n\n- テスト要約\n\n## # キーワード\n\nキーワード",
+                "解決タイトル",
+            ),
         ) as mock_url_ctx:
             result = agent.execute({"url": "https://example.com/url-ctx"}, chat_history)
 
@@ -65,13 +71,19 @@ class TestAgentSummarizeExecute:
 
     @patch("agent.agent_summarize.scraping_utils.scraping")
     @patch("agent.agent_summarize.scraping_utils.is_allow_scraping", return_value=True)
-    def test_execute_url_context_refusal_falls_back_to_scraping(self, mock_allow, mock_scraping):
+    def test_execute_url_context_refusal_falls_back_to_scraping(
+        self, mock_allow, mock_scraping
+    ):
         """URL Context でお断り文が返ってきた場合に、直接スクレイピングにフォールバックすること。"""
         refusal = (
             "申し訳ありませんが、指定されたURLのページ内容の正確なキャッシュや検索結果が十分に取得できなかったため、"
             "記事のタイトルおよび主要な内容を直接生成・抽出することができません。"
         )
-        site = SiteInfo(url="https://example.com/fallback", title="スクレイピング記事", content="本文テキスト")
+        site = SiteInfo(
+            url="https://example.com/fallback",
+            title="スクレイピング記事",
+            content="本文テキスト",
+        )
         mock_scraping.return_value = site
 
         agent = _make_agent()
@@ -79,8 +91,12 @@ class TestAgentSummarizeExecute:
         agent.update_message = MagicMock()
         chat_history = [Chat(role="user", content="https://example.com/fallback")]
 
-        with patch.object(agent, "_summarize_with_url_context", return_value=(refusal, None)):
-            result = agent.execute({"url": "https://example.com/fallback"}, chat_history)
+        with patch.object(
+            agent, "_summarize_with_url_context", return_value=(refusal, None)
+        ):
+            result = agent.execute(
+                {"url": "https://example.com/fallback"}, chat_history
+            )
 
         mock_scraping.assert_called_once_with("https://example.com/fallback")
         assert agent._context.get("scraped_site").title == "スクレイピング記事"
@@ -91,8 +107,12 @@ class TestAgentSummarizeExecute:
         agent = _make_agent()
         chat_history = [Chat(role="user", content="https://example.com/not-found")]
 
-        with patch.object(agent, "_summarize_with_url_context", return_value=("", None)):
-            result = agent.execute({"url": "https://example.com/not-found"}, chat_history)
+        with patch.object(
+            agent, "_summarize_with_url_context", return_value=("", None)
+        ):
+            result = agent.execute(
+                {"url": "https://example.com/not-found"}, chat_history
+            )
 
         assert "スクレイピングスキップ" in str(result.get("content", ""))
         assert agent._context.get("scrape_skipped") is True

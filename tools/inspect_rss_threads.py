@@ -26,7 +26,9 @@ def main():
 
     for q in queries:
         print(f"=== Query: {q} ===")
-        res = user_client.search_messages(query=q, count=10, sort="timestamp", sort_dir="desc")
+        res = user_client.search_messages(
+            query=q, count=10, sort="timestamp", sort_dir="desc"
+        )
         matches = res.get("messages", {}).get("matches", [])
         print(f"Found {len(matches)} matches")
         for i, m in enumerate(matches[:5]):
@@ -39,7 +41,9 @@ def main():
             username = m.get("username", "")
             user = m.get("user", "")
             permalink = m.get("permalink", "")
-            print(f"\n[{i}] channel=#{ch_name}({ch_id}) user={user} bot_id={bot_id} username={username} ts={ts}")
+            print(
+                f"\n[{i}] channel=#{ch_name}({ch_id}) user={user} bot_id={bot_id} username={username} ts={ts}"
+            )
             print(f"    text: {repr(text)[:180]}")
 
             # スレッドがあるか確認
@@ -51,7 +55,9 @@ def main():
                 r_text = r.get("text", "")
                 r_user = r.get("user")
                 r_bot = r.get("bot_id")
-                print(f"      reply [{r_idx}] (user={r_user}, bot={r_bot}): {repr(r_text)[:120]}")
+                print(
+                    f"      reply [{r_idx}] (user={r_user}, bot={r_bot}): {repr(r_text)[:120]}"
+                )
 
 
 if __name__ == "__main__":

@@ -149,7 +149,10 @@ class GenerativeAgent(GenerativeBase):
         )
 
         function_calls: list[ToolCallItem] | None = self.function_call(
-            tools, prompt_messages, tool_choice="auto", system_instruction=system_instruction
+            tools,
+            prompt_messages,
+            tool_choice="auto",
+            system_instruction=system_instruction,
         )
         if function_calls:
             for function_call in function_calls:
@@ -164,20 +167,30 @@ class GenerativeAgent(GenerativeBase):
                             )
                         execute_queue.append(AgentExecute(agent=exe, arguments=args))
                 elif function_call.type == "message":
-                    url_in_content = slack_link_utils.extract_and_remove_tracking_url(content)
+                    url_in_content = slack_link_utils.extract_and_remove_tracking_url(
+                        content
+                    )
                     if url_in_content:
                         strategy = scraping_utils.classify_url(url_in_content)
                         if strategy == "scrape":
                             execute_queue.append(
-                                AgentExecute(agent=AgentScrape, arguments={"url": url_in_content})
+                                AgentExecute(
+                                    agent=AgentScrape, arguments={"url": url_in_content}
+                                )
                             )
                             execute_queue.append(
-                                AgentExecute(agent=AgentSummarize, arguments={"url": url_in_content})
+                                AgentExecute(
+                                    agent=AgentSummarize,
+                                    arguments={"url": url_in_content},
+                                )
                             )
                             continue
                         elif f"/{strategy}" in command_dict:
                             execute_queue.append(
-                                AgentExecute(agent=command_dict[f"/{strategy}"], arguments={"url": url_in_content})
+                                AgentExecute(
+                                    agent=command_dict[f"/{strategy}"],
+                                    arguments={"url": url_in_content},
+                                )
                             )
                             continue
                     execute_queue.append(
@@ -192,14 +205,21 @@ class GenerativeAgent(GenerativeBase):
                 strategy = scraping_utils.classify_url(url_in_content)
                 if strategy == "scrape":
                     execute_queue.append(
-                        AgentExecute(agent=AgentScrape, arguments={"url": url_in_content})
+                        AgentExecute(
+                            agent=AgentScrape, arguments={"url": url_in_content}
+                        )
                     )
                     execute_queue.append(
-                        AgentExecute(agent=AgentSummarize, arguments={"url": url_in_content})
+                        AgentExecute(
+                            agent=AgentSummarize, arguments={"url": url_in_content}
+                        )
                     )
                 elif f"/{strategy}" in command_dict:
                     execute_queue.append(
-                        AgentExecute(agent=command_dict[f"/{strategy}"], arguments={"url": url_in_content})
+                        AgentExecute(
+                            agent=command_dict[f"/{strategy}"],
+                            arguments={"url": url_in_content},
+                        )
                     )
             else:
                 execute_queue.append(

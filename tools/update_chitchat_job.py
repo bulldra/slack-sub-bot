@@ -11,9 +11,7 @@ def main():
             "command": "/chitchat",
             "channel": "C05GDA42HJ5",
         },
-        "chat_history": [
-            {"role": "user", "content": "/chitchat"}
-        ],
+        "chat_history": [{"role": "user", "content": "/chitchat"}],
     }
     json_str = json.dumps(message_data, ensure_ascii=False)
     print("Updating chitchat-10min with payload:", json_str)

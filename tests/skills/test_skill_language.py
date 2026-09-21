@@ -17,7 +17,10 @@ def test_system_prompt_has_japanese_requirement():
 
 def test_skills_have_japanese_instructions():
     # summarize
-    summarize_skill = load_skill("summarize", {"url": "https://example.com", "title": "Test", "content": "Sample"})
+    summarize_skill = load_skill(
+        "summarize",
+        {"url": "https://example.com", "title": "Test", "content": "Sample"},
+    )
     assert "必ず日本語で出力" in summarize_skill
 
     # youtube
@@ -48,7 +51,12 @@ def test_skills_have_japanese_instructions():
     # feed_digest
     feed_digest_skill = load_skill(
         "feed_digest",
-        {"feed_messages": "", "my_tweets": "", "picked_quotes": "", "recent_digest_posts": ""},
+        {
+            "feed_messages": "",
+            "my_tweets": "",
+            "picked_quotes": "",
+            "recent_digest_posts": "",
+        },
     )
     assert "必ず自然な日本語" in feed_digest_skill
 
