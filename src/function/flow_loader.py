@@ -8,6 +8,7 @@ from agent.agent_base import Agent, AgentDelete, AgentNotification, AgentText
 from agent.agent_feed_collect import AgentFeedCollect
 from agent.agent_feed_digest import AgentFeedDigest
 from agent.agent_chat import AgentChat
+from agent.agent_chitchat import AgentChitchat
 from agent.agent_idea import AgentIdea
 from agent.agent_recommend import AgentRecommend
 from agent.agent_scrape import AgentScrape
@@ -42,6 +43,7 @@ AGENT_REGISTRY: dict[str, type[Agent]] = {
     "AgentScrape": AgentScrape,
     "AgentQuotePicker": AgentQuotePicker,
     "AgentRecentDigestCollect": AgentRecentDigestCollect,
+    "AgentChitchat": AgentChitchat,
 }
 
 
