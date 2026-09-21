@@ -63,6 +63,28 @@ class TestAgentSummarizeExecute:
         assert agent._context.get("scraped_site").title == "解決タイトル"
         agent.update_message.assert_called_once()
 
+    @patch("agent.agent_summarize.scraping_utils.scraping")
+    @patch("agent.agent_summarize.scraping_utils.is_allow_scraping", return_value=True)
+    def test_execute_grounding_refusal_falls_back_to_scraping(self, mock_allow, mock_scraping):
+        """グラウンディングでお断り文が返ってきた場合に、直接スクレイピングにフォールバックすること。"""
+        refusal = (
+            "申し訳ありませんが、指定されたURLのページ内容の正確なキャッシュや検索結果が十分に取得できなかったため、"
+            "記事のタイトルおよび主要な内容を直接生成・抽出することができません。"
+        )
+        site = SiteInfo(url="https://example.com/fallback", title="スクレイピング記事", content="本文テキスト")
+        mock_scraping.return_value = site
+
+        agent = _make_agent()
+        agent.completion = MagicMock(return_value="## # 要約\n\n- フォールバック要約")
+        agent.update_message = MagicMock()
+        chat_history = [Chat(role="user", content="https://example.com/fallback")]
+
+        with patch.object(agent, "_summarize_with_grounding", return_value=(refusal, None)):
+            result = agent.execute({"url": "https://example.com/fallback"}, chat_history)
+
+        mock_scraping.assert_called_once_with("https://example.com/fallback")
+        assert agent._context.get("scraped_site").title == "スクレイピング記事"
+
     @patch("agent.agent_summarize.scraping_utils.scraping", return_value=None)
     @patch("agent.agent_summarize.scraping_utils.is_allow_scraping", return_value=True)
     def test_execute_scraping_404_skips(self, mock_allow, mock_scraping):

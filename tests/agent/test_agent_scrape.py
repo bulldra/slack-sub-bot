@@ -39,6 +39,32 @@ class TestAgentScrapeExecute:
         assert agent._context["scraped_site"].content == "# グラウンディング記事\n本文テキスト"
         assert "グラウンディング抽出完了" in str(result.get("content"))
 
+    @patch.object(AgentScrape, "_to_markdown", return_value="# スクレイピング記事\n本文md")
+    @patch("agent.agent_scrape.scraping_utils.scraping")
+    @patch("agent.agent_scrape.scraping_utils.is_allow_scraping", return_value=True)
+    def test_execute_grounding_refusal_falls_back_to_scraping(
+        self, mock_allow, mock_scraping, mock_to_md
+    ):
+        """グラウンディングでお断り文が返ってきた場合に、直接スクレイピングにフォールバックすること。"""
+        refusal = (
+            "申し訳ありませんが、指定されたURL（https://dev.classmethod.jp/articles/bs1149-app-runtime-cortex-sdk-swttokyo26/）の"
+            "ページ内容の正確なキャッシュや検索結果が十分に取得できなかったため、記事のタイトルおよび主要な内容を直接生成・抽出することができません。"
+        )
+        site = SiteInfo(
+            url="https://example.com/fallback", title="スクレイピング記事", content="<p>本文</p>"
+        )
+        mock_scraping.return_value = site
+        agent = _make_agent()
+        chat_history: list[Chat] = [Chat(role="user", content="hello")]
+
+        with patch.object(agent, "_grounded_extract_markdown", return_value=(refusal, None)):
+            result = agent.execute({"url": "https://example.com/fallback"}, chat_history)
+
+        mock_scraping.assert_called_once_with("https://example.com/fallback")
+        assert agent._context["scraped_site"].title == "スクレイピング記事"
+        assert agent._context["scraped_site"].content == "# スクレイピング記事\n本文md"
+        assert "スクレイピング完了" in str(result.get("content"))
+
     @patch.object(AgentScrape, "_to_markdown", return_value="# Example\nbody md")
     @patch("agent.agent_scrape.scraping_utils.scraping")
     @patch("agent.agent_scrape.scraping_utils.is_allow_scraping", return_value=True)

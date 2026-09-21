@@ -9,7 +9,11 @@ from agent.agent_chat import AgentChat
 from agent.chat_types import Chat
 from skills.skill_loader import load_skill
 from utils.gemini_client import generate_content_with_retry
-from utils.grounding_utils import extract_grounded_response_text, get_google_search_tool
+from utils.grounding_utils import (
+    extract_grounded_response_text,
+    get_google_search_tool,
+    is_grounding_failure,
+)
 
 
 class AgentSummarize(AgentChat):
@@ -117,7 +121,12 @@ class AgentSummarize(AgentChat):
 
         # 2. むしろ Gemini のグラウンディングを最優先で実行（スクレイピング不要）
         summary_text, resolved_title = self._summarize_with_grounding(url, title)
-        if summary_text:
+        is_success = bool(
+            summary_text
+            and not is_grounding_failure(summary_text)
+            and ("要約" in summary_text)
+        )
+        if is_success:
             self._title = resolved_title or title or url
             self._site = scraping_utils.SiteInfo(url=url, title=self._title, content="")
             self._context["scraped_site"] = self._site
@@ -129,8 +138,10 @@ class AgentSummarize(AgentChat):
             chat_history.append(result)
             return result
 
-        # 3. グラウンディングで取得できなかった場合のみスクレイピングへフォールバック
-        self._logger.info("Grounding summary empty for %s, falling back to traditional scraping", url)
+        # 3. グラウンディングで取得・要約できなかった場合のみスクレイピングへフォールバック
+        self._logger.info(
+            "Grounding summary failed or empty for %s, falling back to traditional scraping", url
+        )
         site = scraping_utils.scraping(url)
         if site is None or not site.content:
             self._logger.info("AgentSummarize skipped (not found / 404): %s", url)

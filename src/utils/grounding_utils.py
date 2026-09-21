@@ -1,5 +1,38 @@
+import re
 from typing import Any
 from google.genai.types import GoogleSearch, Tool
+
+_GROUNDING_FAILURE_PATTERNS = [
+    r"申し訳(?:あり|ござい)ません",
+    r"取得でき(?:ませ|なかっ|ず)",
+    r"参照でき(?:ませ|なかっ|ず)",
+    r"アクセスでき(?:ませ|なかっ|ず)",
+    r"アクセスすることができ(?:ませ|なかっ)",
+    r"確認でき(?:ませ|なかっ|ず)",
+    r"見つけることができ(?:ませ|なかっ)",
+    r"見つかりませんでした",
+    r"キャッシュや検索結果が十分に取得",
+    r"正確なキャッシュ",
+    r"十分な情報が得られ",
+    r"直接生成・抽出することができません",
+    r"抽出することができません",
+    r"要約することができません",
+    r"表示できません",
+    r"ページ内容.*確認できません",
+]
+
+
+def is_grounding_failure(text: str) -> bool:
+    """GeminiのGoogle Search Groundingがページ内容を取得できずにお断り・失敗回答を返したかを判定する。"""
+    if not text or not text.strip():
+        return True
+
+    clean_text = text.strip()
+    for pattern in _GROUNDING_FAILURE_PATTERNS:
+        if re.search(pattern, clean_text):
+            return True
+
+    return False
 
 
 def get_google_search_tool() -> Tool:

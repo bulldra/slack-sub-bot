@@ -8,7 +8,11 @@ import utils.slack_link_utils as slack_link_utils
 from agent.agent_base import Agent, AgentSlack
 from agent.chat_types import Chat
 from utils.gemini_client import generate_content_with_retry, get_gemini_client
-from utils.grounding_utils import extract_grounded_response_text, get_google_search_tool
+from utils.grounding_utils import (
+    extract_grounded_response_text,
+    get_google_search_tool,
+    is_grounding_failure,
+)
 
 _SYSTEM_PROMPT = (
     "あなたはWebページの本文をMarkdownに変換するアシスタントです。\n"
@@ -73,7 +77,8 @@ class AgentScrape(Agent):
                 fallback_model=models.gemini_mini(),
             )
             text = extract_grounded_response_text(response, use_grounding_links=False)
-            if not text:
+            if not text or is_grounding_failure(text):
+                self._logger.info("Grounding markdown is empty or failure text for %s", url)
                 return "", None
 
             # 1行目の見出し(# タイトル)からタイトル抽出を試みる
@@ -128,7 +133,10 @@ class AgentScrape(Agent):
 
         # 1. むしろ Gemini のグラウンディングを最優先で実行（スクレイピング不要）
         grounded_content, resolved_title = self._grounded_extract_markdown(url, title_hint)
-        if grounded_content:
+        is_valid_grounding = bool(
+            grounded_content and not is_grounding_failure(grounded_content)
+        )
+        if is_valid_grounding:
             final_title = resolved_title or title_hint or url
             grounded_site = scraping_utils.SiteInfo(
                 url=url, title=final_title, content=grounded_content

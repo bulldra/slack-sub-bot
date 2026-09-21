@@ -7,7 +7,21 @@ from utils.grounding_utils import (
     add_grounding_links_to_text,
     extract_grounded_response_text,
     get_google_search_tool,
+    is_grounding_failure,
 )
+
+
+def test_is_grounding_failure():
+    refusal = (
+        "申し訳ありませんが、指定されたURL（https://dev.classmethod.jp/articles/bs1149-app-runtime-cortex-sdk-swttokyo26/）の"
+        "ページ内容の正確なキャッシュや検索結果が十分に取得できなかったため、記事のタイトルおよび主要な内容を直接生成・抽出することができません。"
+    )
+    assert is_grounding_failure(refusal) is True
+    assert is_grounding_failure("") is True
+    assert is_grounding_failure("   ") is True
+    assert is_grounding_failure("アクセスすることができませんでした。") is True
+    assert is_grounding_failure("## # 要約\n\n- ポイント1\n\n## # キーワード\n\nkw") is False
+    assert is_grounding_failure("# 記事タイトル\n\nこれは正常な本文です。") is False
 
 
 def test_get_google_search_tool():
