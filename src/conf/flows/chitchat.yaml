@@ -5,3 +5,4 @@ steps:
   - agent: AgentChitchat
     arguments:
       probability: 0.20
+      channel: "C05GDA42HJ5"

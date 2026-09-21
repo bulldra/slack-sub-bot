@@ -39,6 +39,21 @@ def test_chitchat_executed_when_roll_low():
                     assert len(chat_history) == 1
                     mock_comp.assert_called_once()
                     mock_post.assert_called_once()
+                    _, kwargs = mock_post.call_args
+                    assert kwargs.get("channel") == "C12345"
+
+
+def test_chitchat_posts_to_bot_channel_by_default():
+    context = {}  # channel未指定
+    agent = AgentChitchat(context)
+    with patch("random.random", return_value=0.1):
+        with patch.object(agent, "_search_rss_thread_messages", return_value=""):
+            with patch.object(agent, "completion", return_value="今日もがんばろう！"):
+                with patch.object(agent, "post_message") as mock_post:
+                    agent.execute({"probability": 0.20}, [])
+                    mock_post.assert_called_once()
+                    _, kwargs = mock_post.call_args
+                    assert kwargs.get("channel") == "C05GDA42HJ5"
 
 
 def test_chitchat_executed_with_ts_calls_update():

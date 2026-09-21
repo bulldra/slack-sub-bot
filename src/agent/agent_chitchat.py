@@ -12,6 +12,8 @@ _logger = logging.getLogger(__name__)
 
 
 class AgentChitchat(AgentGemini):
+    BOT_CHANNEL_ID: str = "C05GDA42HJ5"  # #bot チャンネル (feed_digest と同じ場所)
+
     def __init__(self, context: dict[str, Any]) -> None:
         super().__init__(context)
         self._model: str = models.gemini_mini()
@@ -160,10 +162,18 @@ class AgentChitchat(AgentGemini):
             return Chat(role="assistant", content="")
 
         blocks = self.build_message_blocks(content)
+        chitchat_channel = (
+            self._secrets.get("CHILCHAT_CHANNEL_ID")
+            or self._secrets.get("CHITCHAT_CHANNEL_ID")
+            or self.BOT_CHANNEL_ID
+        )
+        target_channel: str = (
+            arguments.get("channel") or self._channel or str(chitchat_channel)
+        )
         if self._ts and self._ts != "None":
             self.update_message(blocks)
         else:
-            self.post_message(blocks)
+            self.post_message(blocks, channel=target_channel)
 
         result = Chat(role="assistant", content=content)
         chat_history.append(result)
