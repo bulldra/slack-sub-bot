@@ -10,8 +10,8 @@ def test_split_markdown_blocks_short():
     result = AgentSlack._split_markdown_blocks(content)
     assert len(result) == 1
     assert result[0] == {
-        "type": "section",
-        "text": {"type": "mrkdwn", "text": "Short content"},
+        "type": "markdown",
+        "text": "Short content",
     }
 
 
@@ -20,8 +20,8 @@ def test_split_markdown_blocks_long():
     content = "A" * 2000 + "\n## Section Two\n" + "B" * 2000
     result = AgentSlack._split_markdown_blocks(content, max_len=3000)
     assert len(result) == 2
-    assert result[0]["text"]["text"].endswith("A" * 100)
-    assert result[1]["text"]["text"].startswith("## Section Two")
+    assert result[0]["text"].endswith("A" * 100)
+    assert result[1]["text"].startswith("## Section Two")
 
 
 def test_split_markdown_blocks_paragraph():
@@ -29,8 +29,8 @@ def test_split_markdown_blocks_paragraph():
     content = "A" * 2000 + "\n\n" + "B" * 2000
     result = AgentSlack._split_markdown_blocks(content, max_len=3000)
     assert len(result) == 2
-    assert result[0]["type"] == "section"
-    assert result[1]["type"] == "section"
+    assert result[0]["type"] == "markdown"
+    assert result[1]["type"] == "markdown"
 
 
 def test_split_markdown_blocks_multiple():
@@ -39,7 +39,7 @@ def test_split_markdown_blocks_multiple():
     result = AgentSlack._split_markdown_blocks(content, max_len=3000)
     assert len(result) == 3
     for b in result:
-        assert b["type"] == "section"
+        assert b["type"] == "markdown"
 
 
 def test_limit_blocks_under_max():
