@@ -30,7 +30,7 @@ def test_chitchat_executed_when_roll_low():
     context = {"channel": "C12345"}
     agent = AgentChitchat(context)
     with patch("random.random", return_value=0.1):
-        with patch.object(agent, "_fetch_recent_messages", return_value="最近AIの進歩がすごい"):
+        with patch.object(agent, "_search_recent_messages", return_value="最近AIの進歩がすごい"):
             with patch.object(agent, "completion", return_value="本当にAIの進化は目覚ましいですね！") as mock_comp:
                 with patch.object(agent, "post_message") as mock_post:
                     chat_history: list[Chat] = []
@@ -45,7 +45,7 @@ def test_chitchat_executed_with_ts_calls_update():
     context = {"channel": "C12345", "ts": "123456.789"}
     agent = AgentChitchat(context)
     with patch("random.random", return_value=0.05):
-        with patch.object(agent, "_fetch_recent_messages", return_value=""):
+        with patch.object(agent, "_search_recent_messages", return_value=""):
             with patch.object(agent, "completion", return_value="今日もいい天気ですね。"):
                 with patch.object(agent, "update_message") as mock_update:
                     with patch.object(agent, "post_message") as mock_post:
@@ -53,6 +53,51 @@ def test_chitchat_executed_with_ts_calls_update():
                         assert result.content == "今日もいい天気ですね。"
                         mock_update.assert_called_once()
                         mock_post.assert_not_called()
+
+
+def test_search_rss_thread_messages_success():
+    context = {"channel": "C12345"}
+    agent = AgentChitchat(context)
+    mock_behalf = MagicMock()
+    mock_behalf.search_messages.return_value = {
+        "ok": True,
+        "messages": {
+            "matches": [
+                {
+                    "text": "<https://example.com/article1|AWS アップグレード>",
+                    "channel": {"id": "C999", "name": "tech"},
+                    "ts": "1000.1",
+                    "username": "developersio",
+                },
+                {
+                    "text": "システムアラート https://monitoring.com",
+                    "channel": {"id": "C888", "name": "alert"},
+                    "ts": "1000.2",
+                    "username": "monitoring",
+                },
+                {
+                    "text": "<https://example.com/article2|ローカルLLM記事>",
+                    "channel": {"id": "C777", "name": "ai"},
+                    "ts": "1000.3",
+                    "username": "google アラート",
+                },
+            ]
+        },
+    }
+    agent._slack_behalf_user = mock_behalf
+
+    mock_slack = MagicMock()
+    mock_slack.conversations_replies.return_value = {
+        "messages": [
+            {"text": "親メッセージ"},
+            {"text": "記事の要約: Python 3.13 にアップデート成功"},
+        ]
+    }
+    agent._slack = mock_slack
+
+    res = agent._search_rss_thread_messages()
+    assert "記事の要約: Python 3.13 にアップデート成功" in res
+    assert "alert" not in res
 
 
 def test_fetch_recent_messages_filters_bots_and_commands():

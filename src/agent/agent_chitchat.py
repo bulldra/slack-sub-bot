@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import logging
 import random
 from typing import Any, List, Optional
@@ -17,8 +18,91 @@ class AgentChitchat(AgentGemini):
         self._use_character: bool = True
         self._stream: bool = False
 
+    def _search_rss_thread_messages(
+        self,
+        after_days: int = 3,
+        candidate_count: int = 2,
+    ) -> str:
+        """チャンネルを指定せず、RSS等から投稿されたURLとそのスレッド内容（要約等）を検索・取得する。"""
+        after_date = (datetime.now() - timedelta(days=after_days)).strftime("%Y-%m-%d")
+        query = f"after:{after_date} has:link"
+        self._logger.debug("Searching RSS thread messages across workspace: query=%s", query)
+
+        matches: list[dict[str, Any]] = []
+        try:
+            res = self._slack_behalf_user.search_messages(
+                query=query, count=30, sort="timestamp", sort_dir="desc"
+            )
+            if res.get("ok"):
+                matches = res.get("messages", {}).get("matches", [])
+        except Exception as err:
+            self._logger.warning("Slack search_messages failed: %s", err)
+
+        candidates: list[dict[str, Any]] = []
+        for m in matches:
+            if not isinstance(m, dict):
+                continue
+            text = m.get("text", "").strip()
+            ch = m.get("channel", {})
+            ch_id = ch.get("id") if isinstance(ch, dict) else ch
+            ch_name = ch.get("name") if isinstance(ch, dict) else ""
+            ts = m.get("ts")
+            username = m.get("username", "")
+
+            # URLを含むか確認
+            if "http://" not in text and "https://" not in text:
+                continue
+            # アラートチャンネルやシステム監視通知は除外
+            if ch_name in ("alert", "monitoring") or "monitoring" in username.lower():
+                continue
+            if not ch_id or not ts:
+                continue
+
+            # スレッド返信（Botによる要約やコメント）を取得
+            thread_texts: list[str] = []
+            try:
+                replies = self._slack.conversations_replies(channel=ch_id, ts=ts, limit=5)
+                reply_msgs = replies.get("messages", [])
+                for r in reply_msgs[1:]:
+                    r_text = r.get("text", "").strip()
+                    if r_text and not r_text.startswith("*Executing"):
+                        thread_texts.append(r_text)
+            except Exception as e:
+                self._logger.debug("Failed to fetch replies for %s: %s", ts, e)
+
+            candidates.append({
+                "channel": ch_name,
+                "parent_text": text,
+                "replies": thread_texts,
+                "has_replies": len(thread_texts) > 0,
+            })
+
+        if not candidates:
+            self._logger.info("No RSS candidates found, falling back to conversations_history")
+            return self._fetch_recent_messages()
+
+        # スレッド返信があるものを優先
+        with_replies = [c for c in candidates if c["has_replies"]]
+        pool = with_replies if with_replies else candidates
+
+        # ランダムにピックアップして話題コンテキストを作成
+        selected = random.sample(pool, min(len(pool), candidate_count))
+        formatted_topics: list[str] = []
+        for s in selected:
+            ch_info = f"#{s['channel']} " if s["channel"] else ""
+            lines = [f"■ {ch_info}記事・URL: {s['parent_text'][:300]}"]
+            if s["replies"]:
+                snippet = "\n".join(s["replies"])[:600]
+                lines.append(f"  スレッドの要約・会話内容: {snippet}")
+            formatted_topics.append("\n".join(lines))
+
+        return "\n\n---\n\n".join(formatted_topics)
+
+    # 後方互換性エイリアス
+    _search_recent_messages = _search_rss_thread_messages
+
     def _fetch_recent_messages(self, limit: int = 20) -> str:
-        """指定チャンネルまたは共有チャンネルの直近メッセージを収集する。"""
+        """指定チャンネルまたは共有チャンネルの直近メッセージを収集する（フォールバック用）。"""
         target_channel = self._channel or self._share_channel
         if not target_channel:
             self._logger.warning("No channel configured for fetching recent messages")
@@ -39,18 +123,16 @@ class AgentChitchat(AgentGemini):
             if subtype in ("channel_join", "channel_leave", "bot_message"):
                 continue
             text = msg.get("text", "").strip()
-            if not text:
+            if not text or text.startswith("/"):
                 continue
-            # スラッシュコマンドや短すぎるものは除外
-            if text.startswith("/"):
+            if "お人間さん" in text or "お肉屋さん" in text:
                 continue
-            extracted.append(text)
+            extracted.append(f"- {text}")
             if len(extracted) >= 5:
                 break
 
-        # 時系列順（古い順）にする
         extracted.reverse()
-        return "\n---\n".join(extracted)
+        return "\n".join(extracted)
 
     def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
         probability: float = float(arguments.get("probability", 0.20))
@@ -67,7 +149,8 @@ class AgentChitchat(AgentGemini):
             probability,
         )
 
-        recent_messages = self._fetch_recent_messages()
+        after_days = int(arguments.get("after_days", 3))
+        recent_messages = self._search_rss_thread_messages(after_days=after_days)
         input_messages = recent_messages if recent_messages else "（直近のメッセージはありません）"
         prompt = load_skill("chitchat", {"recent_messages": input_messages})
 
