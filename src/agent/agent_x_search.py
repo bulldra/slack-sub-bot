@@ -70,12 +70,36 @@ class AgentXSearch(AgentGemini):
             self._logger.warning("Fanout generation failed, using seed query: %s", err)
             return [seed_query]
 
-    def _search_keyword(
-        self, client: tweepy.Client, keyword: str, max_results: int = 15
+    def _search_keywords_or(
+        self, client: tweepy.Client, keywords: list[str], max_results: int = 100
     ) -> list[dict[str, Any]]:
-        """単一のキーワードで X Recent Search を実行する。"""
-        query = f"{keyword} lang:ja -is:retweet"
-        self._logger.debug("Executing X recent search: query=%s", query)
+        """複数キーワードを OR で結合し、1 回の X Recent Search で最大 100 件取得する。"""
+        if not keywords:
+            return []
+
+        or_terms: list[str] = []
+        for kw in keywords:
+            kw_clean = kw.strip()
+            if not kw_clean:
+                continue
+            if " " in kw_clean and not (
+                kw_clean.startswith('"') and kw_clean.endswith('"')
+            ):
+                or_terms.append(f'"{kw_clean}"')
+            else:
+                or_terms.append(kw_clean)
+
+        if not or_terms:
+            return []
+
+        or_query = " OR ".join(or_terms)
+        query = f"({or_query}) lang:ja -is:retweet"
+        self._logger.debug(
+            "Executing X recent search with OR query: query=%s, max_results=%d",
+            query,
+            max_results,
+        )
+
         try:
             response = client.search_recent_tweets(
                 query=query,
@@ -149,11 +173,17 @@ class AgentXSearch(AgentGemini):
                     "created_at": created_str,
                     "public_metrics": getattr(t, "public_metrics", {}) or {},
                     "url": post_url,
-                    "search_keyword": keyword,
+                    "search_keyword": or_query,
                 }
             )
 
         return tweets
+
+    def _search_keyword(
+        self, client: tweepy.Client, keyword: str, max_results: int = 15
+    ) -> list[dict[str, Any]]:
+        """単一キーワード検索の互換メソッド。"""
+        return self._search_keywords_or(client, [keyword], max_results=max_results)
 
     def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
         raw_text = str(chat_history[-1].get("content", "")) if chat_history else ""
@@ -181,25 +211,16 @@ class AgentXSearch(AgentGemini):
         )
 
         client = self._create_tweepy_client()
-        all_tweets_dict: dict[str, dict[str, Any]] = {}
-
-        for kw in keywords:
-            results = self._search_keyword(client, kw, max_results=15)
-            for item in results:
-                t_id = item["id"]
-                if t_id not in all_tweets_dict:
-                    all_tweets_dict[t_id] = item
-
-        raw_tweets = list(all_tweets_dict.values())
+        raw_tweets = self._search_keywords_or(client, keywords, max_results=100)
         self._context["raw_tweets"] = raw_tweets
         self._logger.info(
-            "AgentXSearch collected %d unique tweets across %d keywords",
+            "AgentXSearch collected %d tweets with OR search across keywords: %s",
             len(raw_tweets),
-            len(keywords),
+            keywords,
         )
 
         result_msg = (
-            f"X検索完了: キーワード「{seed_query}」から{len(keywords)}件にファンアウトし、"
+            f"X検索完了: キーワード「{seed_query}」から{len(keywords)}件にファンアウト（OR検索）し、"
             f"{len(raw_tweets)}件のポストを収集しました。"
         )
         result = Chat(role="assistant", content=result_msg)

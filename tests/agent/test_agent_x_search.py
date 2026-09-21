@@ -58,10 +58,13 @@ def test_search_keyword_builds_query_and_normalizes():
 
     mock_client.search_recent_tweets.return_value = mock_response
 
-    results = agent._search_keyword(mock_client, "MCP サーバー", max_results=10)
+    results = agent._search_keywords_or(
+        mock_client, ["MCP", "MCP サーバー"], max_results=100
+    )
     mock_client.search_recent_tweets.assert_called_once()
     _, kwargs = mock_client.search_recent_tweets.call_args
-    assert "MCP サーバー lang:ja -is:retweet" in kwargs.get("query", "")
+    assert '(MCP OR "MCP サーバー") lang:ja -is:retweet' in kwargs.get("query", "")
+    assert kwargs.get("max_results") == 100
     assert kwargs.get("user_auth") is True
 
     assert len(results) == 1
@@ -79,44 +82,31 @@ def test_execute_flow_full():
 
     # ファンアウトモック
     with patch.object(agent, "_fanout_keywords", return_value=["MCP", "MCP サーバー"]):
-        with patch.object(agent, "_search_keyword") as mock_search:
-            mock_search.side_effect = [
-                # 1つ目のキーワード
-                [
-                    {
-                        "id": "111",
-                        "text": "MCPのポスト1",
-                        "author_username": "user1",
-                        "author_name": "Name1",
-                        "public_metrics": {"like_count": 5},
-                        "url": "https://x.com/user1/status/111",
-                    }
-                ],
-                # 2つ目のキーワード（1件重複、1件新規）
-                [
-                    {
-                        "id": "111",  # 重複
-                        "text": "MCPのポスト1",
-                        "author_username": "user1",
-                        "author_name": "Name1",
-                        "public_metrics": {"like_count": 5},
-                        "url": "https://x.com/user1/status/111",
-                    },
-                    {
-                        "id": "222",
-                        "text": "MCPのポスト2",
-                        "author_username": "user2",
-                        "author_name": "Name2",
-                        "public_metrics": {"like_count": 20},
-                        "url": "https://x.com/user2/status/222",
-                    },
-                ],
+        with patch.object(agent, "_search_keywords_or") as mock_search:
+            mock_search.return_value = [
+                {
+                    "id": "111",
+                    "text": "MCPのポスト1",
+                    "author_username": "user1",
+                    "author_name": "Name1",
+                    "public_metrics": {"like_count": 5},
+                    "url": "https://x.com/user1/status/111",
+                },
+                {
+                    "id": "222",
+                    "text": "MCPのポスト2",
+                    "author_username": "user2",
+                    "author_name": "Name2",
+                    "public_metrics": {"like_count": 20},
+                    "url": "https://x.com/user2/status/222",
+                },
             ]
 
             chat_history: list[Chat] = [Chat(role="user", content="/x_search MCP")]
             result = agent.execute({}, chat_history)
 
     assert "X検索完了" in str(result.get("content"))
+    assert "OR検索" in str(result.get("content"))
     assert context["user_intent"] == "/x_search MCP"
     assert len(context["raw_tweets"]) == 2
     ids = [t["id"] for t in context["raw_tweets"]]
