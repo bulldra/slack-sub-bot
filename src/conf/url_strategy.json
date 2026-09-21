@@ -36,7 +36,17 @@
 		"www.creativevillage.ne.jp",
 		"topics.smt.docomo.ne.jp",
 		"markezine.jp",
-		"codezine.jp"
+		"codezine.jp",
+		"logmi.jp",
+		"www.reuters.com",
+		"news.web.nhk",
+		"webtan.impress.co.jp",
+		"support.me.moneyforward.com",
+		"anagrams.jp",
+		"korben.info",
+		"jp.wsj.com",
+		"jp.beincrypto.com",
+		"simplywall.st"
 	],
 	"ignore_extensions": [".zip"],
 	"secondary_domains": [

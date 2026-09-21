@@ -5,6 +5,7 @@ import uuid
 from typing import Any, List, Optional
 
 import slack_sdk
+from slack_sdk.errors import SlackApiError
 
 from agent.chat_types import Chat
 from function.generative_actions import GenerativeActions
@@ -67,13 +68,23 @@ class AgentSlack(Agent):
     def _split_markdown_blocks(content: str, max_len: int = 3000) -> list[dict]:
         content = AgentSlack._strip_markdown_tables(content)
         if len(content) <= max_len:
-            return [{"type": "markdown", "text": content}]
+            return [
+                {
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": content},
+                }
+            ]
 
         blocks: list[dict] = []
         remaining = content
         while remaining:
             if len(remaining) <= max_len:
-                blocks.append({"type": "markdown", "text": remaining})
+                blocks.append(
+                    {
+                        "type": "section",
+                        "text": {"type": "mrkdwn", "text": remaining},
+                    }
+                )
                 break
             # 見出し行(## )で分割を試みる
             split_pos = -1
@@ -85,7 +96,12 @@ class AgentSlack(Agent):
             if split_pos <= 0:
                 pos = remaining.rfind("\n", 0, max_len)
                 split_pos = pos if pos > 0 else max_len
-            blocks.append({"type": "markdown", "text": remaining[:split_pos].rstrip()})
+            blocks.append(
+                {
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": remaining[:split_pos].rstrip()},
+                }
+            )
             remaining = remaining[split_pos:].lstrip("\n")
         return blocks
 
@@ -112,7 +128,7 @@ class AgentSlack(Agent):
             text_byte = text_byte[:3000]
         return text_byte.decode("utf-8", errors="ignore")
 
-    _MAX_SLACK_BLOCKS: int = 50
+    _MAX_SLACK_BLOCKS: int = 45
 
     @classmethod
     def _limit_blocks(cls, blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -125,7 +141,7 @@ class AgentSlack(Agent):
                 "elements": [
                     {
                         "type": "mrkdwn",
-                        "text": "⚠️ メッセージが長すぎるため、50ブロック以降は省略されました。",
+                        "text": f"⚠️ メッセージが長すぎるため、{cls._MAX_SLACK_BLOCKS}ブロック以降は省略されました。",
                     }
                 ],
             }
@@ -141,13 +157,35 @@ class AgentSlack(Agent):
             return
         safe_blocks = self._limit_blocks(blocks)
         text: str = self._blocks_to_text(safe_blocks)
-        self._slack.chat_update(
-            channel=self._channel,
-            ts=self._ts,
-            blocks=safe_blocks,
-            text=text,
-            unfurl_links=True,
-        )
+        try:
+            self._slack.chat_update(
+                channel=self._channel,
+                ts=self._ts,
+                blocks=safe_blocks,
+                text=text,
+                unfurl_links=True,
+            )
+        except SlackApiError as err:
+            self._logger.warning(
+                "chat_update failed with SlackApiError: %s. Falling back to plain text fallback.",
+                err.response.get("error", err),
+            )
+            fallback_blocks: list[dict[str, Any]] = [
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": text[:3000] if text else "メッセージの表示に失敗しました。",
+                    },
+                }
+            ]
+            self._slack.chat_update(
+                channel=self._channel,
+                ts=self._ts,
+                blocks=fallback_blocks,
+                text=text[:3000] if text else "メッセージの表示に失敗しました。",
+                unfurl_links=True,
+            )
 
     def post_message(
         self,
@@ -158,12 +196,33 @@ class AgentSlack(Agent):
         safe_blocks = self._limit_blocks(blocks)
         msg_text: str = text or self._blocks_to_text(safe_blocks)
         target_channel = channel or self._channel or self._share_channel
-        return self._slack.chat_postMessage(
-            channel=target_channel,
-            blocks=safe_blocks,
-            text=msg_text,
-            unfurl_links=True,
-        )
+        try:
+            return self._slack.chat_postMessage(
+                channel=target_channel,
+                blocks=safe_blocks,
+                text=msg_text,
+                unfurl_links=True,
+            )
+        except SlackApiError as err:
+            self._logger.warning(
+                "chat_postMessage failed with SlackApiError: %s. Falling back to plain text fallback.",
+                err.response.get("error", err),
+            )
+            fallback_blocks: list[dict[str, Any]] = [
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": msg_text[:3000] if msg_text else "メッセージの表示に失敗しました。",
+                    },
+                }
+            ]
+            return self._slack.chat_postMessage(
+                channel=target_channel,
+                blocks=fallback_blocks,
+                text=msg_text[:3000] if msg_text else "メッセージの表示に失敗しました。",
+                unfurl_links=True,
+            )
 
     def flush_blocks(self) -> None:
         if not self._collect_blocks:
@@ -172,14 +231,37 @@ class AgentSlack(Agent):
             return
         safe_blocks = self._limit_blocks(self._collect_blocks)
         text: str = self._blocks_to_text(safe_blocks)
-        self._slack.chat_update(
-            channel=self._channel,
-            ts=self._ts,
-            blocks=safe_blocks,
-            text=text,
-            unfurl_links=True,
-        )
-        self._collect_blocks.clear()
+        try:
+            self._slack.chat_update(
+                channel=self._channel,
+                ts=self._ts,
+                blocks=safe_blocks,
+                text=text,
+                unfurl_links=True,
+            )
+        except SlackApiError as err:
+            self._logger.warning(
+                "flush_blocks chat_update failed with SlackApiError: %s. Falling back to plain text fallback.",
+                err.response.get("error", err),
+            )
+            fallback_blocks: list[dict[str, Any]] = [
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": text[:3000] if text else "メッセージの表示に失敗しました。",
+                    },
+                }
+            ]
+            self._slack.chat_update(
+                channel=self._channel,
+                ts=self._ts,
+                blocks=fallback_blocks,
+                text=text[:3000] if text else "メッセージの表示に失敗しました。",
+                unfurl_links=True,
+            )
+        finally:
+            self._collect_blocks.clear()
 
     def delete_message(self) -> None:
         if not self._channel or not self._ts:
