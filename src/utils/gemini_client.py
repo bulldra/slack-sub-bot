@@ -19,13 +19,23 @@ def configure_thinking_for_model(model: str, config: Any = None) -> Any:
 
     from google.genai import types
 
-    thinking_config = types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW)
+    thinking_level_enum = getattr(types, "ThinkingLevel", None)
+    level_val = thinking_level_enum.LOW if thinking_level_enum is not None else "LOW"
+
+    try:
+        thinking_config = types.ThinkingConfig(thinking_level=level_val)
+    except Exception:
+        # 古いSDKバージョン等で thinking_level フィールドが無い場合のフォールバック
+        try:
+            thinking_config = types.ThinkingConfig(thinking_budget=1024)
+        except Exception:
+            return config
 
     if config is None:
         return types.GenerateContentConfig(thinking_config=thinking_config)
 
     if isinstance(config, types.GenerateContentConfig):
-        if config.thinking_config is None:
+        if getattr(config, "thinking_config", None) is None:
             config.thinking_config = thinking_config
         return config
 
