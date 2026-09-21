@@ -63,7 +63,7 @@ class AgentChitchat(AgentGemini):
             # スレッド返信（Botによる要約やコメント）を取得
             thread_texts: list[str] = []
             try:
-                replies = self._slack.conversations_replies(channel=ch_id, ts=ts, limit=5)
+                replies = self._slack.conversations_replies(channel=ch_id, ts=ts, limit=10)
                 reply_msgs = replies.get("messages", [])
                 for r in reply_msgs[1:]:
                     r_text = r.get("text", "").strip()
@@ -94,7 +94,7 @@ class AgentChitchat(AgentGemini):
             ch_info = f"（#{s['channel']}）" if s["channel"] else ""
             lines = [f"【記事・URL】{ch_info} {s['parent_text'][:300]}"]
             if s["replies"]:
-                snippet = "\n".join(s["replies"])[:600]
+                snippet = "\n".join(s["replies"])[:1500]
                 lines.append(f"【内容・要約】\n{snippet}")
             formatted_topics.append("\n".join(lines))
 
