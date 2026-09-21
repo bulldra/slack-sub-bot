@@ -44,18 +44,8 @@ class AgentYoutube(AgentGemini):
         return [types.Content(role="user", parts=prompt_messages)]
 
     def build_message_blocks(self, content: str) -> list:
-        blocks: List[dict] = [
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": self._video_url,
-                },
-            },
-            {"type": "divider"},
-        ]
-        blocks.extend(self._split_markdown_blocks(content))
-        return blocks
+        full_text = f"{self._video_url}\n\n---\n\n{content}"
+        return self._split_markdown_blocks(full_text)
 
     def extract_video_id(self, youtube_url: str) -> Optional[str]:
         parsed = urlparse(youtube_url)

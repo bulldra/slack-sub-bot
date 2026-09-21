@@ -157,8 +157,15 @@ class AgentScrape(Agent):
         fallback_site = scraping_utils.scraping(url)
         if fallback_site and fallback_site.content:
             final_title = fallback_site.title or title_hint or url
+            try:
+                md_content = self._to_markdown(fallback_site.content)
+            except Exception as err:
+                self._logger.warning("AgentScrape _to_markdown failed: %s", err)
+                md_content = fallback_site.content
             cleaned_site = scraping_utils.SiteInfo(
-                url=fallback_site.url, title=final_title, content=fallback_site.content
+                url=fallback_site.url,
+                title=final_title,
+                content=md_content or fallback_site.content,
             )
             self._context["scraped_site"] = cleaned_site
             self._logger.info(
@@ -213,6 +220,15 @@ class AgentScrape(Agent):
 class AgentScrapeText(AgentSlack):
     """スクレイピング結果を全文表示するエージェント（要約なし）"""
 
+    def build_message_blocks(self, content: str) -> list[dict[str, Any]]:
+        site: Optional[scraping_utils.SiteInfo] = self._context.get("scraped_site")
+        title_link = slack_link_utils.build_link(site.url, site.title) if site else ""
+        if title_link:
+            full_text = f"{title_link}\n\n---\n\n{content}"
+        else:
+            full_text = content
+        return self._split_markdown_blocks(full_text)
+
     def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
         if self._context.get("scrape_skipped"):
             self._logger.info("AgentScrapeText skipped: scrape was skipped")
@@ -224,7 +240,7 @@ class AgentScrapeText(AgentSlack):
             return Chat(role="assistant", content=msg)
 
         site: Optional[scraping_utils.SiteInfo] = self._context.get("scraped_site")
-        if site is None:
+        if site is None or not site.content:
             self._logger.info(
                 "AgentScrapeText skipped: scraped_site not found in context"
             )
@@ -233,20 +249,10 @@ class AgentScrapeText(AgentSlack):
                 content="スクレイピングスキップ: コンテンツがありません",
             )
 
-        blocks: List[dict] = [
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": slack_link_utils.build_link(site.url, site.title),
-                },
-            },
-            {"type": "divider"},
-        ]
-        blocks.extend(self._split_markdown_blocks(site.content or ""))
+        content = site.content or ""
+        blocks = self.build_message_blocks(content)
         self.update_message(blocks)
 
-        content = site.content or ""
         result = Chat(role="assistant", content=content)
         chat_history.append(result)
         return result

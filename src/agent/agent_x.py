@@ -161,15 +161,6 @@ class AgentX(AgentChat):
 
     def build_message_blocks(self, content: str) -> list:
         header_text: str = f"@{self._author_username}" if self._author_username else "X"
-        blocks: List[dict] = [
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": slack_link_utils.build_link(self._post_url, header_text),
-                },
-            },
-            {"type": "divider"},
-        ]
-        blocks.extend(self._split_markdown_blocks(content))
-        return blocks
+        header_link = slack_link_utils.build_link(self._post_url, header_text)
+        full_text = f"{header_link}\n\n---\n\n{content}"
+        return self._split_markdown_blocks(full_text)

@@ -173,22 +173,9 @@ class AgentSummarize(AgentChat):
         if self._site is None:
             raise ValueError("site is empty")
 
-        blocks: List[dict] = [
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": slack_link_utils.build_link(
-                        self._site.url, self._site.title
-                    ),
-                },
-            },
-            {"type": "divider"},
-        ]
-        blocks.extend(self._split_markdown_blocks(content))
+        title_link = slack_link_utils.build_link(self._site.url, self._site.title)
+        full_markdown = f"{title_link}\n\n---\n\n{content}"
         if self._site.content:
-            blocks.append({"type": "divider"})
-            blocks.extend(
-                self._split_markdown_blocks(f"## # 本文\n{self._site.content}")
-            )
-        return blocks
+            full_markdown += f"\n\n---\n\n## # 本文\n{self._site.content}"
+
+        return self._split_markdown_blocks(full_markdown)

@@ -101,25 +101,9 @@ class AgentSlackMail(AgentSlack):
         return content
 
     def build_message_blocks(self, content: str) -> List[dict]:
-        blocks: List[dict] = [
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"*From: {_escape_mrkdwn(self._mail.from_name)}*",
-                },
-            },
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"*{_escape_mrkdwn(self._mail.subject)}*",
-                },
-            },
-            {"type": "divider"},
-        ]
-        blocks.extend(self._split_markdown_blocks(content))
-        return blocks
+        header = f"*From: {_escape_mrkdwn(self._mail.from_name)}*\n*{_escape_mrkdwn(self._mail.subject)}*"
+        full_text = f"{header}\n\n---\n\n{content}"
+        return self._split_markdown_blocks(full_text)
 
     def _fetch_html_content(self, mail_url: str) -> str:
         parsed = urllib.parse.urlparse(mail_url)

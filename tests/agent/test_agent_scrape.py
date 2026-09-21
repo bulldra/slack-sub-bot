@@ -67,7 +67,7 @@ class TestAgentScrapeExecute:
 
         mock_scraping.assert_called_once_with("https://example.com/fallback")
         assert agent._context["scraped_site"].title == "スクレイピング記事"
-        assert agent._context["scraped_site"].content == "<p>本文</p>"
+        assert agent._context["scraped_site"].content == "本文"
         assert "スクレイピング完了" in str(result.get("content"))
 
     @patch("agent.agent_scrape.scraping_utils.scraping")
@@ -87,7 +87,7 @@ class TestAgentScrapeExecute:
 
         mock_scraping.assert_called_once_with("https://example.com")
         stored = agent._context["scraped_site"]
-        assert stored.content == "<p>body text</p>"
+        assert stored.content == "body text"
         assert "Example" in str(result.get("content"))
 
     @patch("agent.agent_scrape.scraping_utils.scraping")
