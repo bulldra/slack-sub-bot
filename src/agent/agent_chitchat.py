@@ -144,6 +144,11 @@ class AgentChitchat(AgentGemini):
         extracted.reverse()
         return "\n".join(extracted)
 
+    def build_message_blocks(self, content: str) -> list[dict[str, Any]]:
+        if not content:
+            raise ValueError("Content is empty.")
+        return [{"type": "markdown", "text": content}]
+
     def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
         probability: float = float(arguments.get("probability", 0.20))
         roll = random.random()

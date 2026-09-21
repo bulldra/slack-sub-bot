@@ -159,3 +159,22 @@ def test_fetch_recent_messages_filters_bots_and_commands():
     assert "最新の人間メッセージ" in res
     assert "botの発言" not in res
     assert "/command test" not in res
+
+
+def test_chitchat_build_message_blocks():
+    context = {"channel": "C12345"}
+    agent = AgentChitchat(context)
+    content = "*太字のテスト*\n- 箇条書き1\n- 箇条書き2\n> 引用"
+    blocks = agent.build_message_blocks(content)
+    assert len(blocks) == 1
+    assert blocks[0]["type"] == "markdown"
+    assert blocks[0]["text"] == content
+
+
+def test_chitchat_build_message_blocks_empty_raises():
+    import pytest
+
+    context = {"channel": "C12345"}
+    agent = AgentChitchat(context)
+    with pytest.raises(ValueError, match="Content is empty"):
+        agent.build_message_blocks("")
