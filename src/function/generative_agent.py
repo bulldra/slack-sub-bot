@@ -168,7 +168,7 @@ class GenerativeAgent(GenerativeBase):
                             execute_queue.append(
                                 AgentExecute(agent=step.agent, arguments=step_args)
                             )
-                        continue
+                        return execute_queue
                     if command in command_dict:
                         exe = command_dict[command]
                         if command == "/summarize":
@@ -238,11 +238,12 @@ class GenerativeAgent(GenerativeBase):
                         arguments={},
                     )
                 )
-        execute_queue.append(
-            AgentExecute(
-                agent=command_dict["/notification"],
-                arguments={"content": ""},
+        if not execute_queue or execute_queue[-1].agent != AgentNotification:
+            execute_queue.append(
+                AgentExecute(
+                    agent=command_dict["/notification"],
+                    arguments={"content": ""},
+                )
             )
-        )
 
         return execute_queue

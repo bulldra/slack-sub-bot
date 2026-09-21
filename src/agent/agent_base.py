@@ -317,7 +317,7 @@ class AgentNotification(AgentSlack):
             if self._collect_blocks is not None and not self._collect_blocks:
                 for chat in reversed(chat_history):
                     content = chat.get("content", "")
-                    if content:
+                    if content and content not in ("notified", "deleted"):
                         self._collect_blocks.extend(self.build_message_blocks(content))
                         break
             self.flush_blocks()
