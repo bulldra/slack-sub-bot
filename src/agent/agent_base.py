@@ -178,15 +178,54 @@ class AgentSlack(Agent):
                 unfurl_links=True,
             )
 
+    @staticmethod
+    def _convert_to_section_blocks(
+        blocks: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        converted: list[dict[str, Any]] = []
+        for b in blocks:
+            b_type = b.get("type")
+            if b_type == "markdown":
+                converted.append(
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": str(b.get("text", ""))[:3000],
+                        },
+                    }
+                )
+            elif b_type == "section" and isinstance(b.get("text"), dict):
+                txt_data = dict(b["text"])
+                if "text" in txt_data:
+                    txt_data["text"] = str(txt_data["text"])[:3000]
+                converted.append({**b, "text": txt_data})
+            else:
+                converted.append(b)
+        return converted
+
     def post_message(
         self,
-        blocks: list,
+        blocks: list | None = None,
+        *,
         text: Optional[str] = None,
         channel: Optional[str] = None,
+        msg: dict[str, Any] | None = None,
     ) -> Any:
-        safe_blocks = self._limit_blocks(blocks)
-        msg_text: str = text or self._blocks_to_text(safe_blocks)
         target_channel = channel or self._channel or self._share_channel
+        if not target_channel:
+            raise ValueError("Target channel is missing.")
+
+        raw_blocks = (
+            blocks if blocks is not None else (msg.get("blocks", []) if msg else [])
+        )
+        safe_blocks = self._limit_blocks(raw_blocks)
+        msg_text: str = (
+            text
+            or (msg.get("text") if msg else "")
+            or self._blocks_to_text(safe_blocks)
+        )
+
         try:
             return self._slack.chat_postMessage(
                 channel=target_channel,
@@ -195,10 +234,30 @@ class AgentSlack(Agent):
                 unfurl_links=True,
             )
         except SlackApiError as err:
+            err_code = err.response.get("error", str(err))
+            metadata = err.response.get("response_metadata", {})
             self._logger.warning(
-                "chat_postMessage failed with SlackApiError: %s. Falling back to plain text fallback.",
-                err.response.get("error", err),
+                "chat_postMessage failed with SlackApiError: %s (metadata=%s). Attempting section conversion retry...",
+                err_code,
+                metadata,
             )
+
+            # invalid_blocks の場合、markdown ブロックを section ブロックに変換して一度再試行
+            if err_code == "invalid_blocks":
+                try:
+                    retry_blocks = self._convert_to_section_blocks(safe_blocks)
+                    return self._slack.chat_postMessage(
+                        channel=target_channel,
+                        blocks=retry_blocks,
+                        text=msg_text,
+                        unfurl_links=True,
+                    )
+                except SlackApiError as retry_err:
+                    self._logger.warning(
+                        "Section conversion retry also failed: %s. Falling back to plain text.",
+                        retry_err.response.get("error", str(retry_err)),
+                    )
+
             fallback_blocks: list[dict[str, Any]] = [
                 {
                     "type": "section",
@@ -237,10 +296,32 @@ class AgentSlack(Agent):
                 unfurl_links=True,
             )
         except SlackApiError as err:
+            err_code = err.response.get("error", str(err))
+            metadata = err.response.get("response_metadata", {})
             self._logger.warning(
-                "flush_blocks chat_update failed with SlackApiError: %s. Falling back to plain text fallback.",
-                err.response.get("error", err),
+                "flush_blocks chat_update failed with SlackApiError: %s (metadata=%s). Attempting section conversion retry...",
+                err_code,
+                metadata,
             )
+
+            # invalid_blocks の場合、section ブロックに変換して一度再試行
+            if err_code == "invalid_blocks":
+                try:
+                    retry_blocks = self._convert_to_section_blocks(safe_blocks)
+                    self._slack.chat_update(
+                        channel=self._channel,
+                        ts=self._ts,
+                        blocks=retry_blocks,
+                        text=text,
+                        unfurl_links=True,
+                    )
+                    return
+                except SlackApiError as retry_err:
+                    self._logger.warning(
+                        "flush_blocks section conversion retry also failed: %s. Falling back to plain text.",
+                        retry_err.response.get("error", str(retry_err)),
+                    )
+
             fallback_blocks: list[dict[str, Any]] = [
                 {
                     "type": "section",

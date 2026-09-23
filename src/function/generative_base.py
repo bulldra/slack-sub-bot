@@ -6,7 +6,11 @@ from google.genai import types
 
 import conf.models as models
 from agent.chat_types import Chat
-from utils.gemini_client import get_gemini_client
+from utils.gemini_client import (
+    configure_model_config,
+    generate_content_with_retry,
+    get_gemini_client,
+)
 
 
 class ToolCallItem:
@@ -124,8 +128,6 @@ class GenerativeBase:
         else:
             mode = types.FunctionCallingConfigMode.AUTO
 
-        from utils.gemini_client import configure_model_config
-
         config_args: dict[str, Any] = {
             "tools": [types.Tool(function_declarations=function_declarations)],
             "tool_config": types.ToolConfig(
@@ -141,10 +143,17 @@ class GenerativeBase:
         config = types.GenerateContentConfig(**config_args)
         config = configure_model_config(self._model, config)
 
-        response = self._client.models.generate_content(
+        fallback = (
+            models.gemini_standard()
+            if self._model != models.gemini_standard()
+            else None
+        )
+        response = generate_content_with_retry(
+            client=self._client,
             model=self._model,
             contents=messages,
             config=config,
+            fallback_model=fallback,
         )
 
         items: list[ToolCallItem] = []

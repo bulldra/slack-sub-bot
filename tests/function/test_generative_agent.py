@@ -187,3 +187,34 @@ def test_jev_unavailable_fallbacks_to_chat(monkeypatch: pytest.MonkeyPatch):
     result = agent.generate(None, [Chat(role="user", content="テストメッセージ")])
     assert result[0].agent == AgentChat
     assert result[-1].agent == AgentNotification
+
+
+def test_function_call_uses_retry_and_fallback(monkeypatch: pytest.MonkeyPatch):
+    from unittest.mock import MagicMock, patch
+    from function.generative_base import GenerativeBase
+
+    base = GenerativeBase()
+    base._model = "gemini-3.5-flash-lite"
+    base._client = MagicMock()
+
+    mock_resp = MagicMock()
+    mock_resp.function_calls = []
+    mock_resp.text = "Hello world"
+
+    from google.genai import types
+
+    with patch(
+        "function.generative_base.generate_content_with_retry", return_value=mock_resp
+    ) as mock_retry:
+        items = base.function_call(
+            tools=[{"name": "test_tool", "description": "test", "parameters": {}}],
+            messages=[
+                types.Content(role="user", parts=[types.Part.from_text(text="hi")])
+            ],
+        )
+        assert mock_retry.called
+        _, kwargs = mock_retry.call_args
+        assert kwargs.get("fallback_model") == "gemini-3.8-flash"
+        assert items is not None
+        assert len(items) == 1
+        assert items[0].content == "Hello world"

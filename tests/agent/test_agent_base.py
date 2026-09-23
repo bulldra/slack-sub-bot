@@ -64,6 +64,54 @@ def test_limit_blocks_over_max():
     assert "省略" in result[44]["elements"][0]["text"]
 
 
+def test_convert_to_section_blocks():
+    raw_blocks = [
+        {"type": "markdown", "text": "## Title\n- item 1\n- item 2"},
+        {"type": "section", "text": {"type": "mrkdwn", "text": "normal text"}},
+        {"type": "divider"},
+    ]
+    converted = AgentSlack._convert_to_section_blocks(raw_blocks)
+    assert len(converted) == 3
+    assert converted[0]["type"] == "section"
+    assert converted[0]["text"]["type"] == "mrkdwn"
+    assert "## Title" in converted[0]["text"]["text"]
+    assert converted[1]["type"] == "section"
+    assert converted[2]["type"] == "divider"
+
+
+def test_post_message_retries_on_invalid_blocks():
+    from unittest.mock import MagicMock
+    from slack_sdk.errors import SlackApiError
+
+    mock_slack = MagicMock()
+    # 1回目は invalid_blocks で失敗し、2回目の section リトライで成功
+    fail_resp = {
+        "ok": False,
+        "error": "invalid_blocks",
+        "response_metadata": {"messages": ["error"]},
+    }
+    success_resp = {"ok": True, "ts": "12345.6789"}
+    mock_slack.chat_postMessage.side_effect = [
+        SlackApiError(
+            message="invalid_blocks",
+            response=MagicMock(data=fail_resp, get=fail_resp.get),
+        ),
+        success_resp,
+    ]
+
+    agent = AgentSlack({"channel": "C12345"})
+    agent._slack = mock_slack
+
+    blocks = [{"type": "markdown", "text": "test content"}]
+    res = agent.post_message(blocks=blocks)
+
+    assert mock_slack.chat_postMessage.call_count == 2
+    # 2回目の呼び出し引数が section ブロックに変換されていることを確認
+    second_call_kwargs = mock_slack.chat_postMessage.call_args_list[1][1]
+    assert second_call_kwargs["blocks"][0]["type"] == "section"
+    assert res == success_resp
+
+
 if "SECRETS" not in os.environ:
     pytest.skip("SECRETS not set", allow_module_level=True)
 
