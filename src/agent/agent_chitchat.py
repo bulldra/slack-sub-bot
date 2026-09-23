@@ -207,19 +207,68 @@ class AgentChitchat(AgentGemini):
             self._logger.debug("Weather fetch skipped or failed: %s", e)
         return ""
 
+    @staticmethod
+    def _get_current_jst_hour() -> int:
+        try:
+            import zoneinfo
+
+            jst = zoneinfo.ZoneInfo("Asia/Tokyo")
+            return datetime.now(jst).hour
+        except Exception:
+            from datetime import timezone
+
+            return datetime.now(timezone(timedelta(hours=9))).hour
+
+    @classmethod
+    def _calculate_hourly_probability(
+        cls, base_probability: float, hour: int
+    ) -> tuple[float, str]:
+        """時間帯ごとのつぶやき確率を算出する。
+
+        - 24:00〜6:00 (0 <= hour < 6): 停止 (0.0)
+        - 21:00〜24:00 (21 <= hour < 24) および 6:00〜9:00 (6 <= hour < 9): 低確率 (base * 0.25)
+        - 9:00〜21:00 (9 <= hour < 21): 通常確率 (base)
+        """
+        if 0 <= hour < 6:
+            return 0.0, "night_stopped"
+        if 6 <= hour < 9 or 21 <= hour < 24:
+            return base_probability * 0.25, "low_probability"
+        return base_probability, "normal_probability"
+
     def execute(self, arguments: dict[str, Any], chat_history: List[Chat]) -> Chat:
-        probability: float = float(arguments.get("probability", 0.20))
-        roll = random.random()
-        if roll >= probability:
+        force = bool(arguments.get("force", False))
+        base_probability: float = float(arguments.get("probability", 0.20))
+        hour = self._get_current_jst_hour()
+        effective_prob, period_label = self._calculate_hourly_probability(
+            base_probability, hour
+        )
+
+        if not force and effective_prob <= 0.0:
             self._logger.info(
-                "Chitchat skipped: roll=%.3f >= probability=%.2f", roll, probability
+                "Chitchat stopped during quiet hours (JST %02d:00, %s)",
+                hour,
+                period_label,
+            )
+            return Chat(role="assistant", content="")
+
+        roll = random.random()
+        threshold = base_probability if force else effective_prob
+        if roll >= threshold:
+            self._logger.info(
+                "Chitchat skipped: roll=%.3f >= probability=%.3f (hour=%d, %s)",
+                roll,
+                threshold,
+                hour,
+                period_label,
             )
             return Chat(role="assistant", content="")
 
         self._logger.info(
-            "Chitchat rolled successfully: roll=%.3f < probability=%.2f",
+            "Chitchat rolled successfully: roll=%.3f < probability=%.3f (hour=%d, %s)",
             roll,
-            probability,
+            threshold,
+            hour,
+            period_label,
         )
 
         after_days = int(arguments.get("after_days", 3))

@@ -5,6 +5,15 @@ from agent.chat_types import Chat
 from function.flow_loader import get_flow
 
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def default_jst_hour():
+    with patch.object(AgentChitchat, "_get_current_jst_hour", return_value=12):
+        yield
+
+
 def test_chitchat_flow_loaded():
     flow = get_flow("/chitchat")
     assert flow is not None
@@ -14,16 +23,55 @@ def test_chitchat_flow_loaded():
     assert flow.steps[0].arguments.get("probability") == 0.20
 
 
-def test_chitchat_skip_when_roll_high():
+def test_calculate_hourly_probability():
+    base = 0.20
+    # 24:00〜6:00 (0, 1, 2, 3, 4, 5) -> 停止 (0.0)
+    for h in [0, 1, 3, 5]:
+        prob, label = AgentChitchat._calculate_hourly_probability(base, h)
+        assert prob == 0.0
+        assert label == "night_stopped"
+
+    # 6:00〜9:00 (6, 7, 8) -> 低確率 (0.05)
+    for h in [6, 7, 8]:
+        prob, label = AgentChitchat._calculate_hourly_probability(base, h)
+        assert prob == 0.05
+        assert label == "low_probability"
+
+    # 21:00〜24:00 (21, 22, 23) -> 低確率 (0.05)
+    for h in [21, 22, 23]:
+        prob, label = AgentChitchat._calculate_hourly_probability(base, h)
+        assert prob == 0.05
+        assert label == "low_probability"
+
+    # 9:00〜21:00 (9, 12, 18, 20) -> 通常確率 (0.20)
+    for h in [9, 12, 18, 20]:
+        prob, label = AgentChitchat._calculate_hourly_probability(base, h)
+        assert prob == 0.20
+        assert label == "normal_probability"
+
+
+def test_chitchat_stopped_during_night_hours():
     context = {"channel": "C12345"}
     agent = AgentChitchat(context)
-    with patch("random.random", return_value=0.5):
-        with patch.object(agent, "completion") as mock_comp:
-            with patch.object(agent, "post_message") as mock_post:
+    with patch.object(agent, "_get_current_jst_hour", return_value=3):
+        with patch("random.random", return_value=0.01):  # 低い値でも停止
+            with patch.object(agent, "completion") as mock_comp:
                 result = agent.execute({"probability": 0.20}, [])
                 assert result.content == ""
                 mock_comp.assert_not_called()
-                mock_post.assert_not_called()
+
+
+def test_chitchat_skip_when_roll_high():
+    context = {"channel": "C12345"}
+    agent = AgentChitchat(context)
+    with patch.object(agent, "_get_current_jst_hour", return_value=12):
+        with patch("random.random", return_value=0.5):
+            with patch.object(agent, "completion") as mock_comp:
+                with patch.object(agent, "post_message") as mock_post:
+                    result = agent.execute({"probability": 0.20}, [])
+                    assert result.content == ""
+                    mock_comp.assert_not_called()
+                    mock_post.assert_not_called()
 
 
 def test_chitchat_executed_when_roll_low():

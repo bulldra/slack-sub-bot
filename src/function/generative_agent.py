@@ -123,9 +123,12 @@ class GenerativeAgent(GenerativeBase):
         except (_json.JSONDecodeError, TypeError):
             pass
 
-        # Phase 0: URL のみの場合は要約せずスクレイピングのみ実行
+        # Phase 0: URL のみ、またはフィード投稿（記事抜粋付きURL等）の場合は要約せず全文スクレイピングを実行
         content: str = str(chat_history[-1].get("content", ""))
-        if slack_link_utils.is_only_url(content):
+        if command is None and (
+            slack_link_utils.is_feed_post(content)
+            or slack_link_utils.is_only_url(content)
+        ):
             # slack_historyはトラッキングURL解決前に判定（リダイレクトで別URLになるため）
             raw_url: Optional[str] = slack_link_utils.extract_url(content)
             if raw_url and scraping_utils.classify_url(raw_url) == "slack_history":
@@ -139,16 +142,16 @@ class GenerativeAgent(GenerativeBase):
                         arguments={"content": ""},
                     ),
                 ]
-            url_only: Optional[str] = slack_link_utils.extract_and_remove_tracking_url(
-                content
+            url_target: Optional[str] = (
+                slack_link_utils.extract_and_remove_tracking_url(content)
             )
-            if url_only:
-                strategy_only = scraping_utils.classify_url(url_only)
-                if strategy_only == "scrape":
+            if url_target:
+                strategy = scraping_utils.classify_url(url_target)
+                if strategy == "scrape":
                     return [
                         AgentExecute(
                             agent=AgentScrape,
-                            arguments={"url": url_only},
+                            arguments={"url": url_target},
                         ),
                         AgentExecute(
                             agent=AgentScrapeText,
@@ -159,8 +162,8 @@ class GenerativeAgent(GenerativeBase):
                             arguments={"content": ""},
                         ),
                     ]
-                if strategy_only not in ("ignore",):
-                    flow_command = f"/{strategy_only}"
+                if strategy not in ("ignore",):
+                    flow_command = f"/{strategy}"
                     delegate_flow = flow_loader.get_flow(flow_command)
                     if delegate_flow is not None:
                         return flow_loader.build_execute_queue(delegate_flow)

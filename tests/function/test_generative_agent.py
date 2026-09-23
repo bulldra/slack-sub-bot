@@ -134,46 +134,32 @@ def test_slack_history(pytestconfig: pytest.Config):
     assert result == expected
 
 
-def test_url_with_description_routes_to_summarize(pytestconfig: pytest.Config):
-    from agent.agent_summarize import AgentSummarize
-
-    content = (
-        "<https://predge.jp/358742/|看護師のリアルな成長物語で伝える 訪問看護「おうちの里」の採用広報戦略>\n"
-        "訪問看護ステーション「おうちの里」が、現役看護師の実話をもとにしたInstagramショートドラマ『看ドラ』を開始。"
-    )
-    result = GenerativeAgent().generate(None, [Chat(role="user", content=content)])
-    agents = [e.agent for e in result]
-    assert AgentScrape in agents
-    assert AgentSummarize in agents
-
-
-def test_url_with_description_fallback_when_llm_returns_message(
+def test_url_with_description_routes_to_full_text(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    from unittest.mock import MagicMock
-    from agent.agent_summarize import AgentSummarize
-    from function.generative_base import ToolCallItem
+    from agent.agent_scrape import AgentScrapeText
 
     agent = GenerativeAgent()
-    # JEV が None を返した場合（障害または未設定時）のフォールバック動作を検証
-    monkeypatch.setattr(agent, "_route_with_jev", MagicMock(return_value=None))
-    monkeypatch.setattr(
-        agent,
-        "function_call",
-        MagicMock(
-            return_value=[ToolCallItem(type="message", content="面白い記事ですね。")]
-        ),
-    )
-
     content = (
-        "<https://predge.jp/358742/|看護師のリアルな成長物語で伝える 訪問看護「おうちの里」の採用広報戦略>\n"
-        "訪問看護ステーション「おうちの里」が、現役看護師の実話をもとにしたInstagramショートドラマ『看ドラ』を開始。"
+        "<https://www.tyoshiki.com/entry/2026/09/23/123957|記事を書くハードルが劇的に下がりすぎて>\n"
+        "「お前はもうとっくにブログ廃人だが？」と言われるかもしれないけれど、今よりもっとひどくなるってことだよ！"
     )
     result = agent.generate(None, [Chat(role="user", content=content)])
+    expected_agents = [AgentScrape, AgentScrapeText, AgentNotification]
+    assert [e.agent for e in result] == expected_agents
+    assert result[0].arguments == {
+        "url": "https://www.tyoshiki.com/entry/2026/09/23/123957"
+    }
+
+
+def test_explicit_summarize_instruction_routes_to_summarize():
+    from agent.agent_summarize import AgentSummarize
+
+    agent = GenerativeAgent()
+    content = "<https://predge.jp/358742/|看護師の採用広報戦略>"
+    result = agent.generate("/summarize", [Chat(role="user", content=content)])
     expected_agents = [AgentScrape, AgentSummarize, AgentNotification]
     assert [e.agent for e in result] == expected_agents
-    assert result[0].arguments == {"url": "https://predge.jp/358742/"}
-    assert result[1].arguments == {"url": "https://predge.jp/358742/"}
 
 
 def test_jev_unavailable_fallbacks_to_chat(monkeypatch: pytest.MonkeyPatch):

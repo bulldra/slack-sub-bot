@@ -101,6 +101,49 @@ def is_only_url(text: Optional[str]) -> bool:
     return False
 
 
+def is_feed_post(text: Optional[str]) -> bool:
+    """RSSやGoogle Alerts等のフィード投稿（URLが主体のメッセージ）かどうかを判定する。
+
+    先頭がURL（またはSlackリンク <URL|タイトル>）で始まり、
+    明確な対話・指示文（「要約して」「調べて」など）を含まないメッセージをフィード投稿とみなす。
+    抜粋文（description）が含まれる場合もTrueを返す。
+    """
+    if not text or not is_contains_url(text):
+        return False
+
+    if is_only_url(text):
+        return True
+
+    stripped = text.strip()
+    # 先頭が <http... または http... で始まっているか
+    if not (
+        stripped.startswith("<http://")
+        or stripped.startswith("<https://")
+        or stripped.startswith("http://")
+        or stripped.startswith("https://")
+    ):
+        return False
+
+    # ユーザーからの明示的な指示キーワードが含まれている場合はフィードとみなさない
+    explicit_instructions = [
+        "要約して",
+        "まとめて",
+        "要約お願い",
+        "まとめをお願い",
+        "教えて",
+        "調べて",
+        "どう思う",
+        "検索して",
+        "翻訳して",
+        "解説して",
+    ]
+    for kw in explicit_instructions:
+        if kw in stripped:
+            return False
+
+    return True
+
+
 def can_parse_url(url):
     try:
         result = urllib.parse.urlparse(url)

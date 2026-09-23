@@ -68,6 +68,38 @@ def test_is_only_url(argument, expected):
 @pytest.mark.parametrize(
     "argument,expected",
     [
+        (None, False),
+        ("", False),
+        ("https://www.example.com/", True),
+        ("<https://www.example.com/entry|タイトル>", True),
+        (
+            "<https://www.tyoshiki.com/entry/2026/09/23/123957|記事を書くハードルが劇的に下がりすぎて>\n"
+            "「お前はもうとっくにブログ廃人だが？」と言われるかもしれないけれど、今よりもっとひどくなるってことだよ！",
+            True,
+        ),
+        (
+            "<https://predge.jp/358742/|看護師のリアルな成長物語で伝える 訪問看護「おうちの里」の採用広報戦略>\n"
+            "訪問看護ステーション「おうちの里」が、現役看護師の実話をもとにしたInstagramショートドラマを開始。",
+            True,
+        ),
+        (
+            "このURLを要約して: <https://example.com/entry|タイトル>",
+            False,
+        ),
+        (
+            "<https://example.com/entry|タイトル>\nこれを要約してください。",
+            False,
+        ),
+    ],
+)
+def test_is_feed_post(argument, expected):
+    actual = slack_link_utils.is_feed_post(argument)
+    assert actual == expected
+
+
+@pytest.mark.parametrize(
+    "argument,expected",
+    [
         (None, None),
         ("", None),
         (
