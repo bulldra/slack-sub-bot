@@ -368,3 +368,29 @@ def test_scraping_raw_blocks_ssrf(monkeypatch):
     res = scraping_utils.scraping_raw("http://169.254.169.254/computeMetadata/v1/")
     assert res is None
     mock_get.assert_not_called()
+
+
+def test_scraping_raw_catches_connection_error(monkeypatch):
+    import requests
+    from unittest.mock import MagicMock
+
+    mock_get = MagicMock(
+        side_effect=requests.exceptions.ConnectionError("Connection aborted.")
+    )
+    monkeypatch.setattr(requests, "get", mock_get)
+
+    res = scraping_utils.scraping_raw("https://example.com/some-article")
+    assert res is None
+
+
+def test_scraping_pdf_catches_connection_error(monkeypatch):
+    import requests
+    from unittest.mock import MagicMock
+
+    mock_get = MagicMock(
+        side_effect=requests.exceptions.ConnectionError("Connection aborted.")
+    )
+    monkeypatch.setattr(requests, "get", mock_get)
+
+    res = scraping_utils.scraping_pdf("https://example.com/some.pdf")
+    assert res is None

@@ -117,7 +117,7 @@ class AgentSlack(Agent):
             text_byte = text_byte[:3000]
         return text_byte.decode("utf-8", errors="ignore")
 
-    _MAX_SLACK_BLOCKS: int = 45
+    _MAX_SLACK_BLOCKS: int = 40
 
     @classmethod
     def _limit_blocks(cls, blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -155,10 +155,31 @@ class AgentSlack(Agent):
                 unfurl_links=True,
             )
         except SlackApiError as err:
+            err_code = err.response.get("error", str(err))
+            metadata = err.response.get("response_metadata", {})
             self._logger.warning(
-                "chat_update failed with SlackApiError: %s. Falling back to plain text fallback.",
-                err.response.get("error", err),
+                "chat_update failed with SlackApiError: %s (metadata=%s). Attempting section conversion retry...",
+                err_code,
+                metadata,
             )
+            if err_code == "invalid_blocks":
+                try:
+                    retry_blocks = self._limit_blocks(
+                        self._convert_to_section_blocks(safe_blocks)
+                    )
+                    self._slack.chat_update(
+                        channel=self._channel,
+                        ts=self._ts,
+                        blocks=retry_blocks,
+                        text=text,
+                        unfurl_links=True,
+                    )
+                    return
+                except SlackApiError as retry_err:
+                    self._logger.warning(
+                        "chat_update section conversion retry also failed: %s. Falling back to plain text.",
+                        retry_err.response.get("error", str(retry_err)),
+                    )
             fallback_blocks: list[dict[str, Any]] = [
                 {
                     "type": "section",
@@ -245,7 +266,9 @@ class AgentSlack(Agent):
             # invalid_blocks の場合、markdown ブロックを section ブロックに変換して一度再試行
             if err_code == "invalid_blocks":
                 try:
-                    retry_blocks = self._convert_to_section_blocks(safe_blocks)
+                    retry_blocks = self._limit_blocks(
+                        self._convert_to_section_blocks(safe_blocks)
+                    )
                     return self._slack.chat_postMessage(
                         channel=target_channel,
                         blocks=retry_blocks,
@@ -307,7 +330,9 @@ class AgentSlack(Agent):
             # invalid_blocks の場合、section ブロックに変換して一度再試行
             if err_code == "invalid_blocks":
                 try:
-                    retry_blocks = self._convert_to_section_blocks(safe_blocks)
+                    retry_blocks = self._limit_blocks(
+                        self._convert_to_section_blocks(safe_blocks)
+                    )
                     self._slack.chat_update(
                         channel=self._channel,
                         ts=self._ts,

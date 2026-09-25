@@ -149,6 +149,20 @@ class AgentX(AgentChat):
         return super().build_prompt(arguments, [Chat(role="user", content=prompt)])
 
     def execute(self, arguments: dict[str, Any], chat_history: list[Chat]) -> Chat:
+        url = str(arguments.get("url") or "")
+        if not url and chat_history:
+            extracted = slack_link_utils.extract_and_remove_tracking_url(
+                str(chat_history[-1].get("content"))
+            )
+            url = extracted or ""
+
+        post_id = scraping_utils.extract_x_post_id(url)
+        if not post_id:
+            msg = f"Xポストの取得に失敗しました（指定されたURLはXのポスト（ツイート）URLではありません: {url}）"
+            self._logger.warning("AgentX skipped: %s", msg)
+            self.update_message(self._build_error_blocks(msg), force=True)
+            return Chat(role="assistant", content=msg)
+
         try:
             return super().execute(arguments, chat_history)
         except (tweepy.TweepyException, ValueError) as e:

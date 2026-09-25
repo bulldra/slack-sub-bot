@@ -51,6 +51,16 @@ def test_x_routing():
     assert result[0] == AgentExecute(agent=AgentX, arguments={})
 
 
+def test_agent_x_skip_invalid_url():
+    from agent.agent_x import AgentX
+    from agent.chat_types import Chat
+
+    agent = AgentX({})
+    invalid_url = "https://x.com/i/trending/2103308145116217763"
+    result = agent.execute({"url": invalid_url}, [])
+    assert "指定されたURLはXのポスト（ツイート）URLではありません" in result["content"]
+
+
 def test_expand_urls():
     from agent.agent_x import AgentX
 

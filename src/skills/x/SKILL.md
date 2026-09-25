@@ -1,6 +1,6 @@
 ---
 name: x
-description: X（Twitter）のURLを受け取ったら実行。ポストの内容を分析して返す
+description: X（Twitter）のポスト（ツイート）URLを受け取ったら実行。ポストの内容を分析して返す（※トレンドやプロフィールURL等は対象外）
 routable: true
 priority: 30
 parameters:
@@ -8,7 +8,7 @@ parameters:
   properties:
     url:
       type: string
-      description: X（Twitter）のURL
+      description: X（Twitter）のポストURL（status含むURL）
   required:
     - url
 ---

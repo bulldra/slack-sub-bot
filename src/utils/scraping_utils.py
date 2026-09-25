@@ -294,6 +294,9 @@ def scraping_raw(url: str) -> Optional[str]:
             logger.info("%s Client Error, skipping: %s", err.response.status_code, url)
             return None
         raise
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as err:
+        logger.warning("Connection error scraping %s: %s", url, err)
+        return None
 
 
 def scraping_pdf(url: str) -> Optional[SiteInfo]:
@@ -319,17 +322,24 @@ def scraping_pdf(url: str) -> Optional[SiteInfo]:
             )
             return None
         raise
-    with tempfile.NamedTemporaryFile(mode="wb+", delete=True) as t:
-        t.write(res.content)
-        t.seek(0)
-        pdf = pypdf.PdfReader(t)
-        content: str = "\n\n".join(
-            [page.extract_text() for page in pdf.pages if page.extract_text()]
-        )
-        title = url
-        if pdf.metadata is not None:
-            title = pdf.metadata.get("title", url)
-        return SiteInfo(url=url, title=title, content=content)
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as err:
+        logger.warning("Connection error scraping PDF %s: %s", url, err)
+        return None
+    try:
+        with tempfile.NamedTemporaryFile(mode="wb+", delete=True) as t:
+            t.write(res.content)
+            t.seek(0)
+            pdf = pypdf.PdfReader(t)
+            content: str = "\n\n".join(
+                [page.extract_text() for page in pdf.pages if page.extract_text()]
+            )
+            title = url
+            if pdf.metadata is not None:
+                title = pdf.metadata.get("title", url)
+            return SiteInfo(url=url, title=title, content=content)
+    except Exception as err:
+        logger.warning("Failed to parse PDF %s: %s", url, err)
+        return None
 
 
 def scraping_text(content: str) -> Tuple[str, str]:
